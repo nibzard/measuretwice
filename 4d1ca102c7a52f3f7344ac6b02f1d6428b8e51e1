@@ -1,0 +1,41 @@
+# Design: Deterministic verification automation (T005)
+
+## Problem
+Behavior implementation starts with T009, but AGENTS.md sections 6
+and 11 demand repeatable checks first: ordinary tests must need no
+credentials, no API spend, and no network.
+
+## Approach
+One Vitest runner covers package tests and repository checks; cargo
+owns fmt, clippy, and unit tests; one command (npm run check) runs
+every gate that CI runs. No new dependency was added.
+
+## Key Trade-offs
+- Hand-written structural checks instead of Ajv: the repo rules out
+  Ajv for the runtime, and authoritative artifact validation belongs
+  to the Rust core anyway. The checks encode documented invariants
+  (draft 2020-12, unique $id per file name, additionalProperties
+  false on object roots, local $ref resolution), not general
+  validation.
+- SplitMix64 implemented twice (Rust core, TS support) with shared
+  golden values, so cross-language parity is under test without a
+  shared fixture file (fixtures arrive in T006).
+- Two Vitest configs instead of an environment-variable gate, so the
+  live lane works on every shell without cross-env.
+- to-do.json validated by a mirror of to-do.schema.json plus two
+  semantic rules (unique ids, existing dependencies), because the
+  task file changes every iteration.
+- research/ is excluded from link and name scans: AGENTS.md keeps
+  historical records and quotations with original wording.
+
+## Gotchas
+- jq's // operator treats JSON false as absent; use
+  .additionalProperties == false in one-off queries.
+- V8 rolls impossible dates over (2026-02-30 becomes 03-02), so the
+  date check compares the stated day against its month.
+- A quoted wrong name form is a quotation, not a use; the scan strips
+  double-quoted spans before it matches.
+
+## References
+- TESTING.md, DEVELOPING.md, .github/workflows/ci.yml
+- Task T005 in to-do.json; MVP_SPEC.md sections 5 and 15
