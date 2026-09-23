@@ -1,0 +1,18 @@
+[package]
+name = "measuretwice-core"
+description = "Shared measuretwice core: contract validation, exact rules, decision policy, canonical hashes, statistics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+# Dependency purposes, with the task that first uses each one:
+# - serde, serde_json: serializable artifact types for the frozen contracts (T009).
+# - sha2: SHA-256 content hashes over domain-tagged canonical forms (T012),
+#   as contracts/v0/hashing.md requires.
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }

@@ -105,7 +105,7 @@
         "T001",
         "T002"
       ],
-      "updated_at": "2026-09-23T21:47:53Z",
+      "updated_at": "2026-09-23T21:48:19Z",
       "files": [
         "contracts/README.md",
         "contracts/v0/hashing.md",
@@ -118,7 +118,7 @@
       "id": "T004",
       "title": "Bootstrap Rust and TypeScript workspaces",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Create the shared Rust library and the TypeScript software development kit (SDK). Keep the public application programming interface (API) independent of providers. Sources: MVP_SPEC.md sections 5, 14; AGENTS.md sections 2, 5-6.",
       "steps": [
         "Create the Rust core, thin NAPI-RS binding, and one public TypeScript package with a command-line interface (CLI).",
@@ -136,6 +136,29 @@
         "T001",
         "T002",
         "T003"
+      ],
+      "updated_at": "2026-09-23T22:01:31Z",
+      "files": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/measuretwice-core/Cargo.toml",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-node/Cargo.toml",
+        "crates/measuretwice-node/build.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "crates/measuretwice-node/package.json",
+        "package.json",
+        "package-lock.json",
+        "packages/measuretwice/package.json",
+        "packages/measuretwice/tsconfig.json",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/cli.ts",
+        "tsconfig.base.json",
+        "DEVELOPING.md",
+        "LICENSE",
+        ".gitignore",
+        "to-do.json"
       ]
     },
     {

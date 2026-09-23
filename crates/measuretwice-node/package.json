@@ -1,0 +1,22 @@
+{
+  "name": "measuretwice-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native Node binding for the measuretwice Rust core. Not public API.",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "measuretwice-node",
+    "triples": {
+      "defaults": false,
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc"
+      ]
+    }
+  }
+}

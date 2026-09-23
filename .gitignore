@@ -1,2 +1,17 @@
 # Generated measuretwice reports
 /.measuretwice/reports/
+
+# Rust build output
+/target/
+
+# Node modules
+/node_modules/
+
+# Generated TypeScript output
+/packages/*/dist/
+*.tsbuildinfo
+
+# Generated native binding artifacts
+/crates/measuretwice-node/index.js
+/crates/measuretwice-node/index.d.ts
+/crates/measuretwice-node/*.node

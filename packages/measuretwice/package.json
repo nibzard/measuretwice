@@ -1,0 +1,42 @@
+{
+  "name": "measuretwice",
+  "version": "0.1.0",
+  "description": "Author readable checks in TypeScript, run them through evaluators, and calibrate before you rely on the results.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "measuretwice": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nibzard/measuretwice.git"
+  },
+  "keywords": [
+    "checks",
+    "evaluation",
+    "calibration",
+    "ai"
+  ],
+  "scripts": {
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "measuretwice-node": "0.1.0",
+    "typebox": "1.3.34"
+  }
+}

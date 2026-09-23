@@ -1,0 +1,26 @@
+{
+  "name": "measuretwice-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Development workspace for measuretwice: Rust core, Node binding, and public TypeScript package.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*",
+    "crates/measuretwice-node"
+  ],
+  "scripts": {
+    "build": "npm run build:native && npm run build:ts",
+    "build:native": "napi build --platform -p measuretwice-node",
+    "build:ts": "tsc -p packages/measuretwice",
+    "clean": "rm -rf packages/measuretwice/dist crates/measuretwice-node/index.js crates/measuretwice-node/index.d.ts crates/measuretwice-node/*.node"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.10.5",
+    "@types/node": "26.6.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}
