@@ -15,6 +15,7 @@ records the test suites and the verification commands. The task list is
 | `crates/measuretwice-node` | Thin NAPI-RS binding. It exposes serializable core operations to Node. |
 | `packages/measuretwice` | The one public TypeScript package, with the CLI entry point. |
 | `contracts/v0` | The frozen portable artifact contracts. |
+| `fixtures` | Shared cross-language conformance fixtures for the portable contracts. Mandatory for every wrapper. |
 | `.measuretwice` | Development checks for this repository. |
 | `tests/repo` | Repository checks for schemas, examples, links, and names. |
 | `tests/live` | Opt-in live evaluations. Empty until task T065. |

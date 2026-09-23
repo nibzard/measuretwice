@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "name": "message-supported",
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "prior_decision": {"type": "string", "minLength": 1},
+      "conversation": {"type": "string", "minLength": 1},
+      "proposed_message": {"type": "string", "minLength": 1}
+    },
+    "required": ["prior_decision", "conversation", "proposed_message"],
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "message-supported",
+      "name": "Our message accurately describes the evidence",
+      "using": ["prior_decision", "conversation", "proposed_message"],
+      "question": "Does every material claim in the proposed message follow from the evidence?",
+      "answers": {
+        "supported": "All claims are supported with appropriate certainty and attribution.",
+        "contradicted": "A material claim conflicts with the supplied evidence.",
+        "incomplete": "Support for a material claim is missing or ambiguous."
+      },
+      "accept": "supported",
+      "review": "incomplete"
+    }
+  ]
+}

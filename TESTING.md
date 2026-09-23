@@ -19,7 +19,8 @@ layout.
 | --- | --- | --- | --- |
 | Rust unit tests | next to the code in `crates/` | `cargo test` | Core behavior and invariants. |
 | Package tests | `packages/measuretwice/test/` | Vitest | Public package behavior, the CLI, and the test support itself. |
-| Repository checks | `tests/repo/` | Vitest | The frozen schemas, the example cases, documentation links, and the project name. |
+| Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, documentation links, and the project name. |
+| Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
 
 The package tests load the native binding and the compiled CLI. Run
@@ -75,6 +76,22 @@ assert the same golden values, so the parity is itself under test.
 in order. It fails with an explicit error when the script runs out. It
 never invents an answer and it never contacts a service. Use it for
 evaluator and adapter boundaries when those features arrive.
+
+## Conformance fixtures
+
+The shared fixtures in `fixtures/` pin the portable contracts before the
+wrappers exist. The [fixture README](fixtures/README.md) lists every group and
+its runner rule.
+
+- The repository checks in `tests/repo/fixtures.test.ts` verify the fixture
+  data: the digest formula, the structural invariants, and the cross-file
+  links. They are offline and deterministic.
+- Every wrapper runs every group through the Rust core. A wrapper never
+  recomputes a rule, a canonical form, or a hash.
+- The same fixtures are mandatory for the later Python SDK. MVP_SPEC.md
+  section 15 states this requirement.
+- A contract change updates the affected fixtures in the same change, as the
+  [contracts README](contracts/README.md) requires.
 
 ## Live evaluations are opt-in
 

@@ -1,0 +1,639 @@
+{
+  "schema_version": 1,
+  "description": "Profile state fixtures. The profiles array holds valid artifacts with their computed self-hash in the profile domain: the artifact with its own content_hash field removed. The invalid array holds artifacts that Rust must reject. The compatibility array holds valid profiles paired with the wrong definition: that failure is a compatibility failure before execution, not an artifact error. Every qualification status appears at least once. A qualification flag is not an authenticated approval.",
+  "profiles": [
+    {
+      "schema_version": 1,
+      "id": "message-supported-exploration",
+      "origin": "exploration",
+      "intended_use": "Proposed intervention messages during development. Not a measured population.",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "bindings": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation": {
+            "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+            "question": "Does every material claim in the proposed message follow from the evidence?"
+          },
+          "model": {
+            "requested": "jev-1.13",
+            "resolved": "jev-1.13-2026-09-01"
+          }
+        }
+      ],
+      "policy": {
+        "family": "probability_mass_v0",
+        "checks": [
+          {
+            "check": "message-supported",
+            "accept_cutoff": 0.75,
+            "rejection_cutoff": 0.65
+          }
+        ]
+      },
+      "execution": {
+        "max_active": 4,
+        "max_pending": 16,
+        "deadline_ms": 30000,
+        "max_attempts": 2,
+        "backoff_ms": 200
+      },
+      "qualification": {
+        "status": "unvalidated",
+        "scope": "Development use in evaluation and shadow mode.",
+        "reasons": [
+          "starter_policy"
+        ]
+      },
+      "content_hash": "84b0ebd8eeb9c3f172a25472cdc79a03a8614df6f96f0409a579087b29adf1cc"
+    },
+    {
+      "schema_version": 1,
+      "id": "delivery-limits-exact",
+      "origin": "exact",
+      "intended_use": "Delivery limits on summary and notice text in any population. Exact rules need no stochastic calibration.",
+      "definition": {
+        "name": "delivery-limits",
+        "content_hash": "b42095ca790562a64294b369641a8699c6d3c1c2d95f6d5e98091a9fa38f8b2f"
+      },
+      "bindings": [],
+      "policy": {
+        "family": "exact"
+      },
+      "execution": {
+        "max_active": 4,
+        "max_pending": 16,
+        "deadline_ms": 30000,
+        "max_attempts": 2,
+        "backoff_ms": 200
+      },
+      "qualification": {
+        "status": "validated_for_scope",
+        "scope": "Any input that matches the definition schema. The reason records a structural basis, not a quality claim.",
+        "reasons": [
+          "exact_rules_only"
+        ]
+      },
+      "content_hash": "164858f17ef7558ae77f0d295cf9a97cb592ee034cefc0b007bcbd898c5cbe5a"
+    },
+    {
+      "schema_version": 1,
+      "id": "message-supported-validated",
+      "origin": "calibration",
+      "intended_use": "Proposed intervention messages in the Cassandra pilot conversation population.",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "bindings": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation": {
+            "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+            "question": "Does every material claim in the proposed message follow from the evidence?"
+          },
+          "model": {
+            "requested": "jev-1.13",
+            "resolved": "jev-1.13-2026-09-01"
+          }
+        }
+      ],
+      "policy": {
+        "family": "probability_mass_v0",
+        "checks": [
+          {
+            "check": "message-supported",
+            "accept_cutoff": 0.8,
+            "rejection_cutoff": 0.7
+          }
+        ]
+      },
+      "execution": {
+        "max_active": 4,
+        "max_pending": 16,
+        "deadline_ms": 30000,
+        "max_attempts": 2,
+        "backoff_ms": 200
+      },
+      "evidence": {
+        "plan": {
+          "id": "message-supported-plan",
+          "content_hash": "de4bcb9a68a77d5ca7f6fb5a4da35c53e80a5ba955ef57cfe42a85f0fcd0ff79"
+        },
+        "datasets": [
+          {
+            "id": "message-supported-cases",
+            "revision": "2026-09-23",
+            "content_hash": "86075a4c092c84f0f6db5fa6b55eb95771c6ebe8dd94c616937a13733c5a2ba7"
+          }
+        ],
+        "splits": [
+          {
+            "id": "fitting",
+            "content_hash": "923feb8e4dd601bc4fb2585e95f787503384df7e6a1ce623aec90280424261c6"
+          },
+          {
+            "id": "validation",
+            "content_hash": "d9b765d1f02168bfc5dc596a3c7b4968184e3d1200b2207230a2944edac11336"
+          }
+        ],
+        "label_provenance": "Synthetic cases proposed by a coding agent. A human reviewed and corrected the later-corrections case. Model suggestions are not human judgments.",
+        "evaluation_reports": [
+          "reports/message-supported-fitting.json"
+        ],
+        "statistical_method": "Wilson score intervals at 95 percent confidence, computed on accepted cases. Cases grouped by conversation."
+      },
+      "performance": {
+        "metrics": [
+          {
+            "scope": "message-supported",
+            "metric": "error_among_accepted",
+            "numerator": 0,
+            "denominator": 80,
+            "value": 0
+          },
+          {
+            "scope": "all_checks",
+            "metric": "review_rate",
+            "numerator": 12,
+            "denominator": 200,
+            "value": 0.06
+          }
+        ],
+        "intervals": [
+          {
+            "scope": "message-supported",
+            "metric": "error_among_accepted",
+            "method": "wilson_score",
+            "confidence_level": 0.95,
+            "lower": 0,
+            "upper": 0.0458
+          }
+        ],
+        "sample_counts": {
+          "labeled_cases": 200,
+          "accepted_cases": 80
+        },
+        "slice_limitations": [
+          "The later-corrections slice holds 31 labeled cases, above the plan minimum of 30."
+        ]
+      },
+      "qualification": {
+        "status": "validated_for_scope",
+        "scope": "The Cassandra pilot conversation population declared in the plan.",
+        "reasons": [
+          "measured_evidence"
+        ]
+      },
+      "content_hash": "bd255537e343281756d3f0b61e6335b6412c00494f2635d8fd7922d46d135760"
+    },
+    {
+      "schema_version": 1,
+      "id": "message-supported-insufficient",
+      "origin": "calibration",
+      "intended_use": "Proposed intervention messages in the Cassandra pilot conversation population.",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "bindings": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation": {
+            "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+            "question": "Does every material claim in the proposed message follow from the evidence?"
+          },
+          "model": {
+            "requested": "jev-1.13",
+            "resolved": "jev-1.13-2026-09-01"
+          }
+        }
+      ],
+      "policy": {
+        "family": "probability_mass_v0",
+        "checks": [
+          {
+            "check": "message-supported",
+            "accept_cutoff": 0.8,
+            "rejection_cutoff": 0.7
+          }
+        ]
+      },
+      "execution": {
+        "max_active": 4,
+        "max_pending": 16,
+        "deadline_ms": 30000,
+        "max_attempts": 2,
+        "backoff_ms": 200
+      },
+      "evidence": {
+        "plan": {
+          "id": "message-supported-plan",
+          "content_hash": "de4bcb9a68a77d5ca7f6fb5a4da35c53e80a5ba955ef57cfe42a85f0fcd0ff79"
+        },
+        "datasets": [
+          {
+            "id": "message-supported-cases",
+            "revision": "2026-09-23",
+            "content_hash": "86075a4c092c84f0f6db5fa6b55eb95771c6ebe8dd94c616937a13733c5a2ba7"
+          }
+        ],
+        "splits": [
+          {
+            "id": "fitting",
+            "content_hash": "923feb8e4dd601bc4fb2585e95f787503384df7e6a1ce623aec90280424261c6"
+          },
+          {
+            "id": "validation",
+            "content_hash": "d9b765d1f02168bfc5dc596a3c7b4968184e3d1200b2207230a2944edac11336"
+          }
+        ],
+        "label_provenance": "Synthetic cases proposed by a coding agent. A human reviewed and corrected the later-corrections case. Model suggestions are not human judgments.",
+        "evaluation_reports": [
+          "reports/message-supported-fitting.json"
+        ],
+        "statistical_method": "Wilson score intervals at 95 percent confidence, computed on accepted cases. Cases grouped by conversation."
+      },
+      "performance": {
+        "metrics": [
+          {
+            "scope": "message-supported",
+            "metric": "error_among_accepted",
+            "numerator": 0,
+            "denominator": 9,
+            "value": 0
+          }
+        ],
+        "sample_counts": {
+          "labeled_cases": 9,
+          "accepted_cases": 9
+        },
+        "slice_limitations": [
+          "Nine labeled cases sit below the plan minimum of 200. Zero observed errors do not establish the goal."
+        ]
+      },
+      "qualification": {
+        "status": "insufficient_evidence",
+        "scope": "The Cassandra pilot conversation population declared in the plan.",
+        "reasons": [
+          "measured_evidence",
+          "insufficient_evidence"
+        ]
+      },
+      "content_hash": "d75155c87ed697ed6bbfab011eab5239f8c3bdf9c5d5db35949144f3010316c3"
+    },
+    {
+      "schema_version": 1,
+      "id": "message-supported-not-met",
+      "origin": "calibration",
+      "intended_use": "Proposed intervention messages in the Cassandra pilot conversation population.",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "bindings": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation": {
+            "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+            "question": "Does every material claim in the proposed message follow from the evidence?"
+          },
+          "model": {
+            "requested": "jev-1.13",
+            "resolved": "jev-1.13-2026-09-01"
+          }
+        }
+      ],
+      "policy": {
+        "family": "probability_mass_v0",
+        "checks": [
+          {
+            "check": "message-supported",
+            "accept_cutoff": 0.8,
+            "rejection_cutoff": 0.7
+          }
+        ]
+      },
+      "execution": {
+        "max_active": 4,
+        "max_pending": 16,
+        "deadline_ms": 30000,
+        "max_attempts": 2,
+        "backoff_ms": 200
+      },
+      "evidence": {
+        "plan": {
+          "id": "message-supported-plan",
+          "content_hash": "de4bcb9a68a77d5ca7f6fb5a4da35c53e80a5ba955ef57cfe42a85f0fcd0ff79"
+        },
+        "datasets": [
+          {
+            "id": "message-supported-cases",
+            "revision": "2026-09-23",
+            "content_hash": "86075a4c092c84f0f6db5fa6b55eb95771c6ebe8dd94c616937a13733c5a2ba7"
+          }
+        ],
+        "splits": [
+          {
+            "id": "fitting",
+            "content_hash": "923feb8e4dd601bc4fb2585e95f787503384df7e6a1ce623aec90280424261c6"
+          },
+          {
+            "id": "validation",
+            "content_hash": "d9b765d1f02168bfc5dc596a3c7b4968184e3d1200b2207230a2944edac11336"
+          }
+        ],
+        "label_provenance": "Synthetic cases proposed by a coding agent. A human reviewed and corrected the later-corrections case. Model suggestions are not human judgments.",
+        "evaluation_reports": [
+          "reports/message-supported-fitting.json"
+        ],
+        "statistical_method": "Wilson score intervals at 95 percent confidence, computed on accepted cases. Cases grouped by conversation."
+      },
+      "performance": {
+        "metrics": [
+          {
+            "scope": "message-supported",
+            "metric": "error_among_accepted",
+            "numerator": 7,
+            "denominator": 80,
+            "value": 0.0875
+          }
+        ],
+        "intervals": [
+          {
+            "scope": "message-supported",
+            "metric": "error_among_accepted",
+            "method": "wilson_score",
+            "confidence_level": 0.95,
+            "lower": 0.043,
+            "upper": 0.1554
+          }
+        ],
+        "sample_counts": {
+          "labeled_cases": 200,
+          "accepted_cases": 80
+        },
+        "slice_limitations": [
+          "The interval upper bound 0.1554 exceeds the plan limit 0.05."
+        ]
+      },
+      "qualification": {
+        "status": "criteria_not_met",
+        "scope": "The Cassandra pilot conversation population declared in the plan.",
+        "reasons": [
+          "measured_evidence",
+          "criteria_not_met"
+        ]
+      },
+      "content_hash": "5fe97b829b5978284b549dd0021c9600cd9da2aa4fb1860163c3a15aec6a7a29"
+    }
+  ],
+  "invalid": [
+    {
+      "note": "An exploration profile cannot claim a qualification. Starter thresholds carry no qualification evidence.",
+      "profile": {
+        "schema_version": 1,
+        "id": "message-supported-bad-exploration",
+        "origin": "exploration",
+        "intended_use": "Development use.",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "bindings": [
+          {
+            "check": "message-supported",
+            "evaluator": "jev-choice",
+            "adapter_version": "0.1.0",
+            "translation": {
+              "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+              "question": "Does every material claim in the proposed message follow from the evidence?"
+            },
+            "model": {
+              "requested": "jev-1.13",
+              "resolved": "jev-1.13-2026-09-01"
+            }
+          }
+        ],
+        "policy": {
+          "family": "probability_mass_v0",
+          "checks": [
+            {
+              "check": "message-supported",
+              "accept_cutoff": 0.75,
+              "rejection_cutoff": 0.65
+            }
+          ]
+        },
+        "execution": {
+          "max_active": 4,
+          "max_pending": 16,
+          "deadline_ms": 30000,
+          "max_attempts": 2,
+          "backoff_ms": 200
+        },
+        "qualification": {
+          "status": "validated_for_scope",
+          "scope": "Development use.",
+          "reasons": [
+            "starter_policy"
+          ]
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/qualification/status"
+      }
+    },
+    {
+      "note": "An exact profile binds no evaluator. A binding on an exact profile contradicts its origin.",
+      "profile": {
+        "schema_version": 1,
+        "id": "delivery-limits-bad-exact",
+        "origin": "exact",
+        "intended_use": "Delivery limits.",
+        "definition": {
+          "name": "delivery-limits",
+          "content_hash": "b42095ca790562a64294b369641a8699c6d3c1c2d95f6d5e98091a9fa38f8b2f"
+        },
+        "bindings": [
+          {
+            "check": "message-supported",
+            "evaluator": "jev-choice",
+            "adapter_version": "0.1.0",
+            "translation": {
+              "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+              "question": "Does every material claim in the proposed message follow from the evidence?"
+            },
+            "model": {
+              "requested": "jev-1.13",
+              "resolved": "jev-1.13-2026-09-01"
+            }
+          }
+        ],
+        "policy": {
+          "family": "exact"
+        },
+        "execution": {
+          "max_active": 4,
+          "max_pending": 16,
+          "deadline_ms": 30000,
+          "max_attempts": 2,
+          "backoff_ms": 200
+        },
+        "qualification": {
+          "status": "validated_for_scope",
+          "scope": "Any input.",
+          "reasons": [
+            "exact_rules_only"
+          ]
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/bindings/0"
+      }
+    },
+    {
+      "note": "A calibration profile records its evidence. The evidence field is required.",
+      "profile": {
+        "schema_version": 1,
+        "id": "message-supported-bad-calibration",
+        "origin": "calibration",
+        "intended_use": "Pilot population.",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "bindings": [
+          {
+            "check": "message-supported",
+            "evaluator": "jev-choice",
+            "adapter_version": "0.1.0",
+            "translation": {
+              "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+              "question": "Does every material claim in the proposed message follow from the evidence?"
+            },
+            "model": {
+              "requested": "jev-1.13",
+              "resolved": "jev-1.13-2026-09-01"
+            }
+          }
+        ],
+        "policy": {
+          "family": "probability_mass_v0",
+          "checks": [
+            {
+              "check": "message-supported",
+              "accept_cutoff": 0.8,
+              "rejection_cutoff": 0.7
+            }
+          ]
+        },
+        "execution": {
+          "max_active": 4,
+          "max_pending": 16,
+          "deadline_ms": 30000,
+          "max_attempts": 2,
+          "backoff_ms": 200
+        },
+        "qualification": {
+          "status": "validated_for_scope",
+          "scope": "Pilot population.",
+          "reasons": [
+            "measured_evidence"
+          ]
+        }
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/evidence"
+      }
+    },
+    {
+      "note": "Both cutoffs must exceed 0.5. A cutoff of 0.5 permits simultaneous acceptance and rejection.",
+      "profile": {
+        "schema_version": 1,
+        "id": "message-supported-bad-cutoffs",
+        "origin": "exploration",
+        "intended_use": "Development use.",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "bindings": [
+          {
+            "check": "message-supported",
+            "evaluator": "jev-choice",
+            "adapter_version": "0.1.0",
+            "translation": {
+              "content_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+              "question": "Does every material claim in the proposed message follow from the evidence?"
+            },
+            "model": {
+              "requested": "jev-1.13",
+              "resolved": "jev-1.13-2026-09-01"
+            }
+          }
+        ],
+        "policy": {
+          "family": "probability_mass_v0",
+          "checks": [
+            {
+              "check": "message-supported",
+              "accept_cutoff": 0.5,
+              "rejection_cutoff": 0.65
+            }
+          ]
+        },
+        "execution": {
+          "max_active": 4,
+          "max_pending": 16,
+          "deadline_ms": 30000,
+          "max_attempts": 2,
+          "backoff_ms": 200
+        },
+        "qualification": {
+          "status": "unvalidated",
+          "scope": "Development use.",
+          "reasons": [
+            "starter_policy"
+          ]
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/policy/checks/0/accept_cutoff"
+      }
+    }
+  ],
+  "compatibility": [
+    {
+      "note": "The profile binds the delivery-limits definition. The loaded definition is consequence-level. The hashes differ, so the pairing fails before execution.",
+      "profile_id": "delivery-limits-exact",
+      "against_definition": "ordered-scale.json",
+      "expected": {
+        "reason_code": "definition_mismatch"
+      }
+    },
+    {
+      "note": "A probability-mass policy cannot fit an exact-only definition, which has no evaluator bindings and no numerical policy.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "exact-rules.json",
+      "expected": {
+        "reason_code": "policy_mismatch"
+      }
+    }
+  ]
+}

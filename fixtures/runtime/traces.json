@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "description": "Runtime scheduling traces for the wrapper conformance suite. Time is the fake clock in milliseconds that TESTING.md defines. The wrapper owns queues, deadlines, retries, and cancellation; Rust owns the state checks. Each trace names a definition file in definitions/valid, one case input, the effective execution configuration, and the events in order. The expected report keeps every component outcome, the aggregate outcome, and the completion status. An event listed in rejected_events must not change the report.",
+  "traces": [
+    {
+      "id": "exact-all-pass",
+      "note": "Three exact rules run inside the limits. Every check passes and the run completes.",
+      "definition": "exact-rules.json",
+      "case_input": {
+        "summary": "The delivery limit is 900 characters for this notice",
+        "notice": "Customer notice"
+      },
+      "config": {"max_active": 2, "max_pending": 2, "deadline_ms": 1000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-length"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-mentions-limit"},
+        {"at_ms": 5, "type": "check_result", "check": "summary-length", "outcome": "pass"},
+        {"at_ms": 5, "type": "check_started", "check": "notice-hides-secrets"},
+        {"at_ms": 8, "type": "check_result", "check": "summary-mentions-limit", "outcome": "pass"},
+        {"at_ms": 10, "type": "check_result", "check": "notice-hides-secrets", "outcome": "pass"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "summary-length", "outcome": "pass", "applied_rule": {"rule": "maxLength", "input": "summary", "parameters": {"maxLength": 80}}},
+          {"check": "summary-mentions-limit", "outcome": "pass", "applied_rule": {"rule": "includes", "input": "summary", "parameters": {"includes": "delivery limit"}}},
+          {"check": "notice-hides-secrets", "outcome": "pass", "applied_rule": {"rule": "excludes", "input": "notice", "parameters": {"excludes": "SECRET"}}}
+        ],
+        "aggregate": "pass",
+        "completion": "completed",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "queue-full",
+      "note": "One check runs and the pending-work limit is zero. The two remaining checks return skipped records with queue_full.",
+      "definition": "exact-rules.json",
+      "case_input": {
+        "summary": "The delivery limit is 900 characters for this notice",
+        "notice": "Customer notice"
+      },
+      "config": {"max_active": 1, "max_pending": 0, "deadline_ms": 1000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-length"},
+        {"at_ms": 0, "type": "check_skipped", "check": "summary-mentions-limit", "code": "queue_full"},
+        {"at_ms": 0, "type": "check_skipped", "check": "notice-hides-secrets", "code": "queue_full"},
+        {"at_ms": 5, "type": "check_result", "check": "summary-length", "outcome": "pass"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "summary-length", "outcome": "pass", "applied_rule": {"rule": "maxLength", "input": "summary", "parameters": {"maxLength": 80}}},
+          {"check": "summary-mentions-limit", "outcome": "skipped", "reason": {"code": "queue_full"}},
+          {"check": "notice-hides-secrets", "outcome": "skipped", "reason": {"code": "queue_full"}}
+        ],
+        "aggregate": "review",
+        "completion": "completed",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "deadline-before-start",
+      "note": "The total deadline passes while one check runs and two wait. The active check stops with an error and the queued checks are skipped.",
+      "definition": "exact-rules.json",
+      "case_input": {
+        "summary": "The delivery limit is 900 characters for this notice",
+        "notice": "Customer notice"
+      },
+      "config": {"max_active": 1, "max_pending": 2, "deadline_ms": 100, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-length"},
+        {"at_ms": 100, "type": "deadline"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "summary-length", "outcome": "error", "reason": {"code": "deadline_exceeded"}},
+          {"check": "summary-mentions-limit", "outcome": "skipped", "reason": {"code": "deadline_before_start"}},
+          {"check": "notice-hides-secrets", "outcome": "skipped", "reason": {"code": "deadline_before_start"}}
+        ],
+        "aggregate": "error",
+        "completion": "deadline_exceeded",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "deadline-keeps-completed",
+      "note": "One rule finishes before the deadline. The deadline stops the active check and the queued check. The completed component stays in the report.",
+      "definition": "exact-rules.json",
+      "case_input": {
+        "summary": "The delivery limit is 900 characters for this notice",
+        "notice": "Customer notice"
+      },
+      "config": {"max_active": 2, "max_pending": 2, "deadline_ms": 500, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-length"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-mentions-limit"},
+        {"at_ms": 400, "type": "check_result", "check": "summary-length", "outcome": "pass"},
+        {"at_ms": 500, "type": "deadline"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "summary-length", "outcome": "pass", "applied_rule": {"rule": "maxLength", "input": "summary", "parameters": {"maxLength": 80}}},
+          {"check": "summary-mentions-limit", "outcome": "error", "reason": {"code": "deadline_exceeded"}},
+          {"check": "notice-hides-secrets", "outcome": "skipped", "reason": {"code": "deadline_before_start"}}
+        ],
+        "aggregate": "error",
+        "completion": "deadline_exceeded",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "cancel-before-start",
+      "note": "The caller cancels before any check starts. Every check is skipped and the run reports cancelled.",
+      "definition": "exact-rules.json",
+      "case_input": {
+        "summary": "The delivery limit is 900 characters for this notice",
+        "notice": "Customer notice"
+      },
+      "config": {"max_active": 1, "max_pending": 2, "deadline_ms": 1000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 10, "type": "cancel"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "summary-length", "outcome": "skipped", "reason": {"code": "cancelled_before_start"}},
+          {"check": "summary-mentions-limit", "outcome": "skipped", "reason": {"code": "cancelled_before_start"}},
+          {"check": "notice-hides-secrets", "outcome": "skipped", "reason": {"code": "cancelled_before_start"}}
+        ],
+        "aggregate": "review",
+        "completion": "cancelled",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "cancel-mid-run",
+      "note": "One rule completes, one runs, and one waits when the caller cancels. The active check reports run_cancelled and the queued check is skipped.",
+      "definition": "exact-rules.json",
+      "case_input": {
+        "summary": "The delivery limit is 900 characters for this notice",
+        "notice": "Customer notice"
+      },
+      "config": {"max_active": 1, "max_pending": 2, "deadline_ms": 1000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-length"},
+        {"at_ms": 200, "type": "check_result", "check": "summary-length", "outcome": "pass"},
+        {"at_ms": 200, "type": "check_started", "check": "notice-hides-secrets"},
+        {"at_ms": 300, "type": "cancel"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "summary-length", "outcome": "pass", "applied_rule": {"rule": "maxLength", "input": "summary", "parameters": {"maxLength": 80}}},
+          {"check": "summary-mentions-limit", "outcome": "skipped", "reason": {"code": "cancelled_before_start"}},
+          {"check": "notice-hides-secrets", "outcome": "error", "reason": {"code": "run_cancelled"}}
+        ],
+        "aggregate": "error",
+        "completion": "cancelled",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "retries-exhausted",
+      "note": "All three attempts fail. The record keeps the attempt count and the final reason retries_exhausted. Backoff stays inside the total deadline.",
+      "definition": "categorical-question.json",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "We must move the export worker to the US region.",
+        "proposed_message": "The export worker moved to the US region."
+      },
+      "config": {"max_active": 1, "max_pending": 1, "deadline_ms": 10000, "max_attempts": 3, "backoff_ms": 50},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "message-supported"},
+        {"at_ms": 100, "type": "attempt_failed", "check": "message-supported", "code": "evaluator_error"},
+        {"at_ms": 250, "type": "attempt_failed", "check": "message-supported", "code": "evaluator_timeout"},
+        {"at_ms": 500, "type": "attempt_failed", "check": "message-supported", "code": "evaluator_error"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "message-supported", "outcome": "error", "attempts": 3, "reason": {"code": "retries_exhausted"}}
+        ],
+        "aggregate": "error",
+        "completion": "completed",
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "retry-then-success",
+      "note": "The first attempt times out and the second succeeds. Both attempts bind the same case input and the same profile.",
+      "definition": "categorical-question.json",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "We must move the export worker to the US region.",
+        "proposed_message": "The export worker moved to the US region."
+      },
+      "config": {"max_active": 1, "max_pending": 1, "deadline_ms": 5000, "max_attempts": 2, "backoff_ms": 50},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "message-supported"},
+        {"at_ms": 100, "type": "attempt_failed", "check": "message-supported", "code": "evaluator_timeout"},
+        {"at_ms": 300, "type": "check_result", "check": "message-supported", "outcome": "pass"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "message-supported", "outcome": "pass", "attempts": 2}
+        ],
+        "aggregate": "pass",
+        "completion": "completed",
+        "attempts_share_binding": true,
+        "rejected_events": []
+      }
+    },
+    {
+      "id": "late-result-after-completion",
+      "note": "The run reaches a terminal state. A result that arrives later is recorded as rejected and changes nothing.",
+      "definition": "categorical-question.json",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "We must move the export worker to the US region.",
+        "proposed_message": "The export worker moved to the US region."
+      },
+      "config": {"max_active": 1, "max_pending": 1, "deadline_ms": 5000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "message-supported"},
+        {"at_ms": 200, "type": "check_result", "check": "message-supported", "outcome": "review"},
+        {"at_ms": 500, "type": "late_result", "check": "message-supported", "outcome": "pass"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "message-supported", "outcome": "review"}
+        ],
+        "aggregate": "review",
+        "completion": "completed",
+        "rejected_events": [
+          {"event": 3, "reason_code": "late_result_rejected"}
+        ]
+      }
+    },
+    {
+      "id": "late-result-after-cancel",
+      "note": "A cancelled report is terminal. A result that arrives after cancellation changes nothing.",
+      "definition": "categorical-question.json",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "We must move the export worker to the US region.",
+        "proposed_message": "The export worker moved to the US region."
+      },
+      "config": {"max_active": 1, "max_pending": 1, "deadline_ms": 5000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "message-supported"},
+        {"at_ms": 100, "type": "cancel"},
+        {"at_ms": 400, "type": "late_result", "check": "message-supported", "outcome": "pass"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "message-supported", "outcome": "error", "reason": {"code": "run_cancelled"}}
+        ],
+        "aggregate": "error",
+        "completion": "cancelled",
+        "rejected_events": [
+          {"event": 3, "reason_code": "late_result_rejected"}
+        ]
+      }
+    },
+    {
+      "id": "duplicate-result",
+      "note": "A second result for one check does not fit the run state. The report keeps the first result.",
+      "definition": "categorical-question.json",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "We must move the export worker to the US region.",
+        "proposed_message": "The export worker moved to the US region."
+      },
+      "config": {"max_active": 1, "max_pending": 1, "deadline_ms": 5000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "message-supported"},
+        {"at_ms": 200, "type": "check_result", "check": "message-supported", "outcome": "review"},
+        {"at_ms": 250, "type": "check_result", "check": "message-supported", "outcome": "pass"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "message-supported", "outcome": "review"}
+        ],
+        "aggregate": "review",
+        "completion": "completed",
+        "rejected_events": [
+          {"event": 3, "reason_code": "invalid_state_transition"}
+        ]
+      }
+    },
+    {
+      "id": "partial-failure-mix",
+      "note": "One check fails on its rule and one check errors. The fail sets the aggregate. The error record stays visible.",
+      "definition": "all-input-types.json",
+      "case_input": {
+        "summary": "This release fixes the importer. TODO: update the migration guide.",
+        "severity": 3,
+        "confidence": 0.8,
+        "breaking": false,
+        "tickets": ["MT-104"],
+        "metadata": {"team": "core"}
+      },
+      "config": {"max_active": 2, "max_pending": 2, "deadline_ms": 1000, "max_attempts": 1, "backoff_ms": 0},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "notes-complete"},
+        {"at_ms": 0, "type": "check_started", "check": "summary-free-of-todos"},
+        {"at_ms": 20, "type": "check_result", "check": "summary-free-of-todos", "outcome": "fail"},
+        {"at_ms": 300, "type": "attempt_failed", "check": "notes-complete", "code": "evaluator_error"}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "notes-complete", "outcome": "error", "attempts": 1, "reason": {"code": "evaluator_error"}},
+          {
+            "check": "summary-free-of-todos",
+            "outcome": "fail",
+            "applied_rule": {"rule": "excludes", "input": "summary", "parameters": {"excludes": "TODO"}}
+          }
+        ],
+        "aggregate": "fail",
+        "completion": "completed",
+        "rejected_events": []
+      }
+    }
+  ]
+}

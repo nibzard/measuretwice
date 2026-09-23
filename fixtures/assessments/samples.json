@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "description": "Assessment fixtures for the evaluator contract. Valid records show that an absent optional field stays absent: a missing confidence stays missing and a missing distribution stays missing. Invalid records are responses that Rust must reject with invalid_assessment before they enter a report. Each invalid record names the using list of its check, because evidence references must name an authorized input.",
+  "valid": [
+    {
+      "note": "A label-only categorical assessment. No confidence and no distribution were reported, so none appear.",
+      "assessment": {"kind": "categorical", "label": "supported"}
+    },
+    {
+      "note": "A categorical assessment with every optional measurement present.",
+      "assessment": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {"name": "supported", "mass": 0.82},
+          {"name": "incomplete", "mass": 0.18}
+        ],
+        "confidence": 0.9,
+        "evidence": [
+          {"input": "prior_decision", "reference": "decision-2026-03"}
+        ]
+      }
+    },
+    {
+      "note": "A binary assessment holds a value and nothing else. This evaluator reports no confidence field.",
+      "assessment": {"kind": "binary", "value": true}
+    },
+    {
+      "note": "An ordered assessment keeps a fractional position without rounding and reports its distribution over the named levels.",
+      "assessment": {
+        "kind": "ordered",
+        "level": "meaningful",
+        "position": 1.5,
+        "distribution": [
+          {"name": "minor", "mass": 0.1},
+          {"name": "meaningful", "mass": 0.55},
+          {"name": "serious", "mass": 0.35}
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "note": "A categorical assessment without a label.",
+      "using": ["prior_decision", "conversation", "proposed_message"],
+      "assessment": {"kind": "categorical"},
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "A binary assessment that returns a label instead of a value.",
+      "using": ["conversation", "proposed_message"],
+      "assessment": {"kind": "binary", "label": "yes"},
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "An ordered assessment without a level.",
+      "using": ["prior_decision", "conversation", "proposed_message"],
+      "assessment": {"kind": "ordered", "position": 1.5},
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "An ordered assessment that returns a binary value instead of a level.",
+      "using": ["prior_decision", "conversation", "proposed_message"],
+      "assessment": {"kind": "ordered", "value": true},
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "A distribution names an answer that the check does not declare.",
+      "using": ["proposed_message"],
+      "assessment": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {"name": "supported", "mass": 0.7},
+          {"name": "excellent", "mass": 0.3}
+        ]
+      },
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "Distribution masses must sum to one.",
+      "using": ["proposed_message"],
+      "assessment": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {"name": "supported", "mass": 0.7},
+          {"name": "incomplete", "mass": 0.2}
+        ]
+      },
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "Evidence names an input that the using list does not authorize.",
+      "using": ["proposed_message"],
+      "assessment": {
+        "kind": "categorical",
+        "label": "supported",
+        "evidence": [
+          {"input": "conversation", "reference": "message-14"}
+        ]
+      },
+      "expected": {"reason_code": "invalid_assessment"}
+    },
+    {
+      "note": "Confidence sits outside the unit interval.",
+      "using": ["proposed_message"],
+      "assessment": {"kind": "categorical", "label": "supported", "confidence": 1.5},
+      "expected": {"reason_code": "invalid_assessment"}
+    }
+  ]
+}

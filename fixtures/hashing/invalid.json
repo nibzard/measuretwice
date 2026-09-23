@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "description": "Text and bytes that the parser or the canonicalizer must reject before any hash is computed. The hash of invalid content is undefined and never published. raw_text holds JSON text. bytes_hex holds bytes that are not valid UTF-8.",
+  "records": [
+    {
+      "note": "A parsed object repeats one key. Two readers could keep different members, so no hash is defined.",
+      "raw_text": "{\"text\":\"a\",\"text\":\"b\"}",
+      "expected": {
+        "reason_code": "invalid_json"
+      }
+    },
+    {
+      "note": "NaN is not JSON text.",
+      "raw_text": "NaN",
+      "expected": {
+        "reason_code": "invalid_json"
+      }
+    },
+    {
+      "note": "Infinity is not JSON text.",
+      "raw_text": "Infinity",
+      "expected": {
+        "reason_code": "invalid_json"
+      }
+    },
+    {
+      "note": "The number 1e400 parses to a value that is not finite. Numbers must be finite before canonicalization.",
+      "raw_text": "1e400",
+      "expected": {
+        "reason_code": "invalid_field_type"
+      }
+    },
+    {
+      "note": "A string holds an unpaired surrogate code point. Canonical UTF-8 text cannot carry it.",
+      "raw_text": "{\"text\":\"\\ud800\"}",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "The bytes c3 28 are not valid UTF-8.",
+      "bytes_hex": "c328",
+      "expected": {
+        "reason_code": "invalid_json"
+      }
+    }
+  ]
+}

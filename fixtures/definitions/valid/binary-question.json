@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "duplicate-concern",
+  "when_uncertain": "review",
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "conversation": {"type": "string", "minLength": 1},
+      "proposed_message": {"type": "string", "minLength": 1}
+    },
+    "required": ["conversation", "proposed_message"],
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "adds-information",
+      "name": "We are adding something new",
+      "using": ["conversation", "proposed_message"],
+      "question": "Has the conversation already acknowledged this concern?",
+      "answers": {
+        "yes": "A participant explicitly recognizes this specific concern.",
+        "no": "No supplied message explicitly recognizes this specific concern."
+      },
+      "accept": "no"
+    }
+  ]
+}

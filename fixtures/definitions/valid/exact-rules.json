@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "name": "delivery-limits",
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "summary": {"type": "string", "minLength": 1},
+      "notice": {"type": "string", "minLength": 1}
+    },
+    "required": ["summary", "notice"],
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "summary-length",
+      "name": "The summary fits the delivery limit",
+      "using": ["summary"],
+      "rule": {"maxLength": 80}
+    },
+    {
+      "id": "summary-mentions-limit",
+      "name": "The summary states the delivery limit",
+      "using": ["summary"],
+      "rule": {"includes": "delivery limit"}
+    },
+    {
+      "id": "notice-hides-secrets",
+      "name": "The notice contains no secret marker",
+      "using": ["notice"],
+      "rule": {"excludes": "SECRET"}
+    }
+  ]
+}

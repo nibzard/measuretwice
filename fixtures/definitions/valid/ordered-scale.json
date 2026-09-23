@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "consequence-level",
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "prior_decision": {"type": "string", "minLength": 1},
+      "conversation": {"type": "string", "minLength": 1},
+      "proposed_message": {"type": "string", "minLength": 1}
+    },
+    "required": ["prior_decision", "conversation", "proposed_message"],
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "consequence",
+      "name": "The concern warrants an interruption",
+      "using": ["prior_decision", "conversation", "proposed_message"],
+      "question": "What consequence does this concern have, based on the evidence?",
+      "scale": [
+        {"minor": "A wording or preference difference with no identified operational consequence."},
+        {"meaningful": "A coordination problem causing rework or delay."},
+        {"serious": "A conflict affecting an explicit customer commitment or operational requirement."}
+      ],
+      "accept": {"at_least": "meaningful"}
+    }
+  ]
+}

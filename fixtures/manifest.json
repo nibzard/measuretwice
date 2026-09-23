@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "name": "measuretwice-conformance",
+  "status": "Frozen for v0 on 23 September 2026",
+  "description": "Shared cross-language conformance fixtures for the portable contracts in contracts/v0. Every wrapper runs every group through the Rust core. The fixtures are mandatory for the TypeScript SDK and for the later Python SDK.",
+  "contracts": "../contracts/v0",
+  "mandatory_for": ["typescript-sdk", "python-sdk"],
+  "groups": [
+    {
+      "id": "definitions-valid",
+      "path": "definitions/valid",
+      "kind": "artifact-set",
+      "covers": ["categorical question", "binary question", "ordered scale", "exact rules", "every input type", "when_uncertain default"],
+      "runner": "Validate each file as one definition artifact. Compare canonical content and hashes with the hashing group."
+    },
+    {
+      "id": "definitions-invalid",
+      "path": "definitions/invalid.json",
+      "kind": "rejection-set",
+      "covers": ["duplicate_id", "unknown_input_name", "accept_review_overlap", "unknown_label", "invalid_scale", "empty_check_set", "unsupported_keyword", "missing_field", "unknown_field", "invalid_field_type", "unsupported_schema_version"],
+      "runner": "Reject each raw artifact with the stated reason code and field path, before any evaluator runs."
+    },
+    {
+      "id": "inputs-validation",
+      "path": "inputs/validation.json",
+      "kind": "record-set",
+      "covers": ["string code point length", "number bounds", "integer zero fraction", "boolean without coercion", "array bounds and items", "nested object closure", "absent optional properties", "oversized inputs"],
+      "runner": "Validate each input object against its root schema in the Rust core. Materialize the described oversized inputs as stated in their notes."
+    },
+    {
+      "id": "hashing-canonical",
+      "path": "hashing/canonical.json",
+      "kind": "hash-set",
+      "covers": ["every hash domain", "key order invariance", "number boundaries", "Unicode preservation", "ordered record arrays", "self-hash removal", "worked examples from hashing.md"],
+      "runner": "Canonicalize each value in the Rust core and compare the canonical text and the digest. The record shape follows contracts/v0/hashing.schema.json."
+    },
+    {
+      "id": "hashing-string-rules",
+      "path": "hashing/string-rules.json",
+      "kind": "rule-set",
+      "covers": ["maxLength boundaries", "includes containment", "excludes containment", "code point length", "case sensitivity", "no normalization", "empty strings", "null character", "astral plane"],
+      "runner": "Assess each record with the Rust exact rules and compare the outcome and, for maxLength, the code point count."
+    },
+    {
+      "id": "hashing-invalid",
+      "path": "hashing/invalid.json",
+      "kind": "rejection-set",
+      "covers": ["duplicate keys", "non-finite numbers", "unpaired surrogates", "ill-formed UTF-8", "invalid_json", "nonportable_value"],
+      "runner": "Reject each text or byte string with the stated reason code. No hash of invalid content is published."
+    },
+    {
+      "id": "authoring-typebox",
+      "path": "authoring/typebox-pairs.json",
+      "kind": "pair-set",
+      "covers": ["TypeBox to JSON equivalence", "version to schema_version rename", "annotation removal", "optional modifier in nested objects", "scale order", "identical hashes for both sides"],
+      "runner": "Convert each TypeBox source with the documented conversion, validate it, and compare the canonical content and the definition-domain hash with the named definition file."
+    },
+    {
+      "id": "serialization",
+      "path": "serialization/round-trips.json",
+      "kind": "value-set",
+      "covers": ["round trips", "ordered arrays", "set-like order strictness", "absence stays absence", "rejected executable values"],
+      "runner": "Serialize and parse each value and compare the canonical form. Reject each authoring kind with nonportable_value before serialization."
+    },
+    {
+      "id": "assessments",
+      "path": "assessments/samples.json",
+      "kind": "record-set",
+      "covers": ["categorical", "binary", "ordered", "label only", "absent optional measurements", "invalid_assessment"],
+      "runner": "Validate each assessment against the assessment contract and the using list of its check."
+    },
+    {
+      "id": "reports-outcomes",
+      "path": "reports/outcomes.json",
+      "kind": "table-set",
+      "covers": ["aggregate order", "every check outcome", "error beside fail", "skipped as review", "completion statuses"],
+      "runner": "Build one report for each table row and compare the aggregate outcome. Check each sample record against the run report contract."
+    },
+    {
+      "id": "profiles-states",
+      "path": "profiles/states.json",
+      "kind": "record-set",
+      "covers": ["every qualification status", "exploration", "calibration", "exact", "self-hash verification", "definition_mismatch", "policy_mismatch"],
+      "runner": "Validate each artifact, verify each self-hash, and check each compatibility pairing before execution."
+    },
+    {
+      "id": "runtime-traces",
+      "path": "runtime/traces.json",
+      "kind": "trace-set",
+      "covers": ["queue_full", "deadline_before_start", "deadline_exceeded", "cancelled_before_start", "run_cancelled", "retries_exhausted", "retry then success", "partial failure", "late_result_rejected", "invalid_state_transition"],
+      "runner": "Replay each trace through the wrapper scheduler with the fake clock and compare every expected check record, the aggregate outcome, the completion status, and the rejected events."
+    }
+  ]
+}

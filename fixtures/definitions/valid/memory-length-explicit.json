@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "memory-supported",
+  "when_uncertain": "review",
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "text": {"type": "string", "minLength": 1}
+    },
+    "required": ["text"],
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "text-length",
+      "name": "The memory fits the length limit",
+      "using": ["text"],
+      "rule": {"maxLength": 10}
+    }
+  ]
+}

@@ -378,8 +378,8 @@ The shared Rust core owns validation, exact rules, decision policy, statistics,
 canonical hashes, and report construction. The Node binding through NAPI-RS
 stays thin. Python follows the TypeScript pilot as the next SDK delivery. It
 will use PyO3 bindings and emit the same JSON contracts. The cross-language
-conformance fixtures for these contracts become mandatory for Python. Plan
-them now. Do not ship two public SDKs in the pilot.
+conformance fixtures in [fixtures/](../fixtures/README.md) are mandatory for
+Python. Do not ship two public SDKs in the pilot.
 
 Deferred outside v0: additional production backends, a built-in generative agent
 service, unrestricted tool execution, YAML authoring, browser and edge runtimes,
@@ -406,5 +406,6 @@ Related contracts published after this freeze:
 - [Canonical hashing and string semantics](v0/hashing.md), with the
   machine-checkable [fixture schema](v0/hashing.schema.json). Published on
   23 September 2026. Adds the reason code `hash_mismatch`.
-- The cross-language conformance fixtures that pin these contracts. Not yet
-  published.
+- The cross-language conformance fixtures that pin these contracts, in
+  [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
+  mandatory for the TypeScript SDK and for the later Python SDK.

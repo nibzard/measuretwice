@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "description": "Outcome composition and completion fixtures. The aggregate table pins the fixed order: any fail gives fail, otherwise any error gives error, otherwise any review or skip gives review, otherwise pass. Completion stays separate from the aggregate outcome. The check records pin the required shape of each component outcome.",
+  "aggregate_table": [
+    {"note": "One passing check.", "outcomes": ["pass"], "expected_aggregate": "pass"},
+    {"note": "One failing check.", "outcomes": ["fail"], "expected_aggregate": "fail"},
+    {"note": "One check in error.", "outcomes": ["error"], "expected_aggregate": "error"},
+    {"note": "One check sent to review.", "outcomes": ["review"], "expected_aggregate": "review"},
+    {"note": "One skipped check surfaces as review.", "outcomes": ["skipped"], "expected_aggregate": "review"},
+    {"note": "All checks pass.", "outcomes": ["pass", "pass"], "expected_aggregate": "pass"},
+    {"note": "A fail beats passing checks.", "outcomes": ["pass", "fail"], "expected_aggregate": "fail"},
+    {"note": "A fail beats an error.", "outcomes": ["error", "fail"], "expected_aggregate": "fail"},
+    {"note": "A fail beats a review.", "outcomes": ["review", "fail"], "expected_aggregate": "fail"},
+    {"note": "A fail beats a skip.", "outcomes": ["skipped", "fail"], "expected_aggregate": "fail"},
+    {"note": "An error beats passing checks when no check fails.", "outcomes": ["pass", "error"], "expected_aggregate": "error"},
+    {"note": "An error beats a review.", "outcomes": ["review", "error"], "expected_aggregate": "error"},
+    {"note": "An error beats a skip.", "outcomes": ["skipped", "error"], "expected_aggregate": "error"},
+    {"note": "A review beats passing checks when no check fails or errors.", "outcomes": ["pass", "review"], "expected_aggregate": "review"},
+    {"note": "A skip beats passing checks when no check fails or errors.", "outcomes": ["pass", "skipped"], "expected_aggregate": "review"},
+    {"note": "A review and a skip give review.", "outcomes": ["review", "skipped"], "expected_aggregate": "review"},
+    {"note": "Every outcome at once. The fail wins and the error stays visible.", "outcomes": ["pass", "fail", "error", "review", "skipped"], "expected_aggregate": "fail"}
+  ],
+  "check_records": [
+    {
+      "note": "A rule check that passes records the executed rule.",
+      "record": {
+        "check": "summary-length",
+        "kind": "rule",
+        "outcome": "pass",
+        "applied_rule": {
+          "rule": "maxLength",
+          "input": "summary",
+          "parameters": {"maxLength": 80}
+        }
+      }
+    },
+    {
+      "note": "A rule check that fails records the executed rule.",
+      "record": {
+        "check": "summary-mentions-limit",
+        "kind": "rule",
+        "outcome": "fail",
+        "applied_rule": {
+          "rule": "includes",
+          "input": "summary",
+          "parameters": {"includes": "delivery limit"}
+        }
+      }
+    },
+    {
+      "note": "A question check in review records the raw assessment and the applied policy.",
+      "record": {
+        "check": "message-supported",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {"kind": "categorical", "label": "incomplete"},
+        "applied_policy": {"accept_cutoff": 0.75, "rejection_cutoff": 0.65}
+      }
+    },
+    {
+      "note": "A question check in error carries a stable reason and the attempt count.",
+      "record": {
+        "check": "message-supported",
+        "kind": "question",
+        "outcome": "error",
+        "attempts": 1,
+        "reason": {"code": "evaluator_error", "message": "The adapter reported a network failure."}
+      }
+    },
+    {
+      "note": "A skipped rule check carries a reason and the rule it did not run.",
+      "record": {
+        "check": "summary-length",
+        "kind": "rule",
+        "outcome": "skipped",
+        "applied_rule": {
+          "rule": "maxLength",
+          "input": "summary",
+          "parameters": {"maxLength": 80}
+        },
+        "reason": {"code": "queue_full", "message": "The pending-work limit stopped this check."}
+      }
+    }
+  ],
+  "completion_samples": [
+    {
+      "note": "A completed run reached a terminal state on its own.",
+      "completion": {"status": "completed", "completed_at": "2026-09-23T10:00:02.500Z"}
+    },
+    {
+      "note": "A cancelled run keeps its completed components. The report stays immutable.",
+      "completion": {"status": "cancelled", "completed_at": "2026-09-23T10:00:01.250Z"}
+    },
+    {
+      "note": "A run past its total deadline keeps its completed components.",
+      "completion": {"status": "deadline_exceeded", "completed_at": "2026-09-23T10:00:01.000Z"}
+    }
+  ]
+}

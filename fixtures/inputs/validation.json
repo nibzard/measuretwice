@@ -1,0 +1,291 @@
+{
+  "schema_version": 1,
+  "description": "Case input data checked against root input schemas from the supported subset. Each record holds one root schema and one input object. A record with valid false names the reason code and the field path that Rust reports before execution. Size-limit records describe the data, because the data is too large to embed; the runner materializes them as stated in the note.",
+  "records": [
+    {
+      "note": "Two emoji hold two code points. A wrapper that counts UTF-16 units counts four and rejects a valid input.",
+      "inputs": {
+        "type": "object",
+        "properties": {"text": {"type": "string", "maxLength": 3}},
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "input": {"text": "😀😀"},
+      "valid": true
+    },
+    {
+      "note": "One letter plus one emoji hold two code points. The input breaks minLength. A wrapper that counts UTF-16 units counts three and accepts it.",
+      "inputs": {
+        "type": "object",
+        "properties": {"text": {"type": "string", "minLength": 3}},
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "input": {"text": "a😀"},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/text"}
+    },
+    {
+      "note": "A combining accent counts as its own code point. No normalization merges it.",
+      "inputs": {
+        "type": "object",
+        "properties": {"text": {"type": "string", "minLength": 5}},
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "input": {"text": "café"},
+      "valid": true
+    },
+    {
+      "note": "The null character counts as one code point.",
+      "inputs": {
+        "type": "object",
+        "properties": {"text": {"type": "string", "minLength": 3, "maxLength": 3}},
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "input": {"text": "a\u0000b"},
+      "valid": true
+    },
+    {
+      "note": "minimum is inclusive. The bound value passes.",
+      "inputs": {
+        "type": "object",
+        "properties": {"confidence": {"type": "number", "minimum": 0, "maximum": 1}},
+        "required": ["confidence"],
+        "additionalProperties": false
+      },
+      "input": {"confidence": 0},
+      "valid": true
+    },
+    {
+      "note": "exclusiveMaximum excludes the bound value.",
+      "inputs": {
+        "type": "object",
+        "properties": {"confidence": {"type": "number", "maximum": 1, "exclusiveMaximum": 1}},
+        "required": ["confidence"],
+        "additionalProperties": false
+      },
+      "input": {"confidence": 1},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/confidence"}
+    },
+    {
+      "note": "The negative zero sign never matters. The value equals zero.",
+      "inputs": {
+        "type": "object",
+        "properties": {"confidence": {"type": "number", "minimum": 0}},
+        "required": ["confidence"],
+        "additionalProperties": false
+      },
+      "input": {"confidence": -0.0},
+      "valid": true
+    },
+    {
+      "note": "A string never satisfies a number schema. Coercion is disabled.",
+      "inputs": {
+        "type": "object",
+        "properties": {"confidence": {"type": "number"}},
+        "required": ["confidence"],
+        "additionalProperties": false
+      },
+      "input": {"confidence": "0.5"},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/confidence"}
+    },
+    {
+      "note": "Null never validates. The subset has no null type.",
+      "inputs": {
+        "type": "object",
+        "properties": {"confidence": {"type": "number"}},
+        "required": ["confidence"],
+        "additionalProperties": false
+      },
+      "input": {"confidence": null},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/confidence"}
+    },
+    {
+      "note": "An integer schema accepts a number with a zero fractional part.",
+      "inputs": {
+        "type": "object",
+        "properties": {"severity": {"type": "integer", "minimum": 1, "maximum": 5}},
+        "required": ["severity"],
+        "additionalProperties": false
+      },
+      "input": {"severity": 3.0},
+      "valid": true
+    },
+    {
+      "note": "An integer schema rejects a fraction.",
+      "inputs": {
+        "type": "object",
+        "properties": {"severity": {"type": "integer", "minimum": 1, "maximum": 5}},
+        "required": ["severity"],
+        "additionalProperties": false
+      },
+      "input": {"severity": 3.5},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/severity"}
+    },
+    {
+      "note": "A number never satisfies a boolean schema. The value one is not true.",
+      "inputs": {
+        "type": "object",
+        "properties": {"breaking": {"type": "boolean"}},
+        "required": ["breaking"],
+        "additionalProperties": false
+      },
+      "input": {"breaking": 1},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/breaking"}
+    },
+    {
+      "note": "maxItems accepts the bound value.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "tickets": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 2}
+        },
+        "required": ["tickets"],
+        "additionalProperties": false
+      },
+      "input": {"tickets": ["MT-1", "MT-2"]},
+      "valid": true
+    },
+    {
+      "note": "The array holds too many items.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "tickets": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 2}
+        },
+        "required": ["tickets"],
+        "additionalProperties": false
+      },
+      "input": {"tickets": ["MT-1", "MT-2", "MT-3"]},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/tickets"}
+    },
+    {
+      "note": "One element breaks the item schema.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "tickets": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 2}
+        },
+        "required": ["tickets"],
+        "additionalProperties": false
+      },
+      "input": {"tickets": ["MT-1", ""]},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/tickets/1"}
+    },
+    {
+      "note": "An optional property stays absent. No default value is created.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "properties": {"team": {"type": "string"}, "area": {"type": "string"}},
+            "required": ["team"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["metadata"],
+        "additionalProperties": false
+      },
+      "input": {"metadata": {"team": "core"}},
+      "valid": true
+    },
+    {
+      "note": "A nested object rejects an undeclared property. Every nested object is closed.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "properties": {"team": {"type": "string"}},
+            "required": ["team"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["metadata"],
+        "additionalProperties": false
+      },
+      "input": {"metadata": {"team": "core", "org": "measuretwice"}},
+      "valid": false,
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/input/metadata/org"}
+    },
+    {
+      "note": "A nested object misses a required property.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "properties": {"team": {"type": "string"}, "area": {"type": "string"}},
+            "required": ["team"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["metadata"],
+        "additionalProperties": false
+      },
+      "input": {"metadata": {"area": "runtime"}},
+      "valid": false,
+      "expected": {"reason_code": "missing_field", "field_path": "/input/metadata/team"}
+    },
+    {
+      "note": "The root input object rejects an undeclared property.",
+      "inputs": {
+        "type": "object",
+        "properties": {"summary": {"type": "string"}},
+        "required": ["summary"],
+        "additionalProperties": false
+      },
+      "input": {"summary": "Short summary", "notice": "Extra field"},
+      "valid": false,
+      "expected": {"reason_code": "unknown_field", "field_path": "/input/notice"}
+    },
+    {
+      "note": "The root input object misses a declared property.",
+      "inputs": {
+        "type": "object",
+        "properties": {"summary": {"type": "string"}},
+        "required": ["summary"],
+        "additionalProperties": false
+      },
+      "input": {},
+      "valid": false,
+      "expected": {"reason_code": "missing_field", "field_path": "/input/summary"}
+    },
+    {
+      "note": "Size limit: one string value above 1048576 UTF-8 bytes. The runner builds the string from 1048577 letter a characters. Rust rejects it without truncation.",
+      "inputs": {
+        "type": "object",
+        "properties": {"text": {"type": "string"}},
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "oversized": {"kind": "string", "utf8_bytes": 1048577, "fill": "a"},
+      "valid": false,
+      "expected": {"reason_code": "oversized_input", "field_path": "/input/text"}
+    },
+    {
+      "note": "Size limit: one array value above 10000 items. The runner builds the array from 10001 copies of the letter a.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "tickets": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["tickets"],
+        "additionalProperties": false
+      },
+      "oversized": {"kind": "array", "items": 10001, "fill": "a"},
+      "valid": false,
+      "expected": {"reason_code": "oversized_input", "field_path": "/input/tickets"}
+    }
+  ]
+}

@@ -1,0 +1,578 @@
+{
+  "schema_version": 1,
+  "description": "Invalid check definitions. Each record holds one artifact that Rust must reject before execution, with the stable reason code and the JSON Pointer of the rejected field. Valid definitions sit in valid/. The contracts README lists the reason codes.",
+  "records": [
+    {
+      "note": "Two checks share one identifier.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}},
+          {"id": "summary-length", "name": "The summary fits again", "using": ["summary"], "rule": {"maxLength": 40}}
+        ]
+      },
+      "expected": {"reason_code": "duplicate_id", "field_path": "/checks/1/id"}
+    },
+    {
+      "note": "using names an input that the schema does not declare.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["body"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "unknown_input_name", "field_path": "/checks/0/using"}
+    },
+    {
+      "note": "The accept list and the review list share one label.",
+      "raw": {
+        "schema_version": 1,
+        "name": "message-supported",
+        "inputs": {
+          "type": "object",
+          "properties": {"proposed_message": {"type": "string"}},
+          "required": ["proposed_message"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "message-supported",
+            "name": "Our message accurately describes the evidence",
+            "using": ["proposed_message"],
+            "question": "Does every claim follow from the evidence?",
+            "answers": {
+              "supported": "All claims are supported.",
+              "contradicted": "A claim conflicts with the evidence.",
+              "incomplete": "Support is missing."
+            },
+            "accept": ["supported", "contradicted"],
+            "review": "contradicted"
+          }
+        ]
+      },
+      "expected": {"reason_code": "accept_review_overlap", "field_path": "/checks/0/review"}
+    },
+    {
+      "note": "accept names a label that the answers do not declare.",
+      "raw": {
+        "schema_version": 1,
+        "name": "message-supported",
+        "inputs": {
+          "type": "object",
+          "properties": {"proposed_message": {"type": "string"}},
+          "required": ["proposed_message"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "message-supported",
+            "name": "Our message accurately describes the evidence",
+            "using": ["proposed_message"],
+            "question": "Does every claim follow from the evidence?",
+            "answers": {
+              "supported": "All claims are supported.",
+              "incomplete": "Support is missing."
+            },
+            "accept": "excellent"
+          }
+        ]
+      },
+      "expected": {"reason_code": "unknown_label", "field_path": "/checks/0/accept"}
+    },
+    {
+      "note": "accept.at_least names a level that the scale does not declare.",
+      "raw": {
+        "schema_version": 1,
+        "name": "consequence-level",
+        "inputs": {
+          "type": "object",
+          "properties": {"conversation": {"type": "string"}},
+          "required": ["conversation"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "consequence",
+            "name": "The concern warrants an interruption",
+            "using": ["conversation"],
+            "question": "What consequence does this concern have?",
+            "scale": [
+              {"minor": "No identified operational consequence."},
+              {"serious": "A conflict with an explicit commitment."}
+            ],
+            "accept": {"at_least": "critical"}
+          }
+        ]
+      },
+      "expected": {"reason_code": "unknown_label", "field_path": "/checks/0/accept/at_least"}
+    },
+    {
+      "note": "The scale repeats one level name.",
+      "raw": {
+        "schema_version": 1,
+        "name": "consequence-level",
+        "inputs": {
+          "type": "object",
+          "properties": {"conversation": {"type": "string"}},
+          "required": ["conversation"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "consequence",
+            "name": "The concern warrants an interruption",
+            "using": ["conversation"],
+            "question": "What consequence does this concern have?",
+            "scale": [
+              {"minor": "No identified operational consequence."},
+              {"minor": "A repeated level name."}
+            ],
+            "accept": {"at_least": "minor"}
+          }
+        ]
+      },
+      "expected": {"reason_code": "invalid_scale", "field_path": "/checks/0/scale"}
+    },
+    {
+      "note": "The scale holds one level only. A scale needs two levels or more.",
+      "raw": {
+        "schema_version": 1,
+        "name": "consequence-level",
+        "inputs": {
+          "type": "object",
+          "properties": {"conversation": {"type": "string"}},
+          "required": ["conversation"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "consequence",
+            "name": "The concern warrants an interruption",
+            "using": ["conversation"],
+            "question": "What consequence does this concern have?",
+            "scale": [{"minor": "No identified operational consequence."}],
+            "accept": {"at_least": "minor"}
+          }
+        ]
+      },
+      "expected": {"reason_code": "invalid_scale", "field_path": "/checks/0/scale"}
+    },
+    {
+      "note": "The definition declares no checks.",
+      "raw": {
+        "schema_version": 1,
+        "name": "empty-set",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": []
+      },
+      "expected": {"reason_code": "empty_check_set", "field_path": "/checks"}
+    },
+    {
+      "note": "The input schema uses pattern, which the supported subset does not include.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string", "pattern": "^[a-z]+$"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "unsupported_keyword", "field_path": "/inputs/properties/summary"}
+    },
+    {
+      "note": "The input schema uses a reference, which the supported subset does not include.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"$ref": "common.schema.json#/$defs/content_hash"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "unsupported_keyword", "field_path": "/inputs/properties/summary"}
+    },
+    {
+      "note": "The input schema uses enum, which the supported subset does not include.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"severity": {"type": "integer", "enum": [1, 2, 3]}},
+          "required": ["severity"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "severity-known",
+            "name": "The severity is known",
+            "using": ["severity"],
+            "question": "Is the severity known?",
+            "answers": {"yes": "The severity is known.", "no": "The severity is unknown."},
+            "accept": "yes"
+          }
+        ]
+      },
+      "expected": {"reason_code": "unsupported_keyword", "field_path": "/inputs/properties/severity"}
+    },
+    {
+      "note": "A nested object schema stays open. Every nested object must close additional properties with false.",
+      "raw": {
+        "schema_version": 1,
+        "name": "release-notes-review",
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "metadata": {
+              "type": "object",
+              "properties": {"team": {"type": "string"}},
+              "required": ["team"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["metadata"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "notes-complete",
+            "name": "The release notes identify the owning team",
+            "using": ["metadata"],
+            "question": "Do the notes name the owning team?",
+            "answers": {"yes": "The notes name the team.", "no": "The notes do not name the team."},
+            "accept": "yes"
+          }
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/inputs/properties/metadata"}
+    },
+    {
+      "note": "The root required list omits a declared input. Every top-level input is required.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "summary": {"type": "string"},
+            "notice": {"type": "string"}
+          },
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "missing_field", "field_path": "/inputs/required"}
+    },
+    {
+      "note": "The root required list names a property that the schema does not declare.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary", "body"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "unknown_field", "field_path": "/inputs/required/1"}
+    },
+    {
+      "note": "minLength sits above maxLength. Sibling bounds conflict.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string", "minLength": 5, "maxLength": 2}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/inputs/properties/summary"}
+    },
+    {
+      "note": "minItems sits above maxItems. Sibling bounds conflict.",
+      "raw": {
+        "schema_version": 1,
+        "name": "release-notes-review",
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "tickets": {"type": "array", "items": {"type": "string"}, "minItems": 5, "maxItems": 2}
+          },
+          "required": ["tickets"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "tickets-present",
+            "name": "The notes list tickets",
+            "using": ["tickets"],
+            "question": "Do the notes list tickets?",
+            "answers": {"yes": "The notes list tickets.", "no": "The notes list no tickets."},
+            "accept": "yes"
+          }
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/inputs/properties/tickets"}
+    },
+    {
+      "note": "A rule check reads two inputs. A rule check uses exactly one input.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "summary": {"type": "string"},
+            "notice": {"type": "string"}
+          },
+          "required": ["summary", "notice"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "text-length", "name": "The text fits", "using": ["summary", "notice"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/checks/0/using"}
+    },
+    {
+      "note": "A rule check reads a number input. A rule check uses one string input.",
+      "raw": {
+        "schema_version": 1,
+        "name": "release-notes-review",
+        "inputs": {
+          "type": "object",
+          "properties": {"severity": {"type": "integer"}},
+          "required": ["severity"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "severity-length", "name": "The severity text fits", "using": ["severity"], "rule": {"maxLength": 3}}
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/checks/0/using"}
+    },
+    {
+      "note": "One check states a question and a rule. A check states exactly one of them.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "summary-checked",
+            "name": "The summary is checked",
+            "using": ["summary"],
+            "question": "Is the summary fit for delivery?",
+            "answers": {"yes": "The summary is fit.", "no": "The summary is not fit."},
+            "accept": "yes",
+            "rule": {"maxLength": 80}
+          }
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/checks/0"}
+    },
+    {
+      "note": "One question states answers and a scale. A question states one of them.",
+      "raw": {
+        "schema_version": 1,
+        "name": "consequence-level",
+        "inputs": {
+          "type": "object",
+          "properties": {"conversation": {"type": "string"}},
+          "required": ["conversation"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "consequence",
+            "name": "The concern warrants an interruption",
+            "using": ["conversation"],
+            "question": "What consequence does this concern have?",
+            "answers": {
+              "minor": "No identified operational consequence.",
+              "serious": "A conflict with an explicit commitment."
+            },
+            "scale": [
+              {"minor": "No identified operational consequence."},
+              {"serious": "A conflict with an explicit commitment."}
+            ],
+            "accept": "minor"
+          }
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/checks/0"}
+    },
+    {
+      "note": "when_uncertain holds a value outside the contract. Review is the only value in v0.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "when_uncertain": "fail",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/when_uncertain"}
+    },
+    {
+      "note": "An includes rule states the empty string. The parameter must be nonempty.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-mentions-limit", "name": "The summary states the limit", "using": ["summary"], "rule": {"includes": ""}}
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/checks/0/rule/includes"}
+    },
+    {
+      "note": "A maxLength rule states a negative bound.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": -1}}
+        ]
+      },
+      "expected": {"reason_code": "invalid_field_type", "field_path": "/checks/0/rule/maxLength"}
+    },
+    {
+      "note": "The definition names an evaluator. Definitions contain no evaluator names.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "evaluator": "jev-choice",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "unknown_field", "field_path": "/evaluator"}
+    },
+    {
+      "note": "A check states numerical cutoffs. Definitions contain no numerical cutoffs.",
+      "raw": {
+        "schema_version": 1,
+        "name": "message-supported",
+        "inputs": {
+          "type": "object",
+          "properties": {"proposed_message": {"type": "string"}},
+          "required": ["proposed_message"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {
+            "id": "message-supported",
+            "name": "Our message accurately describes the evidence",
+            "using": ["proposed_message"],
+            "question": "Does every claim follow from the evidence?",
+            "answers": {
+              "supported": "All claims are supported.",
+              "incomplete": "Support is missing."
+            },
+            "accept": "supported",
+            "cutoffs": {"accept": 0.8, "reject": 0.7}
+          }
+        ]
+      },
+      "expected": {"reason_code": "unknown_field", "field_path": "/checks/0/cutoffs"}
+    },
+    {
+      "note": "The definition omits the inputs field.",
+      "raw": {
+        "schema_version": 1,
+        "name": "delivery-limits",
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "missing_field", "field_path": "/inputs"}
+    },
+    {
+      "note": "The definition states a schema version that the reader does not support.",
+      "raw": {
+        "schema_version": 2,
+        "name": "delivery-limits",
+        "inputs": {
+          "type": "object",
+          "properties": {"summary": {"type": "string"}},
+          "required": ["summary"],
+          "additionalProperties": false
+        },
+        "checks": [
+          {"id": "summary-length", "name": "The summary fits", "using": ["summary"], "rule": {"maxLength": 80}}
+        ]
+      },
+      "expected": {"reason_code": "unsupported_schema_version", "field_path": "/schema_version"}
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "description": "Serialization round-trip fixtures. A value that a wrapper serializes and parses again keeps one canonical form. Ordered arrays keep their order, because scale order and grid order carry meaning. Set-like arrays keep their written order by a deliberate strictness rule, so a reordered list hashes differently. An omitted optional field stays absent. The authoring kinds at the end are values that JSON cannot preserve; authoring rejects them with nonportable_value before serialization.",
+  "values": [
+    {
+      "note": "An ordered scale survives a round trip in its written order.",
+      "value": [
+        {
+          "minor": "A wording or preference difference with no identified operational consequence."
+        },
+        {
+          "meaningful": "A coordination problem causing rework or delay."
+        },
+        {
+          "serious": "A conflict affecting an explicit customer commitment or operational requirement."
+        }
+      ],
+      "canonical": "[{\"minor\":\"A wording or preference difference with no identified operational consequence.\"},{\"meaningful\":\"A coordination problem causing rework or delay.\"},{\"serious\":\"A conflict affecting an explicit customer commitment or operational requirement.\"}]"
+    },
+    {
+      "note": "Mixed content with non-ASCII text and an astral-plane character.",
+      "value": {
+        "summary": "Ünïcode 😀 summary",
+        "severity": 3,
+        "breaking": false
+      },
+      "canonical": "{\"breaking\":false,\"severity\":3,\"summary\":\"Ünïcode 😀 summary\"}"
+    },
+    {
+      "note": "Nesting and a null literal.",
+      "value": {
+        "outer": {
+          "inner": [
+            1,
+            2,
+            {
+              "leaf": null
+            }
+          ]
+        }
+      },
+      "canonical": "{\"outer\":{\"inner\":[1,2,{\"leaf\":null}]}}"
+    },
+    {
+      "note": "Numbers round trip through one canonical form.",
+      "value": {
+        "half": 0.5,
+        "count": 900,
+        "tiny": 1e-7,
+        "huge": 1e+21
+      },
+      "canonical": "{\"count\":900,\"half\":0.5,\"huge\":1e+21,\"tiny\":1e-7}"
+    }
+  ],
+  "order_invariance": [
+    {
+      "note": "Two spellings of one object give one canonical form.",
+      "left": {
+        "a": 1,
+        "b": 2
+      },
+      "right": {
+        "b": 2,
+        "a": 1
+      },
+      "canonical": "{\"a\":1,\"b\":2}"
+    }
+  ],
+  "order_strictness": [
+    {
+      "note": "A set-like array in written order. The canonical form uses the written order, so the two orders give two hashes.",
+      "left": [
+        "prior_decision",
+        "conversation"
+      ],
+      "right": [
+        "conversation",
+        "prior_decision"
+      ],
+      "canonical_left": "[\"prior_decision\",\"conversation\"]",
+      "canonical_right": "[\"conversation\",\"prior_decision\"]",
+      "same_hash": false
+    }
+  ],
+  "absent_stays_absent": [
+    {
+      "note": "An omitted optional field stays absent. Canonicalization inserts no value.",
+      "with_field": {
+        "id": "case-1",
+        "group": "g1"
+      },
+      "without_field": {
+        "id": "case-1"
+      },
+      "canonical_with": "{\"group\":\"g1\",\"id\":\"case-1\"}",
+      "canonical_without": "{\"id\":\"case-1\"}",
+      "same_hash": false
+    }
+  ],
+  "rejected_kinds": [
+    {
+      "note": "A function is not a JSON value.",
+      "kind": "function",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A class is not a JSON value.",
+      "kind": "class",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A regular expression object is not a JSON value.",
+      "kind": "regexp",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A Date object is not a JSON value.",
+      "kind": "date",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A Map object is not a JSON value.",
+      "kind": "map",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A Set object is not a JSON value.",
+      "kind": "set",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A bigint is not a JSON number.",
+      "kind": "bigint",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "undefined as a property value hides an author error. It is not dropped silently.",
+      "kind": "undefined_property",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "undefined as an array element is not dropped silently.",
+      "kind": "undefined_element",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "NaN is not a JSON number.",
+      "kind": "nan",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "Infinity is not a JSON number.",
+      "kind": "infinity",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A string with an unpaired surrogate cannot become UTF-8 text.",
+      "kind": "lone_surrogate",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    },
+    {
+      "note": "A symbol property outside the documented TypeBox markers is not portable.",
+      "kind": "symbol_property",
+      "expected": {
+        "reason_code": "nonportable_value"
+      }
+    }
+  ]
+}
