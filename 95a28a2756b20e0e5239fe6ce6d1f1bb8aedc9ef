@@ -1,0 +1,26 @@
+# Design: Freeze of the v0 portable artifact contracts
+
+## Problem
+Implementation tasks (Rust parsing, hashing, fixtures) all depend on one
+stable artifact format. The format had to be frozen before any code.
+
+## Approach
+Nine JSON Schema 2020-12 files plus a README with the shared rules, the
+Rust cross-field invariants, reason-code registry, and operation table.
+MVP_SPEC.md controlled scope. Every schema was exercised with valid and
+invalid instances, including the flagship definition.
+
+## Key Trade-offs
+- The authoring field `version` maps to the artifact field
+  `schema_version`. One term serves all nine artifacts. The conversion
+  is part of the tested TypeBox path.
+- Profile origin gained a third value, `exact`. Exact-only definitions
+  satisfy profile compatibility structurally. Their qualification can be
+  `validated_for_scope` with reason `exact_rules_only`, which claims no
+  measured performance.
+- The input schema subset and the hashing procedure stay out of this
+  freeze. They are separate contracts with their own tasks.
+
+## References
+- MVP_SPEC.md sections 3 to 11 and 14
+- Task T001 in to-do.json
