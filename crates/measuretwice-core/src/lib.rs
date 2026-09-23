@@ -14,6 +14,9 @@
 
 #![forbid(unsafe_code)]
 
+/// Deterministic test utilities. See the module documentation for the rules.
+pub mod testing;
+
 /// Portable contract schema version implemented by this core. The v0
 /// contracts state `schema_version` 1, as `contracts/README.md` records.
 pub const CONTRACT_SCHEMA_VERSION: u32 = 1;

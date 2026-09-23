@@ -137,35 +137,35 @@
         "T002",
         "T003"
       ],
-      "updated_at": "2026-09-23T22:01:31Z",
+      "updated_at": "2026-09-23T22:02:13Z",
       "files": [
-        "Cargo.toml",
+        ".gitignore",
         "Cargo.lock",
+        "Cargo.toml",
+        "DEVELOPING.md",
+        "LICENSE",
         "crates/measuretwice-core/Cargo.toml",
         "crates/measuretwice-core/src/lib.rs",
         "crates/measuretwice-node/Cargo.toml",
         "crates/measuretwice-node/build.rs",
-        "crates/measuretwice-node/src/lib.rs",
         "crates/measuretwice-node/package.json",
-        "package.json",
+        "crates/measuretwice-node/src/lib.rs",
         "package-lock.json",
+        "package.json",
         "packages/measuretwice/package.json",
-        "packages/measuretwice/tsconfig.json",
+        "packages/measuretwice/src/cli.ts",
         "packages/measuretwice/src/index.ts",
         "packages/measuretwice/src/native.ts",
-        "packages/measuretwice/src/cli.ts",
-        "tsconfig.base.json",
-        "DEVELOPING.md",
-        "LICENSE",
-        ".gitignore",
-        "to-do.json"
+        "packages/measuretwice/tsconfig.json",
+        "to-do.json",
+        "tsconfig.base.json"
       ]
     },
     {
       "id": "T005",
       "title": "Add deterministic verification automation",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Establish repeatable checks before behavior implementation. Ordinary checks must need no credentials or paid API calls. Sources: MVP_SPEC.md sections 5, 15; AGENTS.md sections 6-8, 11.",
       "steps": [
         "Configure Rust tests, formatting, linting, TypeScript checks, and Vitest.",
@@ -181,6 +181,27 @@
       ],
       "depends_on": [
         "T004"
+      ],
+      "updated_at": "2026-09-23T22:17:42Z",
+      "files": [
+        ".github/workflows/ci.yml",
+        "TESTING.md",
+        "DEVELOPING.md",
+        "package.json",
+        "tsconfig.test.json",
+        "vitest.config.ts",
+        "vitest.live.config.ts",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/testing.rs",
+        "packages/measuretwice/test/contract-version.test.ts",
+        "packages/measuretwice/test/cli.test.ts",
+        "packages/measuretwice/test/support/deterministic.ts",
+        "packages/measuretwice/test/support/deterministic.test.ts",
+        "tests/repo/schemas.test.ts",
+        "tests/repo/examples.test.ts",
+        "tests/repo/docs.test.ts",
+        "tests/repo/names.test.ts",
+        "tests/repo/support/todo.ts"
       ]
     },
     {

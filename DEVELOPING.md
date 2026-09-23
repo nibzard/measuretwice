@@ -3,7 +3,8 @@
 This guide is for contributors. It records the workspace layout, the
 supported targets, the pinned dependencies, and the ordinary development
 commands. [MVP_SPEC.md](MVP_SPEC.md) controls product scope.
-[AGENTS.md](AGENTS.md) states the engineering rules. The task list is
+[AGENTS.md](AGENTS.md) states the engineering rules. [TESTING.md](TESTING.md)
+records the test suites and the verification commands. The task list is
 `to-do.json`.
 
 ## Workspace layout
@@ -15,6 +16,8 @@ commands. [MVP_SPEC.md](MVP_SPEC.md) controls product scope.
 | `packages/measuretwice` | The one public TypeScript package, with the CLI entry point. |
 | `contracts/v0` | The frozen portable artifact contracts. |
 | `.measuretwice` | Development checks for this repository. |
+| `tests/repo` | Repository checks for schemas, examples, links, and names. |
+| `tests/live` | Opt-in live evaluations. Empty until task T065. |
 
 The Rust core never contains provider SDKs, network clients, credentials,
 application storage, or rendering. The Node binding stays thin. Native types
@@ -38,22 +41,32 @@ compiler.
 | `x86_64-pc-windows-msvc` | Windows | x86-64 | — |
 
 The packages declare Node.js 20 or later. Continuous integration must test
-Node.js 20, 22, and 24. The public package ships ECMAScript modules. The
-native loader ships the loaders that NAPI-RS generates. Browser, edge, and
-WebAssembly runtimes are outside v0.
+Node.js 20, 22, and 24. The workflow `.github/workflows/ci.yml` does this.
+It runs the Linux Node.js matrix, one Windows job, one macOS job, and
+cross-checks the declared Rust targets without a hosted native runner. It
+reads no secrets and starts no live evaluation. The public package ships
+ECMAScript modules. The native loader ships the loaders that NAPI-RS
+generates. Browser, edge, and WebAssembly runtimes are outside v0.
 
 ## Commands
 
-1. `npm install` — link the workspaces and install the development tools.
-2. `npm run build:native` — build the Rust core and the Node binding.
-3. `npm run build:ts` — compile the public package to `dist/`.
-4. `npm run build` — run both builds in order.
-5. `npm run clean` — remove generated build output.
-6. `cargo build` — compile the Rust workspace alone.
-7. `cargo check` — type-check the Rust workspace without code generation.
+| Command | Effect |
+| --- | --- |
+| `npm install` | Link the workspaces and install the development tools. |
+| `npm run build:native` | Build the Rust core and the Node binding. |
+| `npm run build:ts` | Compile the public package to `dist/`. |
+| `npm run build` | Run both builds in order. |
+| `npm run fmt` and `npm run fmt:check` | Format or check the Rust code. |
+| `npm run lint` | Run clippy on the workspace with warnings denied. |
+| `npm run typecheck` | Type-check the test code and the Vitest configs. |
+| `npm test` | Build, then run the Rust and TypeScript tests. |
+| `npm run test:live` | Run the opt-in live evaluations. |
+| `npm run check` | Run every gate that continuous integration runs. |
+| `npm run clean` | Remove generated build output. |
 
 Build the native binding before the TypeScript. The generated
-`index.d.ts` is the type source for the binding import.
+`index.d.ts` is the type source for the binding import. [TESTING.md](TESTING.md)
+explains the suites behind the test commands.
 
 ## Pinned dependencies
 
