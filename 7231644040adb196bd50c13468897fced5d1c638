@@ -1,0 +1,30 @@
+# Design: TLA+ execution transition model
+
+## Problem
+Task T015 will implement the Rust run-state validation. The state rules
+for queues, retries, cancellation, and late results needed a checked
+model first, as AGENTS.md section 7 requires.
+
+## Approach
+One model of one run. Transition guards express the Rust state
+boundary. TLC explored two bounded configurations to completion. A
+mutant that stores an offered binding on retry violates
+AttemptBindingStable, so the invariants detect drift.
+
+## Key Trade-offs
+- The pending limit counts never-started work only. A retry keeps its
+  queue slot, because in-flight work is not new work. T030 and T032
+  must implement this rule.
+- The binding is two string identity fields. TLC refuses equality
+  between a string and a tuple, so a pair of fields replaces one
+  composite value.
+- Refused events are a counter with a cap of three. This keeps the
+  reachable state set finite. The record states the omission.
+- Time is one Cancel or Deadline event. Backoff durations and attempt
+  budgets stay outside the model.
+- TLC runs outside the ordinary suite, because the jar is not part of
+  the repository. A repo check keeps the record matching the module.
+
+## References
+- models/execution/README.md holds the full record.
+- Task T078 rechecks model applicability at release audit.
