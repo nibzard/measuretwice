@@ -229,13 +229,15 @@
         "T003",
         "T005"
       ],
-      "updated_at": "2026-09-23T22:44:24Z",
+      "updated_at": "2026-09-23T22:45:02Z",
       "files": [
-        "contracts/README.md",
         "DEVELOPING.md",
         "TESTING.md",
+        "contracts/README.md",
         "fixtures/README.md",
-        "fixtures/manifest.json",
+        "fixtures/assessments/samples.json",
+        "fixtures/authoring/typebox-pairs.json",
+        "fixtures/definitions/invalid.json",
         "fixtures/definitions/valid/all-input-types.json",
         "fixtures/definitions/valid/binary-question.json",
         "fixtures/definitions/valid/categorical-question.json",
@@ -243,17 +245,15 @@
         "fixtures/definitions/valid/memory-length-explicit.json",
         "fixtures/definitions/valid/memory-length.json",
         "fixtures/definitions/valid/ordered-scale.json",
-        "fixtures/definitions/invalid.json",
-        "fixtures/inputs/validation.json",
         "fixtures/hashing/canonical.json",
-        "fixtures/hashing/string-rules.json",
         "fixtures/hashing/invalid.json",
-        "fixtures/authoring/typebox-pairs.json",
-        "fixtures/serialization/round-trips.json",
-        "fixtures/assessments/samples.json",
-        "fixtures/reports/outcomes.json",
+        "fixtures/hashing/string-rules.json",
+        "fixtures/inputs/validation.json",
+        "fixtures/manifest.json",
         "fixtures/profiles/states.json",
+        "fixtures/reports/outcomes.json",
         "fixtures/runtime/traces.json",
+        "fixtures/serialization/round-trips.json",
         "tests/repo/docs.test.ts",
         "tests/repo/fixtures.test.ts",
         "to-do.json"
@@ -263,7 +263,7 @@
       "id": "T007",
       "title": "Model execution transitions with TLA+",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Use Temporal Logic of Actions (TLA+) before implementing critical execution state. Sources: MVP_SPEC.md sections 5, 12; AGENTS.md section 7; research/05-formal-verification-extension.md section 8.",
       "steps": [
         "Define bounded queue, active attempt, retry, cancellation, completion, and late-result transitions.",
@@ -281,6 +281,20 @@
       "depends_on": [
         "T001",
         "T006"
+      ],
+      "updated_at": "2026-09-23T23:00:18Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        ".gitignore",
+        "models/README.md",
+        "models/execution/Execution.cfg",
+        "models/execution/ExecutionSaturation.cfg",
+        "models/execution/Execution.tla",
+        "models/execution/README.md",
+        "tests/repo/docs.test.ts",
+        "tests/repo/models.test.ts",
+        "to-do.json"
       ]
     },
     {

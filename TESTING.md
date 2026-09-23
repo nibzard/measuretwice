@@ -19,7 +19,7 @@ layout.
 | --- | --- | --- | --- |
 | Rust unit tests | next to the code in `crates/` | `cargo test` | Core behavior and invariants. |
 | Package tests | `packages/measuretwice/test/` | Vitest | Public package behavior, the CLI, and the test support itself. |
-| Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, documentation links, and the project name. |
+| Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, and the project name. |
 | Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
 
@@ -92,6 +92,23 @@ its runner rule.
   section 15 states this requirement.
 - A contract change updates the affected fixtures in the same change, as the
   [contracts README](contracts/README.md) requires.
+
+## Formal models
+
+The TLA+ models and their records live in [models/](models/README.md).
+AGENTS.md section 7 requires them for critical state behavior. The
+execution-state model is the first one.
+
+- The repository check `tests/repo/models.test.ts` verifies that each
+  record matches its module and its configuration. It is offline and
+  deterministic.
+- TLC itself runs outside the ordinary suite, because the jar is not
+  part of the repository. [models/README.md](models/README.md) records
+  the pinned release and the exact commands.
+- Continuous integration does not run TLC. Task T078 decides the
+  release-audit integration.
+- A checked model does not prove that the implementation matches it.
+  The record for each model states what the model omits.
 
 ## Live evaluations are opt-in
 

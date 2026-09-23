@@ -15,3 +15,6 @@
 /crates/measuretwice-node/index.js
 /crates/measuretwice-node/index.d.ts
 /crates/measuretwice-node/*.node
+
+# TLC scratch output from model runs
+/states/
