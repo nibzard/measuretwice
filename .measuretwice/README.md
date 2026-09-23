@@ -1,16 +1,17 @@
 # Development checks
 
 These checks assess changes to measuretwice examples and performance claims.
-They use the proposed format in [MVP_SPEC.md](../MVP_SPEC.md).
+They use the proposed TypeScript and TypeBox format in [MVP_SPEC.md](../MVP_SPEC.md).
 
-**Status:** Draft definitions and synthetic development cases. No live evaluator results or calibrated profiles exist for these checks.
+**Status:** Draft definitions and synthetic development cases. The imported measuretwice API is not implemented yet.
+No live evaluator results or calibrated profiles exist for these checks.
 
 ## Files
 
 | Definition | Cases | Purpose |
 | --- | --- | --- |
-| [example-contract.yaml](checks/example-contract.yaml) | [example-contract.jsonl](cases/example-contract.jsonl) | Compare an example with its stated contract. |
-| [claim-evidence.yaml](checks/claim-evidence.yaml) | [claim-evidence.jsonl](cases/claim-evidence.jsonl) | Compare a claim with its supporting evidence. |
+| [example-contract.ts](checks/example-contract.ts) | [example-contract.jsonl](cases/example-contract.jsonl) | Compare an example with its stated contract. |
+| [claim-evidence.ts](checks/claim-evidence.ts) | [claim-evidence.jsonl](cases/claim-evidence.jsonl) | Compare a claim with its supporting evidence. |
 
 Each definition is independent. Supply only its declared inputs.
 This avoids unrelated context and lets each check have its own evaluation history.
@@ -23,7 +24,8 @@ The library and CLI must also accept explicit paths.
 
 ```text
 .measuretwice/
-  checks/       Check definitions
+  checks/       TypeScript definitions with TypeBox input schemas
+  definitions/  Optional JSON exports for the CLI or exchange
   cases/        Example cases and label provenance
   profiles/     Selected evaluator and policy bindings
   reports/      Generated results
@@ -99,6 +101,8 @@ Preserve the distinction between an agent proposal and a human judgment.
 
 The repository does not yet contain a runner for these files.
 Read them as review checklists or use them to specify a direct Jev experiment.
+The future library imports these definitions through the application build. The CLI reads explicitly exported JSON; it does not execute TypeScript.
+The Rust core will validate inputs and apply the shared decision rules. YAML loading is deferred.
 Do not report checklist review as a live model evaluation.
 
 A future direct SDK experiment should translate `answers` into a Jev Choice question.

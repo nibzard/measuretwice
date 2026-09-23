@@ -42,7 +42,7 @@ Implement the smallest complete solution that meets the current requirement.
 - Do not build a framework for hypothetical future requirements.
 - Keep dependencies few. Explain why each new dependency is necessary.
 - Avoid hidden execution, global state, implicit network calls, and surprising defaults.
-- Use one canonical representation for equivalent YAML and TypeScript definitions.
+- Use one portable JSON contract for TypeScript and future Python definitions. TypeScript uses TypeBox; YAML is deferred.
 - Keep numerical controls available without putting them in the basic authoring workflow.
 - Remove dead code and obsolete configuration when a change makes them unnecessary.
 
@@ -95,7 +95,8 @@ Domain-driven design does not require a class hierarchy, microservices, or a rep
 ## 5. Keep modules independent
 
 Organize modules by responsibility and domain ownership.
-The domain core must not depend on provider SDKs, CLI output, storage, or Cassandra.
+The shared Rust core must not depend on provider SDKs, CLI output, storage, or Cassandra.
+TypeScript is the first public SDK. Python follows the test MVP. Keep decision rules and statistical calculations in Rust.
 
 - Keep parsing, validation, assessment, policy, calibration, and rendering separate.
 - Put provider SDKs behind evaluator adapters.

@@ -2,13 +2,13 @@
 
 Status: Draft  
 Date: 23 September 2026  
-Target: v0 · YAML and TypeScript · Jev first · Apache-2.0
+Target: v0 · Rust core · TypeScript + TypeBox authoring · Jev first · Apache-2.0
 
 ## 1. Purpose
 
 **Write what good looks like. Let AI help build and calibrate the checks. Understand the results before relying on them.**
 
-measuretwice is a library and small CLI for introducing semantic checks into applications. Humans read the requirements in a check file. Evaluators assess cases. A separately evaluated profile determines when an assessment is reliable enough to use. Reports make the outcome and its basis inspectable.
+measuretwice is a library and small CLI for introducing semantic checks into applications. Developers author readable checks in TypeScript. A shared Rust core validates data and applies decision rules. Evaluators assess cases. A separately evaluated profile determines when an assessment is reliable enough to use. Reports make the outcome and its basis inspectable.
 
 **Job to be done:** When I add an AI judgment to my application, help me express what must be true, measure how well it works, and detect regressions before changing application behavior.
 
@@ -28,7 +28,9 @@ Cassandra is the first production-like test environment. Its concrete problem is
 
 - Put intent in the check file and numerical tuning in an inspectable profile.
 - A person should understand a check without knowing a model API or statistical terminology.
-- YAML and TypeScript express the same data and have the same semantics.
+- TypeScript is the v0 authoring interface. Python is the next SDK delivery. Both use one portable JSON contract.
+- Use TypeBox for TypeScript input schemas. Keep executable callbacks outside portable definitions.
+- Defer YAML parsing and authoring. Users do not manage JSON exports in the normal library workflow.
 - AI produces reviewable files, examples, analyses, and diffs. It never silently changes the meaning of an approved requirement.
 - Preserve model-specific measurements without presenting them as universal confidence scores.
 - Keep evaluators replaceable. Changing one requires new evaluation, not a rewrite of the requirement.
@@ -36,13 +38,13 @@ Cassandra is the first production-like test environment. Its concrete problem is
 - Introduce only checks, cases, and reports in the getting-started guide. Explain profiles when the user moves from experimentation to reliance.
 - Make the common integration small. Keep numerical details, resource settings, and diagnostic metadata available through progressive disclosure.
 
-This specification preserves the readable, AI-assisted check-authoring workflow in the [original architecture](research/03-checks-yaml-architecture.md). It adds calibration profiles, shadow runs, and revision comparisons. Bayesian inference and adaptive investigation are deferred.
+This specification preserves the readable, AI-assisted check-authoring workflow in the [original architecture](research/03-checks-yaml-architecture.md). It adds calibration profiles, shadow runs, and revision comparisons. The TypeScript-first design replaces YAML authoring in v0. Bayesian inference and adaptive investigation remain deferred.
 
 ## 3. Four responsibilities
 
 | Layer | Responsibility | Artifact |
 | --- | --- | --- |
-| Check | Express the question, evidence, and acceptable outcomes. | YAML or a serializable TypeScript definition |
+| Check | Express the question, evidence, and acceptable outcomes. | TypeScript source that produces a portable JSON definition |
 | Evaluator | Translate and execute a check using a model or deterministic method. | A registered adapter and versioned translation |
 | Calibration profile | Bind an evaluator and decision rules to measured performance on a declared population. | Generated, versioned JSON plus an explanation |
 | Report | Preserve the assessment, decision, evidence references, and operational result. | Structured record and readable rendering |
@@ -51,134 +53,142 @@ A case supplies the artifact and evidence. A labeled case additionally supplies 
 
 All APIs and file formats below are proposed interfaces, not published implementations.
 
-## 4. The readable check file
+## 4. Readable TypeScript definitions
 
-The flagship example assesses a proposed intervention. A prior decision requires customer exports to remain in the EU; a new conversation proposes moving an export worker to a US region. The application supplies the original evidence, current discussion, and drafted message.
+The flagship example assesses a proposed intervention. A prior decision requires customer exports to remain in the EU. A conversation proposes moving an export worker to a US region.
+The application supplies the original evidence, current discussion, and drafted message.
 
-```yaml
-# intervention.checks.yaml
-version: 1
-name: intervention-review
-when_uncertain: review
+```ts
+import Type from "typebox";
+import { defineChecks } from "measuretwice";
 
-inputs:
-  prior_decision: { type: string, minLength: 1 }
-  conversation: { type: string, minLength: 1 }
-  proposed_message: { type: string, minLength: 1 }
-
-checks:
-  - id: decision-conflict
-    name: An earlier decision is being contradicted
-    using: [prior_decision, conversation]
-    question: How does the new proposal relate to the earlier decision?
-    answers:
-      conflict: It conflicts with a decision that still applies.
-      replaced: The team explicitly replaced the earlier decision.
-      aligned: It is compatible with the earlier decision.
-      unclear: Applicability or the relationship cannot be established.
-    accept: conflict
-    review: unclear
-
-  - id: message-supported
-    name: Our message accurately describes the evidence
-    using: [prior_decision, conversation, proposed_message]
-    question: Does every material claim in the proposed message follow from the evidence?
-    answers:
-      supported: All claims are supported with appropriate certainty and attribution.
-      contradicted: A material claim conflicts with the supplied evidence.
-      incomplete: Support for a material claim is missing or ambiguous.
-    accept: supported
-    review: incomplete
-
-  - id: adds-information
-    name: We are adding something new
-    using: [conversation, proposed_message]
-    question: Has the conversation already acknowledged this concern?
-    answers:
-      "yes": A participant explicitly recognizes this specific concern.
-      "no": No supplied message explicitly recognizes this specific concern.
-    accept: "no"
-
-  - id: consequence
-    name: The concern warrants an interruption
-    using: [prior_decision, conversation, proposed_message]
-    question: What consequence does this concern have, based on the evidence?
-    scale:
-      - minor: A wording or preference difference with no identified operational consequence.
-      - meaningful: A coordination problem causing rework or delay.
-      - serious: A conflict affecting an explicit customer commitment or operational requirement.
-    accept:
-      at_least: meaningful
+export const intervention = defineChecks({
+  version: 1,
+  name: "intervention-review",
+  when_uncertain: "review",
+  inputs: Type.Object({
+    prior_decision: Type.String({ minLength: 1 }),
+    conversation: Type.String({ minLength: 1 }),
+    proposed_message: Type.String({ minLength: 1 }),
+  }, { additionalProperties: false }),
+  checks: [
+    {
+      id: "decision-conflict",
+      name: "An earlier decision is being contradicted",
+      using: ["prior_decision", "conversation"],
+      question: "How does the new proposal relate to the earlier decision?",
+      answers: {
+        conflict: "It conflicts with a decision that still applies.",
+        replaced: "The team explicitly replaced the earlier decision.",
+        aligned: "It is compatible with the earlier decision.",
+        unclear: "Applicability or the relationship cannot be established."
+      },
+      accept: "conflict",
+      review: "unclear"
+    },
+    {
+      id: "message-supported",
+      name: "Our message accurately describes the evidence",
+      using: ["prior_decision", "conversation", "proposed_message"],
+      question: "Does every material claim in the proposed message follow from the evidence?",
+      answers: {
+        supported: "All claims are supported with appropriate certainty and attribution.",
+        contradicted: "A material claim conflicts with the supplied evidence.",
+        incomplete: "Support for a material claim is missing or ambiguous."
+      },
+      accept: "supported",
+      review: "incomplete"
+    },
+    {
+      id: "adds-information",
+      name: "We are adding something new",
+      using: ["conversation", "proposed_message"],
+      question: "Has the conversation already acknowledged this concern?",
+      answers: {
+        yes: "A participant explicitly recognizes this specific concern.",
+        no: "No supplied message explicitly recognizes this specific concern."
+      },
+      accept: "no"
+    },
+    {
+      id: "consequence",
+      name: "The concern warrants an interruption",
+      using: ["prior_decision", "conversation", "proposed_message"],
+      question: "What consequence does this concern have, based on the evidence?",
+      scale: [
+        { minor: "A wording or preference difference with no identified operational consequence." },
+        { meaningful: "A coordination problem causing rework or delay." },
+        { serious: "A conflict affecting an explicit customer commitment or operational requirement." }
+      ],
+      accept: {
+        at_least: "meaningful"
+      }
+    }
+  ],
+});
 ```
 
-The reader sees what is being asked, which evidence is available, and what counts as acceptable. Jev primitive names and confidence thresholds are absent. The scale uses an ordered list so its ordering survives parsing and canonicalization.
+The reader sees the question, available evidence, and acceptable outcomes. Jev primitive names and numerical cutoffs stay outside the check.
+The scale uses an ordered array. Its order must survive serialization and canonicalization.
 
 Exact requirements can use a rule instead of a question:
 
-```yaml
-id: message-length
-name: The message fits our delivery limit
-using: [proposed_message]
-rule:
-  maxLength: 900
+```ts
+{
+  id: "message-length",
+  name: "The message fits our delivery limit",
+  using: ["proposed_message"],
+  rule: { maxLength: 900 },
+}
 ```
 
-That number belongs in the check because it expresses a product requirement. A model-confidence cutoff belongs in the profile because it expresses how a measurement is interpreted.
+The length limit expresses a product requirement. A model-confidence cutoff belongs in the profile.
 
 ### Definition semantics
 
 - Each check has a stable `id`, a readable `name`, and a nonempty `using` list referring to declared inputs.
 - Each check has exactly one of `question` or `rule`.
 - Questions have either named `answers` or an ordered `scale`, never both.
-- Exactly two answer keys, `yes` and `no`, declare a binary question. Use explicit descriptions to resolve domain ambiguity. Other answer sets are categorical.
-- `accept` selects one or more answer labels; `review` optionally selects disjoint labels. Remaining labels are unacceptable. Scale checks use `accept.at_least` to identify the first acceptable level; all higher levels are also acceptable.
-- `when_uncertain: review` is the only uncertainty behavior in v0. It defaults to review when omitted.
-- Acceptance describes the required meaning. It does not declare a numerical threshold or a probability that the requirement is met.
+- Exactly two answer keys, `yes` and `no`, declare a binary question. Other answer sets are categorical.
+- `accept` selects one or more answer labels. `review` optionally selects disjoint labels. Remaining labels are unacceptable.
+- For scales, `accept.at_least` identifies the first acceptable level. Higher levels are also acceptable.
+- `when_uncertain: "review"` is the only uncertainty behavior in v0. It defaults to review when omitted.
+- Acceptance defines meaning. It does not establish a probability of correctness.
 - Unknown labels, duplicate IDs, overlapping accept/review sets, invalid scales, and empty check sets are definition errors.
-- Inputs use a documented JSON Schema subset for strings, numbers, booleans, arrays, and objects. Declared top-level inputs are required; extra top-level inputs are rejected. Nested objects declare their own required properties.
-- Parse YAML 1.2 safely, reject duplicate mapping keys and arbitrary tags, and never execute embedded code. Runtime input validation is mandatory.
-- Initial exact rules are `maxLength`, `includes`, and `excludes` on one string input. Document Unicode and matching semantics. They require no statistical calibration.
+- `inputs` is one JSON Schema object schema, authored with `Type.Object`. Its properties name the inputs available to `using`.
+- Every top-level input is required. The top-level schema must set `additionalProperties: false`. Nested objects declare their own required properties.
+- Rust performs runtime validation. TypeScript types do not replace validation at the native boundary.
+- Initial exact rules are `maxLength`, `includes`, and `excludes` on one string input. They require no statistical calibration.
+- Define Unicode length and matching semantics once in Rust. Preserve those semantics in every language wrapper.
 
-## 5. TypeScript and application integration
+This draft changes `inputs` from the earlier field-to-schema map to a complete object schema. Update examples and generated contracts together.
+No published format or implementation requires migration yet.
 
-TypeScript constructs the same serializable definition. It does not expose Jev SDK classes:
+### Portable schema boundary
 
-```ts
-import { defineChecks, load } from "measuretwice";
+TypeBox provides schema construction and TypeScript inference. The shared core receives plain JSON Schema, without TypeBox or provider objects.
+Start with an explicit JSON Schema 2020-12 subset for strings, finite numbers, booleans, arrays, and objects.
+Publish the supported keywords and constraints before implementation. Reject unsupported schema features with a field path and useful error.
 
-const checks = defineChecks({
-  version: 1,
-  name: "novelty-review",
-  when_uncertain: "review",
-  inputs: {
-    conversation: { type: "string" },
-    proposed_message: { type: "string" },
-  },
-  checks: [{
-    id: "adds-information",
-    name: "We are adding something new",
-    using: ["conversation", "proposed_message"],
-    question: "Has the conversation already acknowledged this concern?",
-    answers: {
-      yes: "A participant explicitly recognizes this specific concern.",
-      no: "No supplied message explicitly recognizes this specific concern.",
-    },
-    accept: "no",
-  }],
-});
+Portable definitions cannot contain callbacks, closures, custom executable validators, transforms, or JavaScript-only values.
+Do not silently drop an unsupported constraint. TypeBox authoring metadata may be removed only by a documented, tested conversion.
+Application preprocessing remains outside the definition; profiles record its version when it affects assessments.
 
-const reviewer = await load(checks, {
-  profile: "profiles/novelty-production.json",
-});
-```
+Validate definitions, schemas, cases, profiles, and assessments in Rust. Keep mutation, type coercion, and implicit input defaults disabled.
+Use one canonicalization procedure in Rust for hashes. Define numeric limits, string handling, omitted values, and ordered arrays explicitly.
+Use shared fixtures to prevent differences in serialization, validation, and hashing across languages.
 
-The equivalent YAML integration is:
+## 5. TypeScript integration and shared Rust core
+
+The application imports its trusted definition through its normal build. `defineChecks` returns a validated, serializable definition with inferred TypeScript input types.
+`load` accepts that definition directly. Users do not need to generate an intermediate file.
 
 ```ts
 import { load } from "measuretwice";
+import { intervention } from "./.measuretwice/checks/intervention.js";
 
-const reviewer = await load("intervention.checks.yaml", {
-  profile: "profiles/intervention-production.json",
+const reviewer = await load(intervention, {
+  profile: ".measuretwice/profiles/intervention.json",
 });
 
 const report = await reviewer.run({
@@ -196,9 +206,55 @@ const report = await reviewer.run({
 await saveReport(report); // Application-owned storage.
 ```
 
-`defineChecks` provides editor guidance, type inference where possible, and runtime validation. Equivalent YAML and TypeScript produce identical canonical definitions and hashes. Applications import trusted TypeScript normally; the CLI does not execute arbitrary TypeScript files.
+The `.js` import names the emitted module from the application's TypeScript build.
+`defineChecks` preserves type inference for case inputs and declared input names in `using`.
+All public interfaces remain independent of Jev SDK classes and native binding types.
 
-The main API is `defineChecks`, `load`, `run`, `calibrate`, `evaluate`, and `compare`. Profile and report inspection are methods/helpers on those artifacts, not another orchestration framework.
+The main API is `defineChecks`, `load`, `run`, `calibrate`, `evaluate`, and `compare`.
+Inspection belongs to the profile and report interfaces. It does not require an orchestration framework.
+`load` may also read an explicitly exported JSON definition. It does not load YAML or execute TypeScript source files.
+
+### Responsibilities across the language boundary
+
+| Component | Owns | Does not own |
+| --- | --- | --- |
+| Rust core | Contract validation, input projection, exact rules, profile compatibility, decision rules, outcome aggregation, canonical hashes, statistical calculations | Provider SDKs, network calls, credentials, application storage |
+| TypeScript SDK | TypeBox authoring, inferred types, ordinary async API, evaluator registration, bounded scheduling, cancellation, file access, report rendering | Independent copies of core decision or calibration rules |
+| Jev adapter | Versioned question translation, official SDK calls, assessment normalization, usage and error mapping | Application actions or profile promotion |
+| Application | Trusted imports, preprocessing, credentials, storage, profile selection, permissions, delivery | Automatic approval from a passing report |
+
+The Rust core is an ordinary library with serializable inputs and outputs. It needs no embedded JavaScript runtime or network client.
+Use NAPI-RS for the Node binding. Keep the binding thin; Rust types do not become the public TypeScript API.
+The wrapper sends validated projected requests to registered evaluators. It returns assessments or operational records to Rust for validation and report construction.
+
+The wrapper owns queueing, deadlines, retries, and cancellation. Specify these behaviors in shared conformance cases for future wrappers.
+Rust owns deterministic checks on valid run transitions and terminal results. A late result cannot change a completed or cancelled report.
+Define this state boundary before implementation and model its critical invariants with TLA+.
+Keep long calibration calculations off the Node event loop. Rust must not call back into arbitrary user code during those calculations.
+
+### Python follows the TypeScript test MVP
+
+Python is the next SDK delivery after the TypeScript pilot. It is a near-term product requirement.
+Use PyO3 for bindings and maturin for packaging. Python authors definitions through an idiomatic wrapper that emits the same JSON contract.
+Do not require Python users to execute TypeScript. Choose the Python schema-authoring integration when building that wrapper.
+
+Python reuses Rust validation, rules, statistics, canonicalization, and reports. Its native provider adapter must pass the same translation and runtime conformance tests.
+A shared core does not establish evaluator equivalence. Record actual adapter translations and versions, and requalify profiles when material bindings change.
+
+Ship a declared platform matrix and prebuilt binaries for supported targets. Normal installation on those targets must not require a Rust compiler.
+Python packaging tests are required before Python release. Browser, edge, and WebAssembly support are separate future work.
+
+### Minimal dependency direction
+
+- TypeScript authoring: `typebox`.
+- Initial semantic adapter: the official `@typesafe-ai/sdk`.
+- Node binding: NAPI-RS and the generated native package artifacts.
+- Rust: serialization, JSON Schema validation, canonicalization/hashing, and the selected statistical routines.
+- Development: TypeScript, Node types, Vitest, Rust tooling, and conformance fixtures.
+
+Select and pin Rust crates after confirming the supported schema keywords, numerical methods, and target platforms.
+Do not add Zod, Ajv, a YAML parser, or an agent framework to the TypeScript runtime for v0.
+Rust owns authoritative validation. TypeBox is the schema-authoring interface.
 
 ## 6. Evaluators and Jev
 
@@ -206,7 +262,7 @@ The evaluator contract receives a validated question, the exact projected inputs
 
 An assessment identifies the answer kind and preserves the backend's actual output: a label, a binary value, an ordered score, optional distributions, optional confidence, and optional evidence references. Unsupported measurements are absent, never invented. Raw provider confidence remains distinct from empirical evaluation evidence.
 
-The first semantic evaluator uses the official TypeSafe SDK:
+The first semantic evaluator lives in the TypeScript adapter and uses the official TypeSafe SDK:
 
 | Check shape | Jev implementation |
 | --- | --- |
@@ -232,7 +288,7 @@ Calibration is a supported workflow in v0. A capable LLM or coding agent manages
 2. **Exercise:** Propose counterexamples and ambiguous cases, clearly marked synthetic and unreviewed.
 3. **Label:** Help reviewers inspect cases and request judgments. Preserve attribution and distinguish human labels from model suggestions.
 4. **Set goals:** Ask the owner what errors matter and how much review is tolerable. Translate the answers into an inspectable calibration plan.
-5. **Fit:** Run the evaluator on development cases. Statistical code searches the bounded policy family against the agreed objectives.
+5. **Fit:** Run the evaluator on development cases. Rust statistical code searches the bounded policy family against the agreed objectives.
 6. **Validate:** Freeze the candidate and evaluate it on held-out cases. Compute counts, intervals, slice results, and goal satisfaction in code.
 7. **Explain:** Produce a plain-language account of errors, review burden, uncertainty, and missing evidence, linked to calculated metrics.
 8. **Propose:** Write a profile and comparison for review. Never promote a revision automatically.
@@ -245,7 +301,7 @@ Goals are separate from both check meaning and provider configuration. A version
 
 For example, the owner might prioritize limiting incorrect interventions among accepted candidates, then minimize human review subject to that constraint. The plan must specify whether this refers to error among accepted cases or acceptance among unacceptable cases; those are different quantities.
 
-Use tested statistical routines for uncertainty intervals. Record their method, assumptions, and confidence level. Where appropriate, qualification compares an upper error bound with the declared limit, rather than comparing the observed error rate alone. Zero observed errors is not proof of zero risk. Small or missing denominators yield insufficient evidence.
+Use tested Rust statistical routines for uncertainty intervals. Validate them against independent reference fixtures. Record their method, assumptions, and confidence level. Where appropriate, qualification compares an upper error bound with the declared limit, rather than comparing the observed error rate alone. Zero observed errors is not proof of zero risk. Small or missing denominators yield insufficient evidence.
 
 Split related examples by conversation/source group to avoid leakage. Distinguish targeted synthetic challenge sets from representative samples. Active selection of hard cases helps improve checks but changes sampling; it cannot silently become an estimate of production prevalence. Treat correlated cases through an explicit grouping/sampling strategy or report that the uncertainty assumptions are unsupported.
 
@@ -346,7 +402,8 @@ Normal execution is reporting-only too: the host explicitly consumes a report. E
 
 ```text
 .measuretwice/
-  checks/intervention.yaml      Human-readable requirements
+  checks/intervention.ts        Readable TypeScript requirements and TypeBox inputs
+  definitions/intervention.json Optional export for the CLI or another language
   cases/intervention.jsonl      Labeled examples with provenance
   calibration-plan.json         Goals, sampling, and evaluation procedure
   profiles/intervention.json    Evaluator bindings and measured decision policy
@@ -359,21 +416,28 @@ Commit definitions, shareable cases, and selected profiles. Ignore generated rep
 Retain qualification evidence referenced by selected profiles in an explicitly managed location.
 Public examples belong in `examples/`; project development checks belong in `.measuretwice/`.
 
-The coding agent helps create and maintain these files. Users should not need to hand-author numerical profiles.
-The following commands run from the project root.
+The library workflow imports TypeScript definitions directly. JSON export is optional for CLI use, inspection, or exchange with another language.
+A trusted application script can serialize the result of `defineChecks` with `JSON.stringify` and write it through Node file APIs.
+Hash canonical content through the Rust core; JSON formatting does not establish a content hash.
+
+The CLI accepts JSON data files. It does not evaluate TypeScript modules or load YAML.
+The following commands assume that the application has exported the definition to the shown path.
 
 ```bash
-measuretwice validate .measuretwice/checks/intervention.yaml
-measuretwice calibrate .measuretwice/checks/intervention.yaml --plan .measuretwice/calibration-plan.json --out .measuretwice/profiles/candidate.json
-measuretwice run .measuretwice/checks/intervention.yaml --profile .measuretwice/profiles/candidate.json --case example.json --mode shadow
-measuretwice evaluate .measuretwice/checks/intervention.yaml --profile .measuretwice/profiles/candidate.json --cases .measuretwice/cases/holdout.jsonl --out .measuretwice/reports/candidate.json
+measuretwice validate .measuretwice/definitions/intervention.json
+measuretwice calibrate .measuretwice/definitions/intervention.json --plan .measuretwice/calibration-plan.json --out .measuretwice/profiles/candidate.json
+measuretwice run .measuretwice/definitions/intervention.json --profile .measuretwice/profiles/candidate.json --case example.json --mode shadow
+measuretwice evaluate .measuretwice/definitions/intervention.json --profile .measuretwice/profiles/candidate.json --cases .measuretwice/cases/holdout.jsonl --out .measuretwice/reports/candidate.json
 measuretwice compare .measuretwice/reports/baseline.json .measuretwice/reports/candidate.json
 measuretwice inspect .measuretwice/profiles/candidate.json
 ```
 
-The calibration plan references fitting and validation datasets and registered evaluator configuration. The same operations exist in the library. `calibrate` performs the frozen-candidate validation step; a later `evaluate` command can assess a new independent dataset and does not silently update the profile's qualification. `inspect` defaults to a readable summary with an option for exact numerical details. Reports are JSON with terminal/Markdown renderers.
+The calibration plan references fitting and validation datasets and registered evaluator configuration. The same operations exist in the library.
+`calibrate` performs frozen-candidate validation. A later `evaluate` can assess independent data; it does not silently change profile qualification.
+`inspect` starts with a readable summary and offers numerical details. Reports are JSON with terminal/Markdown renderers.
 
-A starter example includes an explicitly unvalidated exploration profile. A full calibration and enforcement tutorial follows after the first successful shadow run. No CLI command installs or invokes an unrestricted authoring agent.
+A starter example includes an explicitly unvalidated exploration profile. A calibration tutorial follows the first shadow run.
+Users do not hand-author numerical profiles. No command installs or invokes an unrestricted authoring agent.
 
 ## 12. Runtime boundaries
 
@@ -412,7 +476,9 @@ Use them for manual review and future shadow experiments. Keep independent softw
 
 Ship:
 
-- One TypeScript package and CLI with readable YAML/TypeScript definitions and published schemas.
+- A small shared Rust core, a Node binding, and one public TypeScript package with a CLI.
+- TypeScript authoring with TypeBox, portable JSON contracts, and published schemas. YAML is outside v0.
+- Prebuilt native packages for the declared Node platform matrix, with clean-install tests.
 - Deterministic rules and a Jev evaluator using Choice, Noul, and Score behind the portable interface.
 - A small evaluator extension contract and a fake/label-only adapter used to test independence from Jev.
 - Versioned exploration and calibrated profiles, compatibility checks, and progressive inspection.
@@ -421,15 +487,19 @@ Ship:
 - Evaluation, shadow comparison, JSONL review exchange, and readable reports.
 - Memory and intervention examples, a public challenge set, and a Cassandra adapter example.
 
-Defer additional production backends, a built-in generative agent service, unrestricted tool execution, Python, probability-recalibration models, Bayesian planning, formal verification, automatic claim extraction, general workflow orchestration, hosted dashboards, marketplaces, and cryptographic approval infrastructure.
+Defer additional production backends, a built-in generative agent service, unrestricted tool execution, YAML authoring, browser/edge runtimes, probability-recalibration models, Bayesian planning, a formal-verification evaluator, automatic claim extraction, general workflow orchestration, hosted dashboards, marketplaces, and cryptographic approval infrastructure.
+
+Python follows this TypeScript test MVP as the next SDK delivery. Plan its shared contracts and fixtures now; do not ship two public SDKs in the pilot.
 
 Implement in this order:
 
-1. Freeze the portable check, case, assessment, and report contracts with the readable examples.
-2. Implement exact rules, Jev translation, bounded execution, and exploration profiles.
-3. Add labeled evaluation, comparison, and the first shadow integration.
-4. Add the bounded calibration routine, statistical validation, profile qualification, and inspection.
-5. Exercise the complete AI-assisted workflow with Cassandra and refine ergonomics before release.
+1. Freeze the portable contracts, TypeBox schema subset, readable TypeScript examples, and cross-language conformance fixtures.
+2. Implement a vertical slice through Rust and the Node binding. Validate inputs, run an exact rule, and return a report.
+3. Verify native packaging on the declared Node targets before expanding the API.
+4. Add Jev translation, bounded execution, exploration profiles, evaluation, and the Cassandra shadow integration.
+5. Add Rust calibration calculations, independent validation, qualification, and profile inspection.
+6. Exercise the complete workflow with Cassandra and review the TypeScript API with a new developer.
+7. Add the Python wrapper and packaging next. Require the shared conformance suite before release.
 
 Calibration is required for the complete MVP, but the exploration path should be useful before a user has enough evidence to qualify a profile.
 
@@ -437,9 +507,10 @@ Calibration is required for the complete MVP, but the exploration path should be
 
 1. A human can explain the flagship checks and acceptable outcomes without learning Jev primitives or numerical thresholds.
 2. A coding agent can draft valid definitions and proposed examples from the published guide; provenance distinguishes its suggestions from human labels.
-3. Equivalent YAML and TypeScript definitions produce identical canonical content and hashes, including scale order.
+3. TypeBox-authored definitions and equivalent JSON produce identical validated content and Rust hashes, including scale order.
+   The same fixtures become mandatory for the Python SDK.
 4. All three Jev primitives are exercised with no backend SDK types in the public check definition.
-5. Tests cover schema/parser boundaries, exact rules, translations, policy cutoffs, uncertain answers, composition, cancellation, deadlines, retries, concurrency, and partial failures.
+5. Tests cover TypeBox conversion, the native boundary, JSON schemas, exact rules, translations, policy cutoffs, composition, cancellation, deadlines, retries, concurrency, and partial failures.
 6. Statistical tests verify metric denominators, uncertainty calculations, grouped/split data handling, minimum evidence requirements, candidate selection, and insufficient-evidence outcomes against known fixtures.
 7. A profile binds exact definitions, translations, evaluator versions, and numerical rules. Any material mismatch is caught before enforcement.
 8. Replacing Jev with a test evaluator preserves check meaning while requiring an independently qualified profile. Missing confidence remains missing.
@@ -447,11 +518,18 @@ Calibration is required for the complete MVP, but the exploration path should be
 10. A live opt-in benchmark records the resolved model version and actual errors; ordinary tests spend no API budget.
 11. One documented journey covers draft, reviewed cases, calibration, shadow operation, inspection, revision comparison, and explicit promotion.
 12. A new developer can integrate an exploration shadow run in one working session. Production qualification is allowed to take longer because it depends on evidence.
+13. TypeScript authoring preserves useful input inference and rejects unknown input names. Unsupported executable definitions fail explicitly.
+14. Native packages install and run without a Rust toolchain on every declared supported target.
+15. Rust contains the shared decision and statistical implementation. Wrapper tests verify the runtime behavior that Rust does not own.
 
 The usability test is to hand someone the check file and a report without an architecture lecture. They should understand the requirement, supplied evidence, outcome, and next step. The advanced view must let a developer trace that same outcome to exact measurements and an evaluated policy.
 
 ## References
 
+- [TypeBox](https://github.com/sinclairzx81/typebox)
+- [NAPI-RS](https://napi.rs/)
+- [PyO3](https://pyo3.rs/)
+- [maturin](https://www.maturin.rs/)
 - [Original checks architecture](research/03-checks-yaml-architecture.md)
 - [Positioning and evaluation research](research/04-positioning-response.md)
 - [Research index](research/index.md)
