@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/input-schema.schema.json",
+  "title": "measuretwice supported input schema subset (v0)",
+  "description": "Meta-schema for the root input schema of a check definition. It accepts only the supported subset of JSON Schema 2020-12. The Rust core additionally enforces the cross-field rules, the schema count and depth limits, and the input size limits published in input-schema.md.",
+  "$ref": "#/$defs/root_schema",
+  "$defs": {
+    "root_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "properties", "required", "additionalProperties"],
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {"$ref": "#/$defs/property_map"},
+        "required": {"$ref": "#/$defs/required_names"},
+        "additionalProperties": {"const": false}
+      },
+      "description": "Root schema. Every top-level input is required. The root holds no other keyword."
+    },
+    "property_map": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "additionalProperties": {"$ref": "#/$defs/subschema"},
+      "description": "Declared properties. Every key follows the input name rules in common.schema.json."
+    },
+    "required_names": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "common.schema.json#/$defs/input_name"},
+      "description": "Names of required properties. Rust verifies that every entry names a declared property."
+    },
+    "subschema": {
+      "oneOf": [
+        {"$ref": "#/$defs/string_schema"},
+        {"$ref": "#/$defs/number_schema"},
+        {"$ref": "#/$defs/integer_schema"},
+        {"$ref": "#/$defs/boolean_schema"},
+        {"$ref": "#/$defs/array_schema"},
+        {"$ref": "#/$defs/object_schema"}
+      ],
+      "description": "One nested schema. Every nested schema states exactly one type."
+    },
+    "string_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "string"},
+        "minLength": {"$ref": "#/$defs/length_bound"},
+        "maxLength": {"$ref": "#/$defs/length_bound"}
+      }
+    },
+    "number_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "number"},
+        "minimum": {"$ref": "#/$defs/number_bound"},
+        "maximum": {"$ref": "#/$defs/number_bound"},
+        "exclusiveMinimum": {"$ref": "#/$defs/number_bound"},
+        "exclusiveMaximum": {"$ref": "#/$defs/number_bound"}
+      }
+    },
+    "integer_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "integer"},
+        "minimum": {"$ref": "#/$defs/integer_bound"},
+        "maximum": {"$ref": "#/$defs/integer_bound"},
+        "exclusiveMinimum": {"$ref": "#/$defs/integer_bound"},
+        "exclusiveMaximum": {"$ref": "#/$defs/integer_bound"}
+      }
+    },
+    "boolean_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "boolean"}
+      }
+    },
+    "array_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "items"],
+      "properties": {
+        "type": {"const": "array"},
+        "items": {"$ref": "#/$defs/subschema"},
+        "minItems": {"$ref": "#/$defs/item_bound"},
+        "maxItems": {"$ref": "#/$defs/item_bound"}
+      }
+    },
+    "object_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "properties", "additionalProperties"],
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {"$ref": "#/$defs/property_map"},
+        "required": {"$ref": "#/$defs/required_names"},
+        "additionalProperties": {"const": false}
+      },
+      "description": "Nested object schema. required is optional and names a subset of the declared properties."
+    },
+    "length_bound": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 250000
+    },
+    "item_bound": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "number_bound": {
+      "type": "number"
+    },
+    "integer_bound": {
+      "type": "integer"
+    }
+  }
+}

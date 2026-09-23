@@ -37,26 +37,28 @@
         "architecture"
       ],
       "depends_on": [],
-      "updated_at": "2026-09-23T21:25:54Z",
+      "updated_at": "2026-09-23T21:26:36Z",
       "files": [
         "contracts/README.md",
-        "contracts/v0/common.schema.json",
-        "contracts/v0/definition.schema.json",
-        "contracts/v0/case-record.schema.json",
-        "contracts/v0/dataset.schema.json",
         "contracts/v0/assessment.schema.json",
         "contracts/v0/calibration-plan.schema.json",
+        "contracts/v0/case-record.schema.json",
+        "contracts/v0/common.schema.json",
+        "contracts/v0/comparison.schema.json",
+        "contracts/v0/dataset.schema.json",
+        "contracts/v0/definition.schema.json",
+        "contracts/v0/evaluation-report.schema.json",
         "contracts/v0/profile.schema.json",
         "contracts/v0/run-report.schema.json",
-        "contracts/v0/evaluation-report.schema.json",
-        "contracts/v0/comparison.schema.json"
+        "to-do.json",
+        "to-do.schema.json"
       ]
     },
     {
       "id": "T002",
       "title": "Publish the supported input schema subset",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Define the portable JSON Schema 2020-12 subset before selecting validation dependencies. Sources: MVP_SPEC.md sections 4-5, 14-15.",
       "steps": [
         "List supported keywords for strings, finite numbers, booleans, arrays, and objects.",
@@ -72,6 +74,13 @@
       ],
       "depends_on": [
         "T001"
+      ],
+      "updated_at": "2026-09-23T21:36:10Z",
+      "files": [
+        "contracts/README.md",
+        "contracts/v0/input-schema.md",
+        "contracts/v0/input-schema.schema.json",
+        "to-do.json"
       ]
     },
     {

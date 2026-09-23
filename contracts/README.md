@@ -77,9 +77,11 @@ Rust enforces these cross-field invariants beyond the schema file:
 9. The input schemas use only keywords from the supported subset contract.
 10. The check set is not empty.
 
-The supported JSON Schema subset is published separately, before implementation.
-TypeBox authoring metadata may be removed only by the documented, tested
-conversion. Unsupported constraints are never dropped silently.
+The [supported input schema subset](v0/input-schema.md) lists the permitted
+keywords, the limits, and the documented TypeBox conversion. Its
+machine-checkable form is [input-schema.schema.json](v0/input-schema.schema.json).
+TypeBox authoring metadata may be removed only by that documented conversion.
+Unsupported constraints are never dropped silently.
 
 ## Case records and datasets
 
@@ -395,7 +397,10 @@ These contracts are frozen for v0. Change them only through review.
 
 Related contracts published after this freeze:
 
-- The supported input schema subset, including permitted keywords and limits.
+- [Supported input schema subset](v0/input-schema.md), with the
+  machine-checkable [meta-schema](v0/input-schema.schema.json). Published on
+  23 September 2026.
 - The hashing and string contract, covering canonicalization, hash domains,
-  Unicode length, and matching.
-- The cross-language conformance fixtures that pin these contracts.
+  Unicode length, and matching. Not yet published.
+- The cross-language conformance fixtures that pin these contracts. Not yet
+  published.
