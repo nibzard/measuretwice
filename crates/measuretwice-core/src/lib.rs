@@ -6,6 +6,15 @@
 //! canonical content hashes, and statistical calculations. The frozen
 //! contracts in `contracts/v0` define the artifact formats.
 //!
+//! External artifact text enters through one strict gate: [`json::parse_strict`]
+//! rejects malformed text, duplicate object keys, non-finite numbers, and
+//! unpaired surrogates before any type sees the data. Each artifact then
+//! passes through its parser, for example [`definition::parse_definition_str`],
+//! which returns either a validated domain value or a
+//! [`error::ValidationError`] with a stable reason code and a field path.
+//! No parser coerces a value, applies a silent default, or exposes
+//! unvalidated data.
+//!
 //! This crate never owns provider calls, network clients, credentials,
 //! application storage, or report rendering. Do not add a dependency on a
 //! provider SDK, an HTTP client, a database, or a terminal library. The
@@ -14,6 +23,14 @@
 
 #![forbid(unsafe_code)]
 
+/// Shared envelope rules for every portable artifact.
+pub mod artifact;
+/// The portable check definition contract.
+pub mod definition;
+/// Stable typed validation errors.
+pub mod error;
+/// The strict JSON gate for external artifact text.
+pub mod json;
 /// Deterministic test utilities. See the module documentation for the rules.
 pub mod testing;
 

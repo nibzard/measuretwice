@@ -86,6 +86,11 @@ its runner rule.
 - The repository checks in `tests/repo/fixtures.test.ts` verify the fixture
   data: the digest formula, the structural invariants, and the cross-file
   links. They are offline and deterministic.
+- The Rust integration tests in
+  `crates/measuretwice-core/tests/contract_fixtures.rs` run the fixture
+  groups that the core owns so far: the valid definition artifacts, the
+  structural definition rejections, and the hashing rejection records. Each
+  validation task adds its own groups when its boundary lands.
 - Every wrapper runs every group through the Rust core. A wrapper never
   recomputes a rule, a canonical form, or a hash.
 - The same fixtures are mandatory for the later Python SDK. MVP_SPEC.md

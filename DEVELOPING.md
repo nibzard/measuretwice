@@ -95,10 +95,17 @@ Dependency decisions still open:
   pin it in T024. It belongs to an adapter, never to the core.
 - The statistics routines for uncertainty intervals are not pinned yet.
   Select them with the interval methods in T043.
-- JSON Schema validation stays inside the core. A general validator that
-  ignores unknown keywords cannot enforce the supported subset, because
-  `contracts/v0/input-schema.md` requires rejection of unknown keywords.
-  The core implements the subset directly. Decide the final split in T009.
+
+Decided in T009: the core uses no JSON Schema crate. A general validator
+that ignores unknown keywords cannot enforce the supported subset, because
+`contracts/v0/input-schema.md` requires rejection of unknown keywords. The
+core therefore validates the frozen contracts directly over `serde_json`
+values. `measuretwice_core::json` is the strict text gate, and each artifact
+parser, such as `measuretwice_core::definition`, walks its schema with
+stable reason codes and field paths. The strict gate maps the pinned
+`serde_json` failure wording to registry codes; the conformance fixtures
+cover every row of that mapping.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

@@ -320,13 +320,13 @@
         "T001",
         "T006"
       ],
-      "updated_at": "2026-09-23T23:18:43Z",
+      "updated_at": "2026-09-23T23:19:13Z",
       "files": [
+        "TESTING.md",
         "models/README.md",
         "models/qualification/Qualification.cfg",
         "models/qualification/Qualification.tla",
         "models/qualification/README.md",
-        "TESTING.md",
         "tests/repo/models.test.ts",
         "to-do.json"
       ]
@@ -335,7 +335,7 @@
       "id": "T009",
       "title": "Implement strict Rust contract parsing",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Make Rust the authoritative validation boundary for external artifacts. Sources: MVP_SPEC.md sections 4-5, 8, 10, 12; AGENTS.md sections 4, 10.",
       "steps": [
         "Write failing fixtures for malformed artifacts, invalid versions, invalid field types, and contract violations.",
@@ -352,6 +352,18 @@
       "depends_on": [
         "T004",
         "T006"
+      ],
+      "updated_at": "2026-09-23T23:39:00Z",
+      "files": [
+        "crates/measuretwice-core/src/artifact.rs",
+        "crates/measuretwice-core/src/definition.rs",
+        "crates/measuretwice-core/src/error.rs",
+        "crates/measuretwice-core/src/json.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "to-do.json"
       ]
     },
     {
