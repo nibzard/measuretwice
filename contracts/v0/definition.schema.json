@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/definition.schema.json",
+  "title": "measuretwice check definition (v0)",
+  "description": "Portable check definition produced by defineChecks or exported as JSON. Contains the inputs, the checks, and the acceptance meaning. Contains no evaluator names and no numerical cutoffs. Rust enforces the cross-field invariants listed in the contracts README.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "inputs", "checks"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "name": {
+      "$ref": "common.schema.json#/$defs/artifact_id",
+      "description": "Definition name. Keep one name across revisions of the same requirement set."
+    },
+    "when_uncertain": {
+      "const": "review",
+      "description": "The only uncertainty behavior in v0. Omitting the field has the same effect."
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["type", "properties", "additionalProperties"],
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "description": "Schema for one declared input. The supported JSON Schema subset contract lists the permitted keywords."
+          }
+        },
+        "additionalProperties": {"const": false},
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/input_name"}
+        }
+      },
+      "additionalProperties": true,
+      "description": "Root input schema. Must close additional properties. Rust verifies that required names every declared property. Extra keywords are governed by the supported input schema subset contract."
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/check"},
+      "description": "All checks are required. A definition with no checks is invalid."
+    }
+  },
+  "$defs": {
+    "answer_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Named answer label or scale level."
+    },
+    "scale_accept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at_least"],
+      "properties": {
+        "at_least": {"$ref": "#/$defs/answer_label"}
+      },
+      "description": "Scale acceptance. The named level and every higher level are acceptable."
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "using"],
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Readable statement of the requirement."
+        },
+        "using": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/input_name"},
+          "description": "Declared inputs that this check may read. The evaluator receives only these inputs."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000,
+          "description": "Question put to the evaluator."
+        },
+        "answers": {
+          "type": "object",
+          "minProperties": 2,
+          "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "description": "Named answers with descriptions. Keys yes and no only declare a binary question."
+        },
+        "scale": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 1000}
+          },
+          "description": "Ordered levels, from lowest to highest. The array order carries meaning. Serialization must preserve it."
+        },
+        "accept": {
+          "oneOf": [
+            {"$ref": "#/$defs/answer_label"},
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/answer_label"}
+            },
+            {"$ref": "#/$defs/scale_accept"}
+          ],
+          "description": "Accepted answers. Remaining answers are unacceptable. Scale checks accept at_least only."
+        },
+        "review": {
+          "oneOf": [
+            {"$ref": "#/$defs/answer_label"},
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/answer_label"}
+            }
+          ],
+          "description": "Answers that produce review. Must be disjoint from accept."
+        },
+        "rule": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["maxLength"],
+              "properties": {
+                "maxLength": {"type": "integer", "minimum": 0}
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["includes"],
+              "properties": {
+                "includes": {"type": "string", "minLength": 1, "maxLength": 1000}
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["excludes"],
+              "properties": {
+                "excludes": {"type": "string", "minLength": 1, "maxLength": 1000}
+              }
+            }
+          ],
+          "description": "Deterministic rule on exactly one string input. Requires no statistical calibration. The string contract defines length and matching semantics."
+        }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {"required": ["question"]},
+            {"required": ["rule"]}
+          ]
+        },
+        {
+          "if": {"required": ["rule"]},
+          "then": {
+            "not": {
+              "anyOf": [
+                {"required": ["question"]},
+                {"required": ["answers"]},
+                {"required": ["scale"]},
+                {"required": ["accept"]},
+                {"required": ["review"]}
+              ]
+            }
+          }
+        },
+        {
+          "if": {"required": ["question"]},
+          "then": {
+            "oneOf": [
+              {"required": ["answers"]},
+              {"required": ["scale"]}
+            ]
+          }
+        },
+        {
+          "if": {"required": ["rule"]},
+          "then": {
+            "properties": {
+              "using": {"maxItems": 1}
+            }
+          }
+        },
+        {
+          "if": {"required": ["scale"]},
+          "then": {
+            "properties": {
+              "accept": {"$ref": "#/$defs/scale_accept"}
+            }
+          }
+        },
+        {
+          "if": {"required": ["answers"]},
+          "then": {
+            "properties": {
+              "accept": {
+                "oneOf": [
+                  {"$ref": "#/$defs/answer_label"},
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/answer_label"}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

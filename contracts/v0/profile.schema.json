@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/profile.schema.json",
+  "title": "measuretwice profile (v0)",
+  "description": "Generated binding of one definition to evaluators, decision rules, and evidence. A profile is a durable output of calibration, not a live judgment. It contains no credentials and no private case content. Rust enforces the cross-field invariants listed in the contracts README.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "origin",
+    "intended_use",
+    "definition",
+    "policy",
+    "execution",
+    "qualification"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+    "content_hash": {
+      "$ref": "common.schema.json#/$defs/content_hash",
+      "description": "Profile self-hash. Computed over the canonical profile content without this field."
+    },
+    "origin": {
+      "enum": ["exploration", "calibration", "exact"],
+      "description": "Exploration profiles carry a starter policy and no qualification evidence. Calibration profiles carry measured evidence. Exact profiles bind exact rules only and carry a structural basis."
+    },
+    "intended_use": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Declared population and scope for this profile. A hash cannot detect population drift."
+    },
+    "definition": {
+      "$ref": "common.schema.json#/$defs/artifact_reference",
+      "description": "Definition that this profile binds."
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check", "evaluator", "adapter_version", "translation"],
+        "properties": {
+          "check": {"$ref": "common.schema.json#/$defs/artifact_id"},
+          "evaluator": {
+            "$ref": "common.schema.json#/$defs/artifact_id",
+            "description": "Registered evaluator identifier."
+          },
+          "adapter_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "translation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["content_hash", "question"],
+            "properties": {
+              "content_hash": {
+                "$ref": "common.schema.json#/$defs/content_hash",
+                "description": "Canonical hash of the translated question."
+              },
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16000,
+                "description": "Complete translated question sent to the evaluator."
+              }
+            }
+          },
+          "model": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["requested"],
+            "properties": {
+              "requested": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "resolved": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "Model version resolved at measurement time. A changed resolution invalidates the qualification."
+              }
+            }
+          },
+          "preprocessing": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Preprocessing identity, when application preprocessing affects assessments."
+          }
+        }
+      },
+      "description": "One entry per question check. Empty for an exact-only definition."
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family"],
+      "properties": {
+        "family": {
+          "enum": ["probability_mass_v0", "exact"],
+          "description": "probability_mass_v0 accepts or rejects on probability mass over answers or levels. exact covers exact rules only."
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["check", "accept_cutoff", "rejection_cutoff"],
+            "properties": {
+              "check": {"$ref": "common.schema.json#/$defs/artifact_id"},
+              "accept_cutoff": {
+                "type": "number",
+                "exclusiveMinimum": 0.5,
+                "maximum": 1,
+                "description": "Minimum acceptable mass required to pass."
+              },
+              "rejection_cutoff": {
+                "type": "number",
+                "exclusiveMinimum": 0.5,
+                "maximum": 1,
+                "description": "Minimum unacceptable mass required to fail."
+              },
+              "confidence_floor": {
+                "type": "number",
+                "exclusiveMinimum": 0.5,
+                "maximum": 1,
+                "description": "Optional abstention floor on reported confidence. Below the floor the outcome is review."
+              }
+            }
+          },
+          "description": "Numerical parameters by question check. Required when family is probability_mass_v0."
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_active", "max_pending", "deadline_ms", "max_attempts", "backoff_ms"],
+      "properties": {
+        "max_active": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum check executions active at one time."
+        },
+        "max_pending": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum check executions waiting. More work returns skipped records."
+        },
+        "deadline_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total deadline for one case. Covers queue time, attempts, and backoff."
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Attempts per check, including the first attempt."
+        },
+        "backoff_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Base backoff delay between attempts. Stays inside the total deadline."
+        }
+      },
+      "description": "Effective execution configuration that produced and governs this profile."
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "content_hash"],
+          "properties": {
+            "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+            "content_hash": {"$ref": "common.schema.json#/$defs/content_hash"}
+          }
+        },
+        "datasets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "revision", "content_hash"],
+            "properties": {
+              "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+              "revision": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "content_hash": {"$ref": "common.schema.json#/$defs/content_hash"}
+            }
+          }
+        },
+        "splits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "content_hash"],
+            "properties": {
+              "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+              "content_hash": {"$ref": "common.schema.json#/$defs/content_hash"}
+            }
+          }
+        },
+        "label_provenance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Summary of label sources and review status."
+        },
+        "evaluation_reports": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "description": "References to evaluation reports in host-managed storage. Ignored files are not acceptable storage."
+        },
+        "statistical_method": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Interval methods, assumptions, and confidence level."
+        }
+      },
+      "description": "Qualification evidence. Required in full for a calibration origin."
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scope", "metric", "numerator", "denominator", "value"],
+            "properties": {
+              "scope": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Check identifier, or all_checks for the complete set."
+              },
+              "metric": {"$ref": "common.schema.json#/$defs/metric_name"},
+              "numerator": {"type": "integer", "minimum": 0},
+              "denominator": {"type": "integer", "minimum": 0},
+              "value": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scope", "metric", "method", "confidence_level", "lower", "upper"],
+            "properties": {
+              "scope": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "metric": {"$ref": "common.schema.json#/$defs/metric_name"},
+              "method": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "Named interval method. Validated against reference fixtures."
+              },
+              "confidence_level": {
+                "enum": [0.9, 0.95, 0.99]
+              },
+              "lower": {"type": "number", "minimum": 0, "maximum": 1},
+              "upper": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        "sample_counts": {
+          "type": "object",
+          "additionalProperties": {"type": "integer", "minimum": 0}
+        },
+        "slice_limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "description": "Per-slice limits, such as small denominators or missing slices."
+        }
+      },
+      "description": "Observed performance recorded with the profile."
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": {"$ref": "common.schema.json#/$defs/qualification_status"},
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Scope that the status covers."
+        },
+        "reasons": {
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/$defs/reason_code"},
+          "description": "Stable reasons for the status, or the basis for a structural validation."
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"origin": {"const": "calibration"}},
+        "required": ["origin"]
+      },
+      "then": {"required": ["evidence"]}
+    },
+    {
+      "if": {
+        "properties": {"origin": {"const": "exploration"}},
+        "required": ["origin"]
+      },
+      "then": {
+        "properties": {
+          "qualification": {
+            "properties": {
+              "status": {"const": "unvalidated"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"origin": {"const": "exact"}},
+        "required": ["origin"]
+      },
+      "then": {
+        "properties": {
+          "policy": {
+            "properties": {
+              "family": {"const": "exact"}
+            }
+          },
+          "bindings": {"maxItems": 0}
+        }
+      }
+    }
+  ]
+}

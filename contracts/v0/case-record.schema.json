@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/case-record.schema.json",
+  "title": "measuretwice case record (v0)",
+  "description": "One record in a JSON Lines (JSONL) case dataset. Each nonempty line holds exactly one record. The dataset metadata file declares the dataset that contains these records. Reference labels never enter the input object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "input", "label"],
+  "properties": {
+    "id": {"$ref": "common.schema.json#/$defs/case_id"},
+    "group": {
+      "$ref": "common.schema.json#/$defs/group_id",
+      "description": "Group of related cases. All cases of one group stay in one split. A record without a group forms its own group."
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 64},
+      "description": "Slice and failure-type labels. Evaluation reports group results by these tags."
+    },
+    "input": {
+      "type": "object",
+      "description": "Case input. Rust validates this object against the definition input schema before execution."
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/expected_check"},
+          "description": "Reference answers and expected outcomes, by check identifier."
+        },
+        "outcome": {
+          "enum": ["pass", "fail", "review"],
+          "description": "Expected overall outcome, where labeled."
+        }
+      },
+      "description": "Reference labels and expected policy outcomes. Optional parts stay absent when unlabeled."
+    },
+    "label": {"$ref": "#/$defs/label_provenance"}
+  },
+  "$defs": {
+    "expected_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Reference answer label, for a question with named answers."
+        },
+        "level": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Reference scale level, for an ordered question."
+        },
+        "review": {
+          "const": true,
+          "description": "The reference is ambiguous. Humans must review the case."
+        },
+        "outcome": {
+          "enum": ["pass", "fail", "review"],
+          "description": "Expected policy outcome for this check, where labeled."
+        }
+      },
+      "anyOf": [
+        {"required": ["answer"]},
+        {"required": ["level"]},
+        {"required": ["review"]},
+        {"required": ["outcome"]}
+      ]
+    },
+    "label_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["author_type", "reviewed"],
+      "properties": {
+        "author_type": {
+          "enum": ["human", "model"],
+          "description": "Who produced the reference. A coding agent counts as a model author."
+        },
+        "origin": {
+          "enum": ["synthetic", "collected"],
+          "description": "Written for the dataset, or collected from real traffic."
+        },
+        "reviewed": {
+          "type": "boolean",
+          "description": "A human reviewed the reference after it was proposed."
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Reviewer attribution. Required when reviewed is true."
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Short statement of why the reference applies."
+        },
+        "history": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/label_provenance"},
+          "description": "Earlier label records. Keep them when a correction replaces a reference."
+        }
+      },
+      "if": {
+        "properties": {"reviewed": {"const": true}},
+        "required": ["reviewed"]
+      },
+      "then": {"required": ["reviewer"]}
+    }
+  }
+}

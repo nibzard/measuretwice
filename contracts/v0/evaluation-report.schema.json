@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/evaluation-report.schema.json",
+  "title": "measuretwice evaluation report (v0)",
+  "description": "Record of one evaluation over a labeled dataset. Contains per-case results and calculated metrics with counts and denominators. An evaluation never changes profile qualification or host profile selection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "definition",
+    "profile",
+    "dataset",
+    "purpose",
+    "cases",
+    "metrics"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "definition": {
+      "$ref": "common.schema.json#/$defs/artifact_reference"
+    },
+    "profile": {
+      "$ref": "common.schema.json#/$defs/profile_reference"
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision", "content_hash"],
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "content_hash": {"$ref": "common.schema.json#/$defs/content_hash"}
+      }
+    },
+    "purpose": {
+      "enum": ["exploration", "fitting", "independent_validation"],
+      "description": "Declared purpose of this evaluation. Fitting results are not validation evidence."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "input_hash", "outcomes", "aggregate", "completion"],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/case_id"},
+          "input_hash": {"$ref": "common.schema.json#/$defs/content_hash"},
+          "outcomes": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "$ref": "common.schema.json#/$defs/outcome"
+            },
+            "description": "Outcome by check identifier."
+          },
+          "aggregate": {"$ref": "common.schema.json#/$defs/aggregate_outcome"},
+          "completion": {"$ref": "common.schema.json#/$defs/completion_status"},
+          "reference_match": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["boolean", "null"]
+            },
+            "description": "True or false by check identifier, where a reference label exists. Null without a reference."
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/metric_set"},
+      "description": "One entry per check, plus one entry with scope all_checks. Multiple good checks do not establish aggregate reliability."
+    },
+    "slices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tag", "metrics"],
+        "properties": {
+          "tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Case tag that groups these results."
+          },
+          "metrics": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/metric_set"}
+          }
+        }
+      },
+      "description": "Per-slice metric sets."
+    },
+    "operational": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/$defs/sanitized_reason"},
+          "description": "Operational failures over all attempts."
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total attempts across all cases and checks."
+        },
+        "elapsed_ms": {"type": "number", "minimum": 0},
+        "usage": {"$ref": "common.schema.json#/$defs/usage"}
+      }
+    },
+    "method": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Statistical methods and assumptions behind any interval that cites this report."
+    }
+  },
+  "$defs": {
+    "metric_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "counts", "rates"],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Check identifier, or all_checks for the complete check set."
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pass", "fail", "review", "error", "skipped"],
+          "properties": {
+            "pass": {"type": "integer", "minimum": 0},
+            "fail": {"type": "integer", "minimum": 0},
+            "review": {"type": "integer", "minimum": 0},
+            "error": {"type": "integer", "minimum": 0},
+            "skipped": {"type": "integer", "minimum": 0}
+          }
+        },
+        "rates": {
+          "type": "array",
+          "items": {"$ref": "common.schema.json#/$defs/rate"},
+          "description": "Every reported rate carries its numerator and denominator."
+        }
+      }
+    }
+  }
+}

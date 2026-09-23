@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/dataset.schema.json",
+  "title": "measuretwice dataset metadata (v0)",
+  "description": "Metadata for one JSONL case dataset. Stored next to the case records. Declares population, sampling, label guidelines, and splits. The case records and this file together form the dataset.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "revision",
+    "kind",
+    "intended_population",
+    "sampling_method",
+    "label_guidelines",
+    "splits"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Readable dataset name."
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Dataset revision. Changed content needs a new revision and a new content hash."
+    },
+    "kind": {
+      "enum": ["development_fixture", "synthetic_challenge", "representative_sample"],
+      "description": "Development fixtures and synthetic challenge sets are not representative population samples. Qualification claims need representative samples."
+    },
+    "intended_population": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Population that the sampling procedure targets."
+    },
+    "sampling_method": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "How the cases were selected. Active selection of hard cases is not a prevalence estimate."
+    },
+    "label_guidelines": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "Written label guidelines, or an explicit reference to them."
+    },
+    "languages": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 2, "maxLength": 35},
+      "description": "Language tags that occur in the cases."
+    },
+    "record_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of case records. Must match the record file."
+    },
+    "content_hash": {
+      "$ref": "common.schema.json#/$defs/content_hash",
+      "description": "Hash of the canonical case-record content. Computed with the hashing contract."
+    },
+    "splits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "purpose", "groups"],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+          "purpose": {
+            "enum": ["fitting", "validation"],
+            "description": "Fitting splits tune candidates. Validation splits provide independent evidence."
+          },
+          "groups": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"$ref": "common.schema.json#/$defs/group_id"},
+            "description": "Groups assigned to this split. One group appears in one split only."
+          },
+          "content_hash": {
+            "$ref": "common.schema.json#/$defs/content_hash",
+            "description": "Hash of the canonical records of this split."
+          }
+        }
+      },
+      "description": "Grouped splits. Rust verifies that no group appears in two splits."
+    }
+  }
+}

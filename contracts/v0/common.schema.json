@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/common.schema.json",
+  "title": "measuretwice shared definitions (v0)",
+  "description": "Shared value definitions for all measuretwice v0 artifact schemas. Resolve references from this directory. The Rust core validates the cross-field invariants that JSON Schema cannot express.",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Artifact schema version. The v0 contracts publish version 1 only."
+    },
+    "artifact_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Stable identifier for a definition, check, dataset, split, plan, profile, or evaluator. Lowercase segments separated by single hyphens."
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Stable case identifier. Unique inside one dataset."
+    },
+    "group_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Identifier for related cases. All cases of one group stay in one dataset split."
+    },
+    "input_name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Declared input name. Same character rules as a TypeScript property name."
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Canonical content hash. Sixty-four lowercase hexadecimal characters. The hashing contract defines the digest, the hash domain, and the canonical form."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date and time in UTC, in RFC 3339 format."
+    },
+    "outcome": {
+      "enum": ["pass", "fail", "review", "error", "skipped"],
+      "description": "Outcome of one check. Pass meets the acceptance meaning. Fail meets an unacceptable meaning. Review needs a human decision. Error reports an execution or validation failure. Skipped reports that the check was not attempted."
+    },
+    "aggregate_outcome": {
+      "enum": ["pass", "fail", "review", "error"],
+      "description": "Aggregate outcome of one case. Order of severity: fail, then error, then review or skipped, then pass. Skipped checks surface as review in the aggregate."
+    },
+    "completion_status": {
+      "enum": ["completed", "cancelled", "deadline_exceeded"],
+      "description": "Execution status of one run. Independent of the aggregate outcome. A terminal report is immutable."
+    },
+    "run_mode": {
+      "enum": ["shadow", "enforcement"],
+      "description": "Shadow records the outcome next to the existing decision. Enforcement returns a report that the host uses to decide."
+    },
+    "qualification_status": {
+      "enum": ["unvalidated", "insufficient_evidence", "criteria_not_met", "validated_for_scope"],
+      "description": "Qualification of one profile for its declared scope. A qualification flag is not an authenticated approval."
+    },
+    "answer_kind": {
+      "enum": ["categorical", "binary", "ordered"],
+      "description": "Kind of assessed answer. Categorical covers named answers. Binary covers explicit yes and no answers. Ordered covers a descriptive scale."
+    },
+    "metric_name": {
+      "enum": [
+        "false_acceptance_rate",
+        "error_among_accepted",
+        "false_rejection_rate",
+        "review_rate",
+        "automatic_coverage",
+        "label_coverage"
+      ],
+      "description": "Evaluation metric. Every value carries its numerator and denominator. False acceptance rate and error among accepted cases are different quantities."
+    },
+    "reason_code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Stable reason code from the published registry. Codes keep their meaning across releases."
+    },
+    "sanitized_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"$ref": "#/$defs/reason_code"},
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Short cause text. Contains no credentials and no raw case content."
+        },
+        "field_path": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "JSON Pointer to the rejected field, when the reason is a validation failure."
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": {"type": "number"},
+      "description": "Usage amounts reported by one evaluator execution. The adapter contract lists the supported fields. An absent field was not reported."
+    },
+    "rate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "numerator", "denominator", "value"],
+      "properties": {
+        "metric": {"$ref": "#/$defs/metric_name"},
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 0},
+        "value": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Null when the denominator is zero. A zero denominator produces no value."
+        }
+      }
+    },
+    "artifact_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "content_hash"],
+      "properties": {
+        "name": {"$ref": "#/$defs/artifact_id"},
+        "content_hash": {"$ref": "#/$defs/content_hash"}
+      },
+      "description": "Reference to another artifact by stable name and canonical content hash."
+    },
+    "profile_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "content_hash"],
+      "properties": {
+        "id": {"$ref": "#/$defs/artifact_id"},
+        "content_hash": {"$ref": "#/$defs/content_hash"}
+      },
+      "description": "Reference to one profile by identifier and content hash."
+    }
+  }
+}

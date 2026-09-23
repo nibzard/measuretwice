@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/assessment.schema.json",
+  "title": "measuretwice assessment (v0)",
+  "description": "Typed measurement returned by one evaluator execution. An absent optional field was not measured. Never invent a missing measurement. The run report records the binding identity next to the assessment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind"],
+  "properties": {
+    "kind": {"$ref": "common.schema.json#/$defs/answer_kind"},
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Selected answer label. Present when kind is categorical."
+    },
+    "value": {
+      "type": "boolean",
+      "description": "Selected answer for a binary question. Present when kind is binary."
+    },
+    "level": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Selected scale level. Present when kind is ordered."
+    },
+    "position": {
+      "type": "number",
+      "description": "Reported position along the ordered levels. Fractional values stay unrounded. Optional when kind is ordered."
+    },
+    "distribution": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "mass"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Answer label or scale level."
+          },
+          "mass": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "description": "Probability mass by answer or level, when the evaluator reports it. Names must match the check answers or levels. Masses must sum to one. A distribution is a measurement input, not a calibrated probability of correctness."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence reported by the provider. Absent when the evaluator has no confidence field. Distinct from measured correctness."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["input", "reference"],
+        "properties": {
+          "input": {"$ref": "common.schema.json#/$defs/input_name"},
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Stable reference inside the named input."
+          }
+        }
+      },
+      "description": "Evidence selected by the evaluator. Each input must be in the using list of the check. Absent when the evaluator returns none."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"kind": {"const": "categorical"}},
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["label"],
+        "not": {
+          "anyOf": [
+            {"required": ["value"]},
+            {"required": ["level"]},
+            {"required": ["position"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"kind": {"const": "binary"}},
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["value"],
+        "not": {
+          "anyOf": [
+            {"required": ["label"]},
+            {"required": ["level"]},
+            {"required": ["position"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"kind": {"const": "ordered"}},
+        "required": ["kind"]
+      },
+      "then": {
+        "required": ["level"],
+        "not": {
+          "anyOf": [
+            {"required": ["label"]},
+            {"required": ["value"]}
+          ]
+        }
+      }
+    }
+  ]
+}

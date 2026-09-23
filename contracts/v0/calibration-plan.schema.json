@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/calibration-plan.schema.json",
+  "title": "measuretwice calibration plan (v0)",
+  "description": "Owner-selected goals and the permitted policy family for one calibration. A plan declares targets and procedure. It does not carry universal default error tolerances. Rust validates the cross-field invariants listed in the contracts README.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "definition",
+    "intended_population",
+    "sampling_assumptions",
+    "confidence_level",
+    "constraints",
+    "objective",
+    "minimum_samples",
+    "candidate_grid",
+    "evaluator",
+    "datasets"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Readable plan name."
+    },
+    "definition": {
+      "$ref": "common.schema.json#/$defs/artifact_reference",
+      "description": "Definition that the plan calibrates."
+    },
+    "intended_population": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Declared population for the qualification claim."
+    },
+    "sampling_assumptions": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Grouping strategy and independence assumptions. Unsupported assumptions must be reported, not assumed."
+    },
+    "confidence_level": {
+      "enum": [0.9, 0.95, 0.99],
+      "description": "Confidence level for uncertainty intervals. Unsupported levels are rejected."
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metric", "comparison", "limit", "basis"],
+        "properties": {
+          "metric": {"$ref": "common.schema.json#/$defs/metric_name"},
+          "comparison": {
+            "enum": ["at_most", "at_least"],
+            "description": "Direction of the limit. Error and review metrics use at_most. Coverage metrics use at_least."
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "basis": {
+            "enum": ["upper_confidence_bound", "observed_value"],
+            "description": "Upper confidence bound compares the interval upper bound with the limit. Zero observed errors are not proof of zero risk."
+          }
+        }
+      },
+      "description": "Goals that a candidate must satisfy. State the metric and denominator exactly."
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "direction"],
+      "properties": {
+        "metric": {
+          "enum": ["review_rate", "automatic_coverage"],
+          "description": "Quantity that fitting minimizes or maximizes after all constraints hold."
+        },
+        "direction": {"enum": ["minimize", "maximize"]}
+      }
+    },
+    "minimum_samples": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "integer", "minimum": 1},
+      "description": "Minimum counts by denominator name. Example keys: labeled_cases, accepted_cases, reference_pass_cases, reference_fail_or_review_cases."
+    },
+    "important_slices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tag"],
+        "properties": {
+          "tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Case tag that must meet its own evidence requirements."
+          },
+          "minimum_samples": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {"type": "integer", "minimum": 1}
+          }
+        }
+      },
+      "description": "Slices that the plan checks separately."
+    },
+    "candidate_grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accept_cutoffs", "rejection_cutoffs"],
+      "properties": {
+        "accept_cutoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0.5,
+            "maximum": 1
+          }
+        },
+        "rejection_cutoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0.5,
+            "maximum": 1
+          }
+        },
+        "confidence_floors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0.5,
+            "maximum": 1
+          },
+          "description": "Optional abstention floors. Each used floor must be recorded and evaluated in the candidate."
+        }
+      },
+      "description": "Permitted candidate family. Both cutoffs must exceed 0.5. Array order declares the enumeration order. The accept dimension is the outer loop. The first optimum in this order wins a tie."
+    },
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluator", "adapter_version"],
+      "properties": {
+        "evaluator": {"$ref": "common.schema.json#/$defs/artifact_id"},
+        "adapter_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "translation_hash": {
+          "$ref": "common.schema.json#/$defs/content_hash",
+          "description": "Canonical hash of the translated questions."
+        },
+        "model_requested": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Model identifier requested for fitting and validation."
+        }
+      },
+      "description": "Registered evaluator configuration used for all measurements in this plan."
+    },
+    "datasets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fitting", "validation"],
+      "properties": {
+        "fitting": {"$ref": "#/$defs/dataset_selection"},
+        "validation": {"$ref": "#/$defs/dataset_selection"}
+      },
+      "description": "Fitting and validation data. Rust verifies that the two selections use different splits."
+    },
+    "content_hash": {
+      "$ref": "common.schema.json#/$defs/content_hash",
+      "description": "Canonical plan hash. Computed with the hashing contract."
+    }
+  },
+  "$defs": {
+    "dataset_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dataset", "revision", "split"],
+      "properties": {
+        "dataset": {"$ref": "common.schema.json#/$defs/artifact_id"},
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "split": {"$ref": "common.schema.json#/$defs/artifact_id"},
+        "content_hash": {
+          "$ref": "common.schema.json#/$defs/content_hash",
+          "description": "Hash of the canonical split content."
+        }
+      }
+    }
+  }
+}

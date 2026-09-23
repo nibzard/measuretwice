@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/run-report.schema.json",
+  "title": "measuretwice run report (v0)",
+  "description": "Immutable record of one assessed case. Keeps every component outcome, including errors that accompany a fail. The completion status stays separate from the aggregate outcome. A report never authorizes an application action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "mode",
+    "definition",
+    "profile",
+    "case",
+    "checks",
+    "aggregate",
+    "completion"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Identifier of this run. Supplied by the wrapper or host."
+    },
+    "mode": {"$ref": "common.schema.json#/$defs/run_mode"},
+    "definition": {
+      "$ref": "common.schema.json#/$defs/artifact_reference"
+    },
+    "profile": {
+      "$ref": "common.schema.json#/$defs/profile_reference",
+      "description": "Profile used for this run, by identifier and content hash."
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input_hash"],
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/case_id"},
+        "input_hash": {
+          "$ref": "common.schema.json#/$defs/content_hash",
+          "description": "Hash of the canonical case input."
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "revision"],
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Existing decision, recorded in shadow mode."
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Revision of the existing decision path."
+        }
+      },
+      "description": "Shadow baseline. Agreement with the baseline is not correctness."
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/check_result"},
+      "description": "One record per defined check. All checks are required in v0."
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome"],
+      "properties": {
+        "outcome": {"$ref": "common.schema.json#/$defs/aggregate_outcome"},
+        "explanation": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Generated from check criteria and the executed policy. Not an evaluator rationale."
+        }
+      }
+    },
+    "completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"$ref": "common.schema.json#/$defs/completion_status"},
+        "completed_at": {
+          "$ref": "common.schema.json#/$defs/timestamp",
+          "description": "Time at which the run reached a terminal state."
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "elapsed_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total elapsed time, from submission to terminal state."
+        },
+        "usage": {"$ref": "common.schema.json#/$defs/usage"}
+      }
+    }
+  },
+  "$defs": {
+    "applied_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "input"],
+      "properties": {
+        "rule": {
+          "enum": ["maxLength", "includes", "excludes"],
+          "description": "Rule that executed. Same name as the definition field."
+        },
+        "input": {"$ref": "common.schema.json#/$defs/input_name"},
+        "parameters": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["maxLength"],
+              "properties": {"maxLength": {"type": "integer", "minimum": 0}}
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["includes"],
+              "properties": {"includes": {"type": "string", "minLength": 1}}
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["excludes"],
+              "properties": {"excludes": {"type": "string", "minLength": 1}}
+            }
+          ],
+          "description": "Rule parameters as executed."
+        }
+      }
+    },
+    "applied_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accept_cutoff", "rejection_cutoff"],
+      "properties": {
+        "accept_cutoff": {
+          "type": "number",
+          "exclusiveMinimum": 0.5,
+          "maximum": 1
+        },
+        "rejection_cutoff": {
+          "type": "number",
+          "exclusiveMinimum": 0.5,
+          "maximum": 1
+        },
+        "confidence_floor": {
+          "type": "number",
+          "exclusiveMinimum": 0.5,
+          "maximum": 1
+        }
+      },
+      "description": "Numerical policy that produced this outcome."
+    },
+    "check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check", "kind", "outcome"],
+      "properties": {
+        "check": {"$ref": "common.schema.json#/$defs/artifact_id"},
+        "kind": {
+          "enum": ["question", "rule"],
+          "description": "Whether a question or a rule was assessed."
+        },
+        "outcome": {"$ref": "common.schema.json#/$defs/outcome"},
+        "assessment": {
+          "$ref": "assessment.schema.json",
+          "description": "Raw measurement, for a question check."
+        },
+        "applied_rule": {
+          "$ref": "#/$defs/applied_rule",
+          "description": "Executed rule, for a rule check."
+        },
+        "applied_policy": {
+          "$ref": "#/$defs/applied_policy",
+          "description": "Executed policy, for a question check."
+        },
+        "evaluator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "adapter_version"],
+          "properties": {
+            "id": {"$ref": "common.schema.json#/$defs/artifact_id"},
+            "adapter_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "model_resolved": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Model version that actually served this execution."
+            }
+          },
+          "description": "Actual evaluator versions used for this check."
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Attempts made, including retries."
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "queued_ms": {"type": "number", "minimum": 0},
+            "execution_ms": {"type": "number", "minimum": 0}
+          }
+        },
+        "usage": {"$ref": "common.schema.json#/$defs/usage"},
+        "reason": {
+          "$ref": "common.schema.json#/$defs/sanitized_reason",
+          "description": "Stable reason. Required for error and skipped outcomes."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {"enum": ["error", "skipped"]}
+            },
+            "required": ["outcome"]
+          },
+          "then": {"required": ["reason"]}
+        },
+        {
+          "if": {
+            "properties": {"kind": {"const": "rule"}},
+            "required": ["kind"]
+          },
+          "then": {"required": ["applied_rule"]}
+        }
+      ]
+    }
+  }
+}

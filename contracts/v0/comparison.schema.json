@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/comparison.schema.json",
+  "title": "measuretwice comparison (v0)",
+  "description": "Comparison of two stored report sets on matching cases. Results match only when the case identifier and the input hash agree. Changed inputs and changed evaluator behavior require new measurements.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "baseline",
+    "candidate",
+    "evidence_class",
+    "matching"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "baseline": {"$ref": "#/$defs/report_set"},
+    "candidate": {"$ref": "#/$defs/report_set"},
+    "evidence_class": {
+      "enum": ["fitting", "independent_validation"],
+      "description": "Fitting comparisons guide development. They are not independent validation evidence."
+    },
+    "matching": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matched_cases",
+        "changed_input_cases",
+        "missing_in_candidate",
+        "missing_in_baseline"
+      ],
+      "properties": {
+        "matched_cases": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cases with an equal identifier and an equal input hash in both reports."
+        },
+        "changed_input_cases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/case_id"},
+          "description": "Cases whose input hash differs between the reports."
+        },
+        "missing_in_candidate": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/case_id"}
+        },
+        "missing_in_baseline": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/case_id"}
+        },
+        "errored_cases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/case_id"}
+        },
+        "skipped_cases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "common.schema.json#/$defs/case_id"}
+        }
+      }
+    },
+    "changed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "checks", "baseline_aggregate", "candidate_aggregate"],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/case_id"},
+          "checks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["check", "baseline", "candidate"],
+              "properties": {
+                "check": {"$ref": "common.schema.json#/$defs/artifact_id"},
+                "baseline": {"$ref": "common.schema.json#/$defs/outcome"},
+                "candidate": {"$ref": "common.schema.json#/$defs/outcome"}
+              }
+            }
+          },
+          "baseline_aggregate": {
+            "$ref": "common.schema.json#/$defs/aggregate_outcome"
+          },
+          "candidate_aggregate": {
+            "$ref": "common.schema.json#/$defs/aggregate_outcome"
+          }
+        }
+      },
+      "description": "Cases with at least one changed component outcome."
+    },
+    "tradeoffs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scope", "metric", "baseline_value", "candidate_value"],
+            "properties": {
+              "scope": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "metric": {"$ref": "common.schema.json#/$defs/metric_name"},
+              "baseline_value": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "candidate_value": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "elapsed_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "baseline": {"type": "number", "minimum": 0},
+            "candidate": {"type": "number", "minimum": 0}
+          }
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "baseline": {"$ref": "common.schema.json#/$defs/usage"},
+            "candidate": {"$ref": "common.schema.json#/$defs/usage"}
+          }
+        },
+        "cost": {
+          "type": "object",
+          "additionalProperties": {"type": "number"},
+          "description": "Present only when recorded usage and declared cost inputs support it."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "report_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "report"],
+      "properties": {
+        "profile": {"$ref": "common.schema.json#/$defs/profile_reference"},
+        "report": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Reference to the stored report in host-managed storage."
+        }
+      }
+    }
+  }
+}

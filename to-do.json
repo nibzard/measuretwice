@@ -1,0 +1,2326 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "measuretwice",
+    "root": "."
+  },
+  "source_files": [
+    "MVP_SPEC.md",
+    "AGENTS.md",
+    ".measuretwice/README.md",
+    "mvp-guide.html",
+    "research/index.md",
+    "research/01-prior-art-landscape-report.md",
+    "research/02-use-case-examples.md",
+    "research/03-checks-yaml-architecture.md",
+    "research/04-positioning-response.md",
+    "research/05-formal-verification-extension.md"
+  ],
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "Freeze the portable artifact contracts",
+      "priority": 1,
+      "status": "done",
+      "details": "Publish versioned JavaScript Object Notation (JSON) contracts and domain invariants. MVP_SPEC.md controls scope; research documents provide historical context. Sources: MVP_SPEC.md sections 3-5, 7-11, 14; AGENTS.md sections 2-5.",
+      "steps": [
+        "Specify schemas for definitions, cases, assessments, calibration plans, profiles, run reports, evaluations, and comparisons.",
+        "Define JSON Lines (JSONL) records, dataset metadata, version compatibility, immutable values, and stable reason codes.",
+        "Separate invalid input, execution failure, uncertain judgment, rejection, completion status, qualification, and application authorization.",
+        "Specify public operation inputs, outputs, modes, resource limits, and failure behavior.",
+        "Record TypeScript-first delivery and the later Python delivery; retain the current list of deferred features.",
+        "Specify how exact-only runs satisfy profile compatibility without statistical calibration."
+      ],
+      "tags": [
+        "v0",
+        "contracts",
+        "architecture"
+      ],
+      "depends_on": [],
+      "updated_at": "2026-09-23T21:25:54Z",
+      "files": [
+        "contracts/README.md",
+        "contracts/v0/common.schema.json",
+        "contracts/v0/definition.schema.json",
+        "contracts/v0/case-record.schema.json",
+        "contracts/v0/dataset.schema.json",
+        "contracts/v0/assessment.schema.json",
+        "contracts/v0/calibration-plan.schema.json",
+        "contracts/v0/profile.schema.json",
+        "contracts/v0/run-report.schema.json",
+        "contracts/v0/evaluation-report.schema.json",
+        "contracts/v0/comparison.schema.json"
+      ]
+    },
+    {
+      "id": "T002",
+      "title": "Publish the supported input schema subset",
+      "priority": 1,
+      "status": "todo",
+      "details": "Define the portable JSON Schema 2020-12 subset before selecting validation dependencies. Sources: MVP_SPEC.md sections 4-5, 14-15.",
+      "steps": [
+        "List supported keywords for strings, finite numbers, booleans, arrays, and objects.",
+        "Require an object at the input root, all top-level properties, and additionalProperties: false.",
+        "Specify nested required properties, unsupported features, numeric bounds, nesting limits, and input size limits.",
+        "Document permitted TypeBox metadata removal without dropping validation constraints.",
+        "Define field-path errors and disable coercion, mutation, implicit input defaults, and external schema retrieval."
+      ],
+      "tags": [
+        "v0",
+        "contracts",
+        "validation"
+      ],
+      "depends_on": [
+        "T001"
+      ]
+    },
+    {
+      "id": "T003",
+      "title": "Specify canonical hashes and string semantics",
+      "priority": 1,
+      "status": "todo",
+      "details": "Use one Rust procedure for canonicalization, content hashes, string length, and matching. Sources: MVP_SPEC.md sections 4-5, 8-10, 15.",
+      "steps": [
+        "Define numeric limits, numeric representation, omitted values, object keys, Unicode handling, and ordered arrays.",
+        "Define hash domains and content boundaries for definitions, inputs, translations, profiles, plans, datasets, and splits.",
+        "Specify maxLength counting and includes/excludes matching, including empty strings and Unicode edge cases.",
+        "Specify profile self-hash handling and the treatment of nonportable JavaScript values.",
+        "Document which changes alter identity and why a hash does not establish stochastic replay."
+      ],
+      "tags": [
+        "v0",
+        "contracts",
+        "hashing"
+      ],
+      "depends_on": [
+        "T001",
+        "T002"
+      ]
+    },
+    {
+      "id": "T004",
+      "title": "Bootstrap Rust and TypeScript workspaces",
+      "priority": 1,
+      "status": "todo",
+      "details": "Create the shared Rust library and the TypeScript software development kit (SDK). Keep the public application programming interface (API) independent of providers. Sources: MVP_SPEC.md sections 5, 14; AGENTS.md sections 2, 5-6.",
+      "steps": [
+        "Create the Rust core, thin NAPI-RS binding, and one public TypeScript package with a command-line interface (CLI).",
+        "Declare supported Node versions and operating system, architecture, and runtime targets.",
+        "Pin necessary dependencies after checking schema support, numerical needs, and target compatibility.",
+        "Add Apache-2.0 licensing, package metadata, development commands, and generated-file exclusions.",
+        "Keep provider calls, credentials, storage, and rendering outside the Rust core."
+      ],
+      "tags": [
+        "v0",
+        "foundation",
+        "packaging"
+      ],
+      "depends_on": [
+        "T001",
+        "T002",
+        "T003"
+      ]
+    },
+    {
+      "id": "T005",
+      "title": "Add deterministic verification automation",
+      "priority": 1,
+      "status": "todo",
+      "details": "Establish repeatable checks before behavior implementation. Ordinary checks must need no credentials or paid API calls. Sources: MVP_SPEC.md sections 5, 15; AGENTS.md sections 6-8, 11.",
+      "steps": [
+        "Configure Rust tests, formatting, linting, TypeScript checks, and Vitest.",
+        "Add schema, example, documentation-link, and project-name checks.",
+        "Configure continuous integration for the declared initial targets.",
+        "Provide deterministic clocks, identifiers, randomness, and fake external boundaries for tests.",
+        "Document the red, green, refactor workflow and separate opt-in live evaluations."
+      ],
+      "tags": [
+        "v0",
+        "foundation",
+        "testing"
+      ],
+      "depends_on": [
+        "T004"
+      ]
+    },
+    {
+      "id": "T006",
+      "title": "Create shared contract conformance fixtures",
+      "priority": 1,
+      "status": "todo",
+      "details": "Publish language-neutral valid and invalid fixtures before wrappers diverge. Sources: MVP_SPEC.md sections 4-5, 15; AGENTS.md section 6.",
+      "steps": [
+        "Cover each definition shape, input type, outcome, profile state, and invalid contract invariant.",
+        "Provide equivalent TypeBox and JSON definitions with expected canonical content and hashes.",
+        "Include ordered scales, Unicode, numeric boundaries, serialization round trips, and rejected executable values.",
+        "Define runtime traces for queue limits, deadlines, cancellation, retries, partial failure, and late results.",
+        "Make these fixtures mandatory for the later Python wrapper."
+      ],
+      "tags": [
+        "v0",
+        "contracts",
+        "testing"
+      ],
+      "depends_on": [
+        "T001",
+        "T002",
+        "T003",
+        "T005"
+      ]
+    },
+    {
+      "id": "T007",
+      "title": "Model execution transitions with TLA+",
+      "priority": 1,
+      "status": "todo",
+      "details": "Use Temporal Logic of Actions (TLA+) before implementing critical execution state. Sources: MVP_SPEC.md sections 5, 12; AGENTS.md section 7; research/05-formal-verification-extension.md section 8.",
+      "steps": [
+        "Define bounded queue, active attempt, retry, cancellation, completion, and late-result transitions.",
+        "Check that active execution never exceeds its limit and terminal reports cannot change.",
+        "Check that retries preserve the case input and profile binding.",
+        "Check that errors and skipped work cannot become passes.",
+        "Record TLC version, configuration, bounds, assumptions, completion status, and required fairness.",
+        "Specify the mapping to Rust state validation and wrapper scheduling, including omitted behavior."
+      ],
+      "tags": [
+        "v0",
+        "formal-models",
+        "runtime"
+      ],
+      "depends_on": [
+        "T001",
+        "T006"
+      ]
+    },
+    {
+      "id": "T008",
+      "title": "Model profile qualification and host selection",
+      "priority": 1,
+      "status": "todo",
+      "details": "Model qualification separately from trusted host selection and application actions. Sources: MVP_SPEC.md sections 8-10; AGENTS.md section 7.",
+      "steps": [
+        "Define candidate, qualification, evaluation, shadow, host selection, and enforcement transitions.",
+        "Check that incompatible or unvalidated profiles cannot enter enforcement.",
+        "Check that running or evaluating a profile cannot promote it.",
+        "Check that shadow outcomes cannot authorize application actions.",
+        "Record checked bounds, tool versions, assumptions, completion status, and implementation mapping.",
+        "Retain counterexamples as applicable regression scenarios without weakening invariants."
+      ],
+      "tags": [
+        "v0",
+        "formal-models",
+        "profiles"
+      ],
+      "depends_on": [
+        "T001",
+        "T006"
+      ]
+    },
+    {
+      "id": "T009",
+      "title": "Implement strict Rust contract parsing",
+      "priority": 1,
+      "status": "todo",
+      "details": "Make Rust the authoritative validation boundary for external artifacts. Sources: MVP_SPEC.md sections 4-5, 8, 10, 12; AGENTS.md sections 4, 10.",
+      "steps": [
+        "Write failing fixtures for malformed artifacts, invalid versions, invalid field types, and contract violations.",
+        "Implement serializable domain types and schema validation for the frozen artifact contracts.",
+        "Return stable typed errors with field paths and sanitized causes.",
+        "Enforce contract size and nesting bounds without coercion or silent defaults.",
+        "Reject unsupported data before exposing validated domain values."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "validation"
+      ],
+      "depends_on": [
+        "T004",
+        "T006"
+      ]
+    },
+    {
+      "id": "T010",
+      "title": "Validate portable definitions and input schemas",
+      "priority": 1,
+      "status": "todo",
+      "details": "Enforce check meaning independently of evaluator behavior. Sources: MVP_SPEC.md section 4; AGENTS.md section 4.",
+      "steps": [
+        "Test duplicate IDs, empty check sets, missing names, and invalid or empty using lists.",
+        "Require exactly one question or rule and exactly one answer map or ordered scale for questions.",
+        "Validate labels, disjoint accept/review selections, ordered scale levels, and accept.at_least.",
+        "Recognize binary questions only when the answer keys are exactly yes and no.",
+        "Default omitted when_uncertain to review and reject other uncertainty behavior.",
+        "Validate the supported object schema and reject every unsupported constraint."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "definitions"
+      ],
+      "depends_on": [
+        "T009",
+        "T002"
+      ]
+    },
+    {
+      "id": "T011",
+      "title": "Validate cases and project authorized inputs",
+      "priority": 1,
+      "status": "todo",
+      "details": "Validate complete cases before execution and expose only each check's declared inputs. Sources: MVP_SPEC.md sections 4-6, 10, 12.",
+      "steps": [
+        "Write failing tests for missing fields, extra fields, wrong types, oversized inputs, and invalid case identifiers.",
+        "Validate input data in Rust using the frozen schema subset.",
+        "Project each check's input from its using list without modifying the original case.",
+        "Keep labels, explanations, baseline decisions, and unrelated metadata outside evaluator requests.",
+        "Return explicit validation failures before any provider call."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "input-boundaries"
+      ],
+      "depends_on": [
+        "T009",
+        "T010"
+      ]
+    },
+    {
+      "id": "T012",
+      "title": "Implement canonical content hashes in Rust",
+      "priority": 1,
+      "status": "todo",
+      "details": "Use the specified canonicalization for all artifact identities. Sources: MVP_SPEC.md sections 4-5, 8-10, 15.",
+      "steps": [
+        "Write shared hash fixtures before implementing the canonicalizer.",
+        "Implement canonical content and hashes for definitions, inputs, translations, profiles, plans, datasets, and splits.",
+        "Preserve scale and other ordered-array positions.",
+        "Test object-order invariance, numeric boundaries, Unicode, and rejection of nonportable values.",
+        "Verify serialization round trips and profile self-hash validation."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "hashing"
+      ],
+      "depends_on": [
+        "T003",
+        "T006",
+        "T009"
+      ]
+    },
+    {
+      "id": "T013",
+      "title": "Implement the exact string rules",
+      "priority": 1,
+      "status": "todo",
+      "details": "Implement maxLength, includes, and excludes on one string input. Exact rules need no statistical calibration. Sources: MVP_SPEC.md sections 4-5.",
+      "steps": [
+        "Write boundary tests for each rule using the specified Unicode length and matching semantics.",
+        "Reject invalid rule parameters and invalid input projections.",
+        "Implement deterministic rule assessment in Rust.",
+        "Return pass or fail with the executed rule and a useful reason.",
+        "Verify that no provider, numerical confidence, or calibration evidence is required."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "exact-rules"
+      ],
+      "depends_on": [
+        "T003",
+        "T010",
+        "T011"
+      ]
+    },
+    {
+      "id": "T014",
+      "title": "Implement outcomes and immutable report records",
+      "priority": 1,
+      "status": "todo",
+      "details": "Separate component outcomes, aggregate outcome, and execution completion. Sources: MVP_SPEC.md sections 9-10; AGENTS.md sections 4, 10.",
+      "steps": [
+        "Write table-driven tests for pass, fail, review, error, and skipped combinations.",
+        "Aggregate fail first, then error, then review or skipped, then pass.",
+        "Preserve all component outcomes, including errors when another check fails.",
+        "Record stable IDs, content hashes, assessments, applied rules, evaluator versions, timing, usage, and sanitized reasons.",
+        "Keep evidence references distinct from evaluator-returned support.",
+        "Make completed records immutable and exclude application authorization."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "reports"
+      ],
+      "depends_on": [
+        "T001",
+        "T009",
+        "T012"
+      ]
+    },
+    {
+      "id": "T015",
+      "title": "Implement deterministic run state transitions",
+      "priority": 1,
+      "status": "todo",
+      "details": "Apply the checked execution model at the Rust boundary. The wrapper remains responsible for scheduling. Sources: MVP_SPEC.md section 5; AGENTS.md section 7.",
+      "steps": [
+        "Turn model transitions and relevant counterexamples into failing regression tests.",
+        "Validate attempt, result, cancellation, and terminal transitions in Rust.",
+        "Reject late, duplicate, or mismatched results that could change terminal state.",
+        "Bind attempts to the same case and profile identities.",
+        "Preserve cancellation and completion status independently of aggregate outcome.",
+        "Map each implemented transition to the checked TLA+ model."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "runtime"
+      ],
+      "depends_on": [
+        "T007",
+        "T009",
+        "T012",
+        "T014"
+      ]
+    },
+    {
+      "id": "T016",
+      "title": "Expose the core through a thin NAPI-RS binding",
+      "priority": 1,
+      "status": "todo",
+      "details": "Expose serializable Rust operations without leaking native types into the TypeScript API. Sources: MVP_SPEC.md section 5.",
+      "steps": [
+        "Write native-boundary tests for valid requests and malformed data.",
+        "Expose validation, projection, hashing, exact rules, report construction, and state validation.",
+        "Translate Rust failures into stable TypeScript errors without losing safe causes.",
+        "Preserve numeric and string behavior across the native boundary.",
+        "Verify that loading the binding performs no provider calls or application storage."
+      ],
+      "tags": [
+        "v0",
+        "node",
+        "bindings"
+      ],
+      "depends_on": [
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015"
+      ]
+    },
+    {
+      "id": "T017",
+      "title": "Implement TypeBox defineChecks authoring",
+      "priority": 1,
+      "status": "todo",
+      "details": "Return validated, serializable definitions with inferred case inputs and using names. Sources: MVP_SPEC.md sections 4-5, 15.",
+      "steps": [
+        "Write type tests for inferred inputs and unknown names in using.",
+        "Convert supported TypeBox object schemas into the portable contract.",
+        "Reject callbacks, closures, transforms, custom validators, and JavaScript-only values before serialization loses them.",
+        "Remove only documented authoring metadata and preserve all supported constraints.",
+        "Use Rust validation and shared hash fixtures for TypeBox and equivalent JSON.",
+        "Expose public types without provider SDK or native binding types."
+      ],
+      "tags": [
+        "v0",
+        "typescript",
+        "authoring"
+      ],
+      "depends_on": [
+        "T002",
+        "T006",
+        "T010",
+        "T016"
+      ]
+    },
+    {
+      "id": "T018",
+      "title": "Implement load and the exact-rule run path",
+      "priority": 1,
+      "status": "todo",
+      "details": "Support trusted imported definitions and explicit JSON paths without intermediate exports in the normal library workflow. Sources: MVP_SPEC.md sections 5, 9, 11.",
+      "steps": [
+        "Write an integration test that loads a typed definition, validates a case, and returns an exact-rule report.",
+        "Implement load for validated definitions and explicitly supplied JSON files.",
+        "Implement run through Rust projection, exact rules, state validation, and report construction.",
+        "Inject file access, clocks, and identifiers at the wrapper boundary.",
+        "Reject YAML and TypeScript source loading through data-file paths.",
+        "Preserve host ownership of credentials, storage, permissions, and business actions."
+      ],
+      "tags": [
+        "v0",
+        "typescript",
+        "vertical-slice"
+      ],
+      "depends_on": [
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017"
+      ]
+    },
+    {
+      "id": "T019",
+      "title": "Verify the exact-rule vertical slice",
+      "priority": 1,
+      "status": "todo",
+      "details": "Establish the first complete Rust-to-TypeScript path before adding semantic execution. Sources: MVP_SPEC.md sections 14-15.",
+      "steps": [
+        "Run identical cases through TypeBox authoring and exported JSON.",
+        "Verify equal canonical content, hashes, rule outcomes, and serialized reports.",
+        "Exercise malformed native requests, invalid cases, Unicode boundaries, and all exact rule types.",
+        "Confirm that the slice works without credentials, network calls, or provider packages.",
+        "Document one reproducible smoke command and its expected observable result."
+      ],
+      "tags": [
+        "v0",
+        "testing",
+        "vertical-slice"
+      ],
+      "depends_on": [
+        "T005",
+        "T006",
+        "T018"
+      ]
+    },
+    {
+      "id": "T020",
+      "title": "Build prebuilt Node packages",
+      "priority": 1,
+      "status": "todo",
+      "details": "Package native artifacts for the declared Node platform matrix before expanding the API. Sources: MVP_SPEC.md sections 5, 14-15.",
+      "steps": [
+        "Build the NAPI-RS artifacts for every declared supported target.",
+        "Package the TypeScript entry points, declarations, schemas, and required native artifact selection.",
+        "Ensure supported installations need no Rust compiler.",
+        "Return a clear installation or loading error on unsupported targets.",
+        "Verify package contents, license files, version consistency, and excluded private or generated artifacts."
+      ],
+      "tags": [
+        "v0",
+        "node",
+        "packaging"
+      ],
+      "depends_on": [
+        "T004",
+        "T016",
+        "T019"
+      ]
+    },
+    {
+      "id": "T021",
+      "title": "Verify clean Node installations",
+      "priority": 1,
+      "status": "todo",
+      "details": "Make successful native installation an early delivery gate. Sources: MVP_SPEC.md sections 5, 14-15.",
+      "steps": [
+        "Install packed artifacts in clean environments for each declared Node target.",
+        "Remove Rust tooling from the installation environment.",
+        "Run the exact-rule smoke case through public imports.",
+        "Check supported module formats, type declarations, and native artifact resolution.",
+        "Record supported targets and require these checks in continuous integration."
+      ],
+      "tags": [
+        "v0",
+        "node",
+        "packaging",
+        "testing"
+      ],
+      "depends_on": [
+        "T019",
+        "T020"
+      ]
+    },
+    {
+      "id": "T022",
+      "title": "Implement evaluator registration and execution contracts",
+      "priority": 2,
+      "status": "todo",
+      "details": "Receive validated questions, projected inputs, budgets, and cancellation signals through a small portable interface. Sources: MVP_SPEC.md sections 5-6, 12.",
+      "steps": [
+        "Write contract tests for typed assessments and operational errors.",
+        "Implement explicit host registration with stable evaluator and adapter identities.",
+        "Reject unknown evaluator references without installing plugins or executing code.",
+        "Preserve label-only outputs and absent optional measurements.",
+        "Keep network access, credentials, and provider SDK types outside the Rust core and public definitions."
+      ],
+      "tags": [
+        "v0",
+        "evaluators",
+        "typescript"
+      ],
+      "depends_on": [
+        "T001",
+        "T015",
+        "T021"
+      ]
+    },
+    {
+      "id": "T023",
+      "title": "Add test evaluators and adapter conformance cases",
+      "priority": 2,
+      "status": "todo",
+      "details": "Use fake and label-only adapters to demonstrate independence from Jev response shapes. Sources: MVP_SPEC.md sections 6, 14-15.",
+      "steps": [
+        "Implement deterministic test adapters with success, review, malformed response, error, and delayed response controls.",
+        "Verify that missing confidence, distributions, usage, and evidence references remain absent.",
+        "Exercise a separately specified test decision rule for label-only assessments.",
+        "Keep check meaning unchanged when replacing the evaluator.",
+        "Require an independent profile binding when evaluator behavior changes.",
+        "Publish reusable adapter conformance cases for the future Python wrapper."
+      ],
+      "tags": [
+        "v0",
+        "evaluators",
+        "testing"
+      ],
+      "depends_on": [
+        "T006",
+        "T022"
+      ]
+    },
+    {
+      "id": "T024",
+      "title": "Verify and pin the official Jev SDK contract",
+      "priority": 2,
+      "status": "todo",
+      "details": "Confirm current provider contracts when implementation begins. The existing specification records design-time assumptions. Sources: MVP_SPEC.md sections 5-6 and References.",
+      "steps": [
+        "Check official @typesafe-ai/sdk documentation for Choice, Noul, Score, cancellation, retries, and batching.",
+        "Record model version resolution, response shapes, service limits, and supported usage fields.",
+        "Pin a compatible SDK version and document the supported model configuration.",
+        "Create sanitized provider fixtures with provenance and clearly identified synthetic examples.",
+        "Identify unavailable metadata and define explicit handling without invented values."
+      ],
+      "tags": [
+        "v0",
+        "jev",
+        "dependencies"
+      ],
+      "depends_on": [
+        "T021",
+        "T022"
+      ]
+    },
+    {
+      "id": "T025",
+      "title": "Translate checks into versioned Jev questions",
+      "priority": 2,
+      "status": "todo",
+      "details": "Translate named answers to Choice, explicit yes/no answers to Noul, and ordered scales to Score. Sources: MVP_SPEC.md sections 4, 6, 12.",
+      "steps": [
+        "Write translation fixtures for categorical, binary, and ordered questions.",
+        "Preserve question wording, answer descriptions, scale order, and exact projected input fields.",
+        "Frame supplied content as evidence and exclude labels, label explanations, and baseline decisions.",
+        "Record complete translated questions, adapter versions, and canonical translation hashes.",
+        "Verify that changed translation behavior changes the evaluator binding."
+      ],
+      "tags": [
+        "v0",
+        "jev",
+        "translation"
+      ],
+      "depends_on": [
+        "T011",
+        "T012",
+        "T022",
+        "T024"
+      ]
+    },
+    {
+      "id": "T026",
+      "title": "Normalize Jev assessments and execution failures",
+      "priority": 2,
+      "status": "todo",
+      "details": "Preserve actual provider measurements and distinguish operational failures from semantic outcomes. Sources: MVP_SPEC.md sections 6, 9, 12.",
+      "steps": [
+        "Test real response shapes with sanitized fixtures and synthetic malformed variants.",
+        "Normalize labels, Noul values, Score positions, distributions, optional confidence, and supported evidence references.",
+        "Validate normalized assessments in Rust, including labels, ranges, distribution structure, and input-bound reference validity.",
+        "Keep Noul confidence absent and preserve fractional Score values without rounding.",
+        "Map timeouts, provider errors, invalid responses, usage, timing, and actual model versions into typed records.",
+        "Sanitize provider error text without hiding the operational reason."
+      ],
+      "tags": [
+        "v0",
+        "jev",
+        "assessments"
+      ],
+      "depends_on": [
+        "T009",
+        "T014",
+        "T024",
+        "T025"
+      ]
+    },
+    {
+      "id": "T027",
+      "title": "Implement Jev decision policies in Rust",
+      "priority": 2,
+      "status": "todo",
+      "details": "Apply the v0 abstention policy to provider measurements without claiming calibrated correctness probabilities. Sources: MVP_SPEC.md section 6.",
+      "steps": [
+        "Write table-driven tests for acceptance and rejection cutoffs, boundary equality, and review outcomes.",
+        "Calculate acceptable and unacceptable mass from Choice distributions, Noul values, and ordered Score distributions.",
+        "Require both cutoffs to exceed 0.5 and reject invalid policy parameters.",
+        "Keep explicitly review-labeled Choice answers as review.",
+        "Apply recorded Choice/Score confidence floors only when supported and required by the selected policy.",
+        "Verify that Score means cannot substitute for distribution mass and missing required measurements fail explicitly."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "policy"
+      ],
+      "depends_on": [
+        "T006",
+        "T010",
+        "T026"
+      ]
+    },
+    {
+      "id": "T028",
+      "title": "Validate profiles and evaluator compatibility",
+      "priority": 2,
+      "status": "todo",
+      "details": "Bind immutable profiles to exact definitions, evaluators, policies, and declared scope. Sources: MVP_SPEC.md sections 8, 12, 15.",
+      "steps": [
+        "Write mismatch tests for definitions, schemas, projections, preprocessing, models, adapters, translations, policies, and scope.",
+        "Validate profile schema versions, IDs, content hashes, qualification states, and required evidence references.",
+        "Compare resolved model versions before accepting enforcement bindings.",
+        "Reject material mismatches before evaluator execution.",
+        "Keep credentials and raw private case content outside profiles.",
+        "Explain that content consistency cannot authenticate labels, population claims, or host approval."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "profiles"
+      ],
+      "depends_on": [
+        "T008",
+        "T009",
+        "T012",
+        "T022",
+        "T025",
+        "T027"
+      ]
+    },
+    {
+      "id": "T029",
+      "title": "Generate explicit exploration profiles",
+      "priority": 2,
+      "status": "todo",
+      "details": "Let developers try semantic checks before collecting qualification evidence. Sources: MVP_SPEC.md sections 8, 11, 14.",
+      "steps": [
+        "Generate a versioned starter profile from validated definitions and registered evaluator bindings.",
+        "Record starter numerical parameters and effective execution configuration.",
+        "Mark the profile unvalidated and explain that starter thresholds have no qualification evidence.",
+        "Permit evaluation and shadow use while rejecting enforcement.",
+        "Test that executing the profile never changes its qualification."
+      ],
+      "tags": [
+        "v0",
+        "profiles",
+        "exploration"
+      ],
+      "depends_on": [
+        "T008",
+        "T027",
+        "T028"
+      ]
+    },
+    {
+      "id": "T030",
+      "title": "Implement bounded scheduling and saturation records",
+      "priority": 2,
+      "status": "todo",
+      "details": "The TypeScript wrapper owns queues and concurrency. Saturated work returns explicit skipped records. Sources: MVP_SPEC.md sections 5, 9, 12.",
+      "steps": [
+        "Write deterministic tests for active work limits, pending work limits, and simultaneous submissions.",
+        "Implement explicit scheduler bounds from the effective execution configuration.",
+        "Produce skipped records with stable reasons when the queue cannot accept work.",
+        "Attempt every required check unless an operational limit prevents execution.",
+        "Prevent semantic failures from triggering cost-based short-circuiting.",
+        "Feed state transitions through Rust validation and release resources on terminal paths."
+      ],
+      "tags": [
+        "v0",
+        "typescript",
+        "runtime"
+      ],
+      "depends_on": [
+        "T007",
+        "T015",
+        "T022",
+        "T023"
+      ]
+    },
+    {
+      "id": "T031",
+      "title": "Enforce total deadlines and cancellation",
+      "priority": 2,
+      "status": "todo",
+      "details": "Deadlines cover queue time, attempts, and backoff. Terminal reports cannot accept late changes. Sources: MVP_SPEC.md sections 5, 12.",
+      "steps": [
+        "Write controlled-clock tests for queued, active, and partially completed cancellation.",
+        "Apply one total execution deadline across the complete attempt lifecycle.",
+        "Propagate cancellation to adapters and clean up queued and active work.",
+        "Record timeouts as operational errors and retain completed component results.",
+        "Reject late results after cancellation, deadline completion, or normal completion.",
+        "Verify that adapters which ignore cancellation cannot mutate terminal reports."
+      ],
+      "tags": [
+        "v0",
+        "typescript",
+        "runtime"
+      ],
+      "depends_on": [
+        "T007",
+        "T015",
+        "T030"
+      ]
+    },
+    {
+      "id": "T032",
+      "title": "Implement bounded retries without binding drift",
+      "priority": 2,
+      "status": "todo",
+      "details": "Configure retries once and keep each attempt within its original run budget and bindings. Sources: MVP_SPEC.md sections 5, 12; AGENTS.md section 7.",
+      "steps": [
+        "Write tests for retryable failures, permanent failures, exhausted attempts, and cancellation during backoff.",
+        "Define retryable operational reason codes and bounded backoff behavior.",
+        "Configure SDK and wrapper retries to prevent multiplied attempts.",
+        "Reuse the same case input, projected state, profile, translation, and resolved model binding.",
+        "Include retries and backoff within the total deadline.",
+        "Record attempts and final failure without converting execution errors into semantic answers."
+      ],
+      "tags": [
+        "v0",
+        "typescript",
+        "runtime",
+        "jev"
+      ],
+      "depends_on": [
+        "T007",
+        "T026",
+        "T030",
+        "T031"
+      ]
+    },
+    {
+      "id": "T033",
+      "title": "Enforce provider input limits and call isolation",
+      "priority": 2,
+      "status": "todo",
+      "details": "Restrict model state to authorized evidence within one case and access scope. Sources: MVP_SPEC.md sections 6, 12.",
+      "steps": [
+        "Write tests proving that each request contains only fields authorized by using.",
+        "Reject evidence above supported limits before provider execution without truncating it.",
+        "Keep unrelated cases and access scopes out of shared provider state.",
+        "If batching is implemented, permit it only for identical authorized projected state within the same case and scope.",
+        "Exercise the flagship definition's different projections and partial provider failures.",
+        "Verify that embedded instructions cannot change registered evaluators, tools, permissions, or request boundaries."
+      ],
+      "tags": [
+        "v0",
+        "input-boundaries",
+        "jev"
+      ],
+      "depends_on": [
+        "T011",
+        "T024",
+        "T025",
+        "T030"
+      ]
+    },
+    {
+      "id": "T034",
+      "title": "Complete semantic run orchestration",
+      "priority": 2,
+      "status": "todo",
+      "details": "Connect projection, registered evaluators, Rust policies, bounded execution, and reports. Sources: MVP_SPEC.md sections 5-6, 9, 12.",
+      "steps": [
+        "Write end-to-end tests mixing exact rules, Choice, Noul, Score, and the test adapter.",
+        "Validate definition, profile, input, limits, and effective evaluator versions before execution.",
+        "Send projected requests through the scheduler and validate returned assessments in Rust.",
+        "Apply the selected decision rules and preserve all component outcomes.",
+        "Construct complete reports with effective configuration, identities, usage, timing, and operational failures.",
+        "Keep the run reporting-only and leave application actions to the host."
+      ],
+      "tags": [
+        "v0",
+        "typescript",
+        "runtime"
+      ],
+      "depends_on": [
+        "T018",
+        "T023",
+        "T026",
+        "T027",
+        "T028",
+        "T029",
+        "T031",
+        "T032",
+        "T033"
+      ]
+    },
+    {
+      "id": "T035",
+      "title": "Enforce profile selection for runtime modes",
+      "priority": 2,
+      "status": "todo",
+      "details": "Only compatible profiles validated for the declared scope can be selected for enforcement. Sources: MVP_SPEC.md sections 8-10; AGENTS.md section 7.",
+      "steps": [
+        "Write tests for every qualification status in evaluation, shadow, and enforcement modes.",
+        "Require the host to select a specific reviewed profile hash for enforcement.",
+        "Reject stale bindings, changed resolved models, and incompatible intended scope.",
+        "Keep qualification flags separate from authenticated approval and application authorization.",
+        "Ensure run and evaluate cannot promote profiles or change the host's selected profile.",
+        "Document explicit handling for every outcome, including errors and skips."
+      ],
+      "tags": [
+        "v0",
+        "profiles",
+        "authorization"
+      ],
+      "depends_on": [
+        "T008",
+        "T028",
+        "T034"
+      ]
+    },
+    {
+      "id": "T036",
+      "title": "Apply private-data defaults and sanitized diagnostics",
+      "priority": 2,
+      "status": "todo",
+      "details": "Default reports and logs must exclude credentials and raw case content. Sources: MVP_SPEC.md sections 8-9, 12; AGENTS.md section 10.",
+      "steps": [
+        "Add canary tests for credentials, sensitive inputs, provider error echoes, and diagnostic paths.",
+        "Retain required assessment measurements without copying raw case bodies into reports.",
+        "Use host-controlled snapshot references for replay instead of automatic input persistence.",
+        "Keep profile files free of credentials and private case content.",
+        "Document explicit local dataset handling and caller-controlled report storage and retention.",
+        "Ensure failures remain useful after sensitive content is removed."
+      ],
+      "tags": [
+        "v0",
+        "privacy",
+        "reports"
+      ],
+      "depends_on": [
+        "T014",
+        "T028",
+        "T034"
+      ]
+    },
+    {
+      "id": "T037",
+      "title": "Render reports and profile summaries",
+      "priority": 2,
+      "status": "todo",
+      "details": "Provide readable summaries with inspectable numerical and operational detail. Sources: MVP_SPEC.md sections 8-11; mvp-guide.html.",
+      "steps": [
+        "Render JSON reports as terminal text and Markdown.",
+        "Lead with check meaning, component outcomes, aggregate outcome, and the next useful action.",
+        "Expose applied rules, measurements, identities, versions, counts, evidence references, and limitations in the detailed view.",
+        "Generate default explanations from check criteria and executed policy.",
+        "Do not invent Jev rationales or describe supplied references as evaluator-selected support.",
+        "Test summaries for failure, uncertainty, errors, skips, and insufficient qualification evidence."
+      ],
+      "tags": [
+        "v0",
+        "reporting",
+        "inspection"
+      ],
+      "depends_on": [
+        "T014",
+        "T028",
+        "T034",
+        "T036"
+      ]
+    },
+    {
+      "id": "T038",
+      "title": "Add shadow reports and host integration behavior",
+      "priority": 2,
+      "status": "todo",
+      "details": "Record candidate outcomes alongside existing decisions without changing application behavior. Sources: MVP_SPEC.md sections 5, 9-10, 12.",
+      "steps": [
+        "Accept and record baseline outcome and revision separately from the new report outcome.",
+        "Write tests proving that shadow failures, reviews, skips, and passes preserve the existing decision path.",
+        "Preserve the distinction between baseline agreement and measured correctness.",
+        "Provide an awaited shadow call and document its latency.",
+        "Show how a host-owned durable queue can perform nonblocking work without detached library jobs.",
+        "Keep delivery, permissions, storage, and other application actions outside the library."
+      ],
+      "tags": [
+        "v0",
+        "shadow",
+        "integration"
+      ],
+      "depends_on": [
+        "T008",
+        "T035",
+        "T036"
+      ]
+    },
+    {
+      "id": "T039",
+      "title": "Load versioned JSONL cases and dataset metadata",
+      "priority": 2,
+      "status": "todo",
+      "details": "Implement bounded dataset loading with stable case identities and explicit metadata. Sources: MVP_SPEC.md sections 7, 10-11; .measuretwice/README.md.",
+      "steps": [
+        "Write fixtures for valid records, malformed lines, duplicate IDs, oversized records, and invalid inputs.",
+        "Load case IDs, inputs, reference answers, expected outcomes, groups, slices, and label provenance.",
+        "Validate dataset population, sampling method, revision, and label guidelines.",
+        "Use Rust validation and return line and field locations for invalid records.",
+        "Keep file access explicit and prevent labels from entering evaluator input.",
+        "Document limits for dataset size, record size, and retained results."
+      ],
+      "tags": [
+        "v0",
+        "datasets",
+        "typescript"
+      ],
+      "depends_on": [
+        "T001",
+        "T009",
+        "T011",
+        "T021"
+      ]
+    },
+    {
+      "id": "T040",
+      "title": "Validate label provenance and reference meanings",
+      "priority": 2,
+      "status": "todo",
+      "details": "Keep human judgments distinct from model suggestions and preserve ambiguous reference cases. Sources: MVP_SPEC.md sections 7, 10, 13; .measuretwice/README.md.",
+      "steps": [
+        "Write tests for human-reviewed labels, agent proposals, missing labels, and conflicting outcome labels.",
+        "Validate per-check answer or scale labels against definition semantics.",
+        "Flag inconsistent expected outcomes for review instead of silently changing their meaning.",
+        "Support review labels for ambiguous cases and record reviewer attribution and corrections.",
+        "Keep original label provenance when labels are revised or exported.",
+        "Ensure unreviewed synthetic labels cannot be presented as independently reviewed evidence."
+      ],
+      "tags": [
+        "v0",
+        "datasets",
+        "provenance"
+      ],
+      "depends_on": [
+        "T010",
+        "T039"
+      ]
+    },
+    {
+      "id": "T041",
+      "title": "Implement grouped splits and dataset identities",
+      "priority": 2,
+      "status": "todo",
+      "details": "Separate fitting data from independent validation data and retain sampling assumptions. Sources: MVP_SPEC.md sections 7-8, 10; AGENTS.md section 9.",
+      "steps": [
+        "Write tests for duplicated cases, group overlap, changed inputs, and deterministic split reproduction.",
+        "Keep related conversations or source groups within a single split.",
+        "Record dataset revisions, content hashes, split hashes, group assignments, and sampling provenance.",
+        "Distinguish targeted synthetic challenge sets from representative population samples.",
+        "Detect fitting and validation overlap under the declared grouping strategy.",
+        "Mark reused holdouts as development data and require fresh evidence for a new qualification claim."
+      ],
+      "tags": [
+        "v0",
+        "datasets",
+        "sampling"
+      ],
+      "depends_on": [
+        "T012",
+        "T039",
+        "T040"
+      ]
+    },
+    {
+      "id": "T042",
+      "title": "Implement evaluation metrics in Rust",
+      "priority": 2,
+      "status": "todo",
+      "details": "Calculate explicit counts and denominators for individual checks and the complete check set. Sources: MVP_SPEC.md section 10; AGENTS.md section 9.",
+      "steps": [
+        "Write independent fixtures for confusion matrices, review rate, automatic coverage, and label coverage.",
+        "Calculate false acceptance among reference fail/review cases and error among predicted passes as separate metrics.",
+        "Calculate false rejection among reference pass cases.",
+        "Preserve errors and skips over all attempts and exclude missing labels only from metrics that require them.",
+        "Return unavailable values for zero denominators.",
+        "Report per-slice results, latency, usage, and denominators without claiming independence between checks."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "statistics"
+      ],
+      "depends_on": [
+        "T006",
+        "T014",
+        "T040"
+      ]
+    },
+    {
+      "id": "T043",
+      "title": "Implement uncertainty intervals with reference fixtures",
+      "priority": 3,
+      "status": "todo",
+      "details": "Use tested statistical routines with explicit methods, confidence levels, and sampling assumptions. Sources: MVP_SPEC.md sections 7-8, 15.",
+      "steps": [
+        "Select and document interval methods for the declared error metrics and sampling strategy.",
+        "Validate calculations against independent reference fixtures, including zero errors and small samples.",
+        "Return insufficient evidence for missing denominators or unmet sample requirements.",
+        "Reject unsupported confidence levels and numeric inputs.",
+        "Account for the declared grouping strategy or report unsupported uncertainty assumptions.",
+        "Expose counts, methods, assumptions, and upper error bounds to evaluation and qualification reports."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "statistics"
+      ],
+      "depends_on": [
+        "T004",
+        "T006",
+        "T041",
+        "T042"
+      ]
+    },
+    {
+      "id": "T044",
+      "title": "Implement the evaluate API",
+      "priority": 2,
+      "status": "todo",
+      "details": "Run bounded evaluations without changing profile qualification or host selection. Sources: MVP_SPEC.md sections 7, 10-11.",
+      "steps": [
+        "Write end-to-end tests for partial labels, slices, provider errors, skipped cases, and cancelled evaluations.",
+        "Run cases through the same validated execution path as ordinary runs.",
+        "Return per-case reports, per-check metrics, aggregate metrics, operational failures, latency, and usage.",
+        "Record dataset identity, profile identity, actual versions, and declared evaluation purpose.",
+        "Keep label coverage and population limitations visible.",
+        "Verify that evaluate leaves profile qualification and selected profile hashes unchanged."
+      ],
+      "tags": [
+        "v0",
+        "evaluation",
+        "typescript"
+      ],
+      "depends_on": [
+        "T034",
+        "T036",
+        "T039",
+        "T040",
+        "T041",
+        "T042"
+      ]
+    },
+    {
+      "id": "T045",
+      "title": "Export shadow cases for human review",
+      "priority": 2,
+      "status": "todo",
+      "details": "Export disagreements and a reproducible sample of agreements with sampling provenance. Sources: MVP_SPEC.md section 10.",
+      "steps": [
+        "Write tests for deterministic sampling, missing baselines, baseline passes, and silent baseline decisions.",
+        "Export disagreements plus sampled agreements as JSONL review records.",
+        "Include stable case IDs, input hashes, baseline revisions, candidate outcomes, and selection reasons.",
+        "Retain sampling seeds, inclusion rules, and label provenance.",
+        "Require explicit host-supplied snapshots when review exports need private case content.",
+        "Validate returned human labels without treating baseline agreement as correctness."
+      ],
+      "tags": [
+        "v0",
+        "shadow",
+        "review"
+      ],
+      "depends_on": [
+        "T038",
+        "T039",
+        "T040",
+        "T041"
+      ]
+    },
+    {
+      "id": "T046",
+      "title": "Compare profiles on matching cases",
+      "priority": 2,
+      "status": "todo",
+      "details": "Expose quality, coverage, latency, and available cost tradeoffs with actual changed cases. Sources: MVP_SPEC.md sections 8, 10-11.",
+      "steps": [
+        "Write comparison tests for matching IDs, changed input hashes, missing cases, errors, and skips.",
+        "Match results only when case IDs and input hashes agree.",
+        "Show changed component and aggregate outcomes with counts and metric denominators.",
+        "Report usage and cost only when supported by recorded data and declared cost inputs.",
+        "Separate fitting comparisons from independent validation evidence.",
+        "Require new assessments when inputs or evaluator behavior change."
+      ],
+      "tags": [
+        "v0",
+        "comparison",
+        "evaluation"
+      ],
+      "depends_on": [
+        "T012",
+        "T037",
+        "T038",
+        "T044"
+      ]
+    },
+    {
+      "id": "T047",
+      "title": "Validate versioned calibration plans",
+      "priority": 3,
+      "status": "todo",
+      "details": "A plan declares owner-selected goals rather than universal default error tolerances. Sources: MVP_SPEC.md sections 7-8, 11.",
+      "steps": [
+        "Write invalid-plan tests before implementing Rust validation.",
+        "Require population, error metrics, denominators, limits, confidence levels, sample counts, and important slices.",
+        "Record review or coverage objectives, fitting and validation datasets, and sampling assumptions.",
+        "Define the permitted bounded candidate grid, optional confidence floors, optimization objective, and tie-break rules.",
+        "Require acceptance and rejection cutoffs above 0.5.",
+        "Validate dataset references, evaluator configuration, split separation, and plan identity."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "calibration"
+      ],
+      "depends_on": [
+        "T009",
+        "T012",
+        "T027",
+        "T041",
+        "T042",
+        "T043"
+      ]
+    },
+    {
+      "id": "T048",
+      "title": "Fit bounded decision policies in Rust",
+      "priority": 3,
+      "status": "todo",
+      "details": "Search only the permitted candidate family using development data. Sources: MVP_SPEC.md sections 6-8.",
+      "steps": [
+        "Write fixtures with known feasible candidates, ties, conflicting goals, and no feasible candidate.",
+        "Enumerate the bounded grid and evaluate each policy with shared metrics.",
+        "Apply the declared constraints, optimization objective, and deterministic tie-break rules.",
+        "Keep all validation data outside fitting.",
+        "Return candidate selection details, unmet objectives, and resource-limit failures explicitly.",
+        "Treat no feasible policy as a valid result without weakening owner goals."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "calibration"
+      ],
+      "depends_on": [
+        "T027",
+        "T042",
+        "T043",
+        "T047"
+      ]
+    },
+    {
+      "id": "T049",
+      "title": "Qualify frozen candidates on independent data",
+      "priority": 3,
+      "status": "todo",
+      "details": "Compute qualification for the declared scope after candidate selection is frozen. Sources: MVP_SPEC.md sections 7-8; AGENTS.md sections 7, 9.",
+      "steps": [
+        "Write tests for all qualification states, small samples, empty slices, unsupported sampling, and unmet goals.",
+        "Freeze definition, translation, evaluator, policy, plan, and fitting identities before held-out evaluation.",
+        "Check independent validation counts, intervals, sample requirements, and important slices.",
+        "Use declared upper error bounds when the plan requires them.",
+        "Return unvalidated, insufficient_evidence, criteria_not_met, or validated_for_scope with calculated reasons.",
+        "Prevent validation feedback from retuning the candidate or changing the selected host profile."
+      ],
+      "tags": [
+        "v0",
+        "rust",
+        "qualification"
+      ],
+      "depends_on": [
+        "T008",
+        "T028",
+        "T043",
+        "T044",
+        "T047",
+        "T048"
+      ]
+    },
+    {
+      "id": "T050",
+      "title": "Implement the calibrate API",
+      "priority": 3,
+      "status": "todo",
+      "details": "Orchestrate development assessment, Rust fitting, frozen validation, and candidate artifacts. Sources: MVP_SPEC.md sections 5, 7-8, 11.",
+      "steps": [
+        "Write workflow tests for successful qualification, missing evidence, unmet goals, cancellation, and evaluator failure.",
+        "Load the explicit plan and datasets, then fit only on development assessments.",
+        "Validate the frozen candidate on independent cases.",
+        "Return a candidate profile and report when evidence cannot establish the goals.",
+        "Keep long Rust calculations off the Node event loop without callbacks into arbitrary user code.",
+        "Respect execution and calculation budgets and never promote a profile automatically."
+      ],
+      "tags": [
+        "v0",
+        "calibration",
+        "typescript"
+      ],
+      "depends_on": [
+        "T016",
+        "T029",
+        "T044",
+        "T047",
+        "T048",
+        "T049"
+      ]
+    },
+    {
+      "id": "T051",
+      "title": "Preserve calibration and qualification evidence",
+      "priority": 3,
+      "status": "todo",
+      "details": "Write durable profile evidence with exact identities and inspectable limitations. Sources: MVP_SPEC.md sections 8, 11-12; .measuretwice/README.md.",
+      "steps": [
+        "Record plan, dataset, split, label provenance, statistical method, and evaluation-report references in generated profiles.",
+        "Include observed counts, uncertainty, sample limits, slice limitations, and qualification reasons.",
+        "Validate referenced artifact identity and required content consistency.",
+        "Support explicit host-managed evidence locations for selected profiles.",
+        "Ensure ignored reports are never the sole required copy of retained qualification evidence.",
+        "Exclude credentials and raw private case content from profiles and default summaries."
+      ],
+      "tags": [
+        "v0",
+        "profiles",
+        "provenance"
+      ],
+      "depends_on": [
+        "T012",
+        "T028",
+        "T036",
+        "T049",
+        "T050"
+      ]
+    },
+    {
+      "id": "T052",
+      "title": "Reuse compatible assessments for policy revisions",
+      "priority": 3,
+      "status": "todo",
+      "details": "Permit policy-only fitting reuse while requiring independent validation before promotion. Sources: MVP_SPEC.md sections 8, 10.",
+      "steps": [
+        "Write compatibility tests for changed questions, schemas, projections, preprocessing, models, adapters, and translations.",
+        "Reuse stored assessments only when the relevant input and evaluator identities match.",
+        "Record policy changes as a new profile with its own content hash.",
+        "Require fresh independent evidence when prior validation influenced the revision.",
+        "Produce a revision comparison with concrete changed cases.",
+        "Reject stale qualification even when a replacement policy appears better on development data."
+      ],
+      "tags": [
+        "v0",
+        "profiles",
+        "comparison",
+        "calibration"
+      ],
+      "depends_on": [
+        "T028",
+        "T041",
+        "T046",
+        "T050",
+        "T051"
+      ]
+    },
+    {
+      "id": "T053",
+      "title": "Verify calibration workflow failure cases",
+      "priority": 3,
+      "status": "todo",
+      "details": "Exercise measurement integrity across the complete fitting and validation boundary. Sources: MVP_SPEC.md sections 7-8, 15; AGENTS.md sections 6, 9.",
+      "steps": [
+        "Test empty accepted sets, zero errors, small samples, absent labels, and missing required slices.",
+        "Test grouped leakage, correlated samples, synthetic-only evidence, and reused holdouts.",
+        "Test candidate ties, bounded search exhaustion, no feasible policy, and cancelled validation.",
+        "Verify identical Rust statistics through direct and Node-bound operations.",
+        "Confirm that every reported value traces to recorded counts and a declared method.",
+        "Confirm that provider confidence and baseline agreement never substitute for measured correctness."
+      ],
+      "tags": [
+        "v0",
+        "testing",
+        "calibration"
+      ],
+      "depends_on": [
+        "T043",
+        "T047",
+        "T048",
+        "T049",
+        "T050",
+        "T051",
+        "T052"
+      ]
+    },
+    {
+      "id": "T054",
+      "title": "Implement CLI parsing and JSON file handling",
+      "priority": 2,
+      "status": "todo",
+      "details": "The CLI consumes explicit JSON data files and the .measuretwice convention. Sources: MVP_SPEC.md section 11; .measuretwice/README.md.",
+      "steps": [
+        "Define command parsing, help text, output formats, exit behavior, and explicit file paths.",
+        "Read definitions, profiles, cases, plans, and reports through bounded validated file operations.",
+        "Reject TypeScript execution, YAML input, executable fields, and unregistered evaluator references.",
+        "Keep credentials in the host's credential mechanism.",
+        "Use stable actionable errors and separate machine-readable output from diagnostics.",
+        "Add the CLI entry point to the public package."
+      ],
+      "tags": [
+        "v0",
+        "cli",
+        "files"
+      ],
+      "depends_on": [
+        "T018",
+        "T021",
+        "T036",
+        "T039"
+      ]
+    },
+    {
+      "id": "T055",
+      "title": "Add validate, run, and inspect commands",
+      "priority": 2,
+      "status": "todo",
+      "details": "Expose the first CLI workflow with readable summaries and numerical detail on request. Sources: MVP_SPEC.md section 11; mvp-guide.html.",
+      "steps": [
+        "Implement validate for exported JSON definitions without provider calls.",
+        "Implement run with profile, case, and explicit mode options.",
+        "Implement inspect for profile summaries and detailed bindings, rules, and evidence.",
+        "Render reports through the shared terminal and JSON renderers.",
+        "Test malformed files, incompatible profiles, unavailable evaluators, and every report outcome.",
+        "Document a trusted application script for optional JSON export."
+      ],
+      "tags": [
+        "v0",
+        "cli",
+        "inspection"
+      ],
+      "depends_on": [
+        "T035",
+        "T037",
+        "T038",
+        "T054"
+      ]
+    },
+    {
+      "id": "T056",
+      "title": "Add calibrate, evaluate, and compare commands",
+      "priority": 3,
+      "status": "todo",
+      "details": "Expose the same calibration and evaluation operations through the CLI. Sources: MVP_SPEC.md section 11.",
+      "steps": [
+        "Implement calibrate with an explicit plan and candidate output path.",
+        "Implement evaluate with explicit cases, profile, and report output.",
+        "Implement compare for stored baseline and candidate reports.",
+        "Preserve candidate reports when qualification is insufficient or criteria are not met.",
+        "Handle output-write failures explicitly without leaving apparently complete artifacts.",
+        "Ensure no command changes host profile selection or invokes an unrestricted authoring agent."
+      ],
+      "tags": [
+        "v0",
+        "cli",
+        "calibration",
+        "evaluation"
+      ],
+      "depends_on": [
+        "T044",
+        "T046",
+        "T050",
+        "T051",
+        "T054"
+      ]
+    },
+    {
+      "id": "T057",
+      "title": "Verify complete CLI workflows and artifact handling",
+      "priority": 3,
+      "status": "todo",
+      "details": "Test packaged commands from definition export through candidate inspection and comparison. Sources: MVP_SPEC.md sections 11, 15.",
+      "steps": [
+        "Exercise all six commands in an isolated project using the test evaluator.",
+        "Test explicit paths, the .measuretwice convention, malformed input, unavailable files, and failed output writes.",
+        "Check exit behavior and JSON output independently of terminal formatting.",
+        "Verify that labels, credentials, and raw inputs do not leak through default diagnostics.",
+        "Confirm that JSON references cannot execute TypeScript, install plugins, or grant tool permissions.",
+        "Run the workflow without network access or API spend."
+      ],
+      "tags": [
+        "v0",
+        "cli",
+        "testing"
+      ],
+      "depends_on": [
+        "T023",
+        "T055",
+        "T056"
+      ]
+    },
+    {
+      "id": "T058",
+      "title": "Ship the minimal memory support example",
+      "priority": 2,
+      "status": "todo",
+      "details": "Start public teaching examples with a proposed memory and its supplied original evidence. Sources: MVP_SPEC.md sections 1, 11, 13-14.",
+      "steps": [
+        "Add a TypeScript and TypeBox definition for whether a proposed memory is supported.",
+        "Supply small synthetic pass, fail, and review cases with explicit label provenance.",
+        "Generate an explicitly unvalidated exploration profile.",
+        "Show trusted imports, typed case input, a shadow run, and host-owned report persistence.",
+        "Run the example offline with the test evaluator and document opt-in Jev execution.",
+        "Keep retrieval completeness, citations, freshness, permissions, and memory lifecycle with the host."
+      ],
+      "tags": [
+        "v0",
+        "examples",
+        "memory"
+      ],
+      "depends_on": [
+        "T017",
+        "T023",
+        "T029",
+        "T034",
+        "T038"
+      ]
+    },
+    {
+      "id": "T059",
+      "title": "Ship the full intervention review example",
+      "priority": 2,
+      "status": "todo",
+      "details": "Implement the flagship conflict, support, novelty, and consequence checks without provider details in their definitions. Sources: MVP_SPEC.md sections 4, 9, 13; mvp-guide.html.",
+      "steps": [
+        "Add the complete TypeBox definition and an optional trusted JSON export script.",
+        "Cover Choice, Noul, Score, and a separate maxLength exact-rule example.",
+        "Supply original decision evidence, conversation, and proposed message through the declared input projections.",
+        "Include accepted, duplicated, contradicted, replaced-decision, and missing-evidence cases.",
+        "Show that serious consequences cannot compensate for unsupported claims or another failed requirement.",
+        "Verify runnable examples against public APIs and shared report semantics."
+      ],
+      "tags": [
+        "v0",
+        "examples",
+        "intervention"
+      ],
+      "depends_on": [
+        "T013",
+        "T025",
+        "T027",
+        "T033",
+        "T037",
+        "T058"
+      ]
+    },
+    {
+      "id": "T060",
+      "title": "Make the existing development checks executable",
+      "priority": 2,
+      "status": "todo",
+      "details": "Integrate the current draft definitions and 18 synthetic cases without changing their label provenance. Sources: .measuretwice/README.md; MVP_SPEC.md section 13.",
+      "steps": [
+        "Compile the two existing TypeScript definitions against the implemented public package.",
+        "Validate and explicitly migrate the provisional JSONL fixture shape if the frozen contract requires changes.",
+        "Preserve all agent-proposed and human-unreviewed label records.",
+        "Add offline validation and opt-in pinned Jev shadow experiments.",
+        "Keep expected labels and explanations out of evaluator inputs.",
+        "Update local instructions without presenting development fixtures as independent validation or automatic enforcement evidence."
+      ],
+      "tags": [
+        "v0",
+        "development-checks",
+        "testing"
+      ],
+      "depends_on": [
+        "T017",
+        "T034",
+        "T039",
+        "T040",
+        "T055"
+      ]
+    },
+    {
+      "id": "T061",
+      "title": "Build the Cassandra shadow adapter example",
+      "priority": 2,
+      "status": "todo",
+      "details": "Demonstrate application integration without adding Cassandra dependencies to the library. Sources: MVP_SPEC.md sections 1, 5, 10, 13.",
+      "steps": [
+        "Map original sources, bounded recent context, and candidate text into memory and intervention cases.",
+        "Keep permissions, attention eligibility, cooldowns, approval mode, freshness, citations, and delivery in Cassandra.",
+        "Capture the existing decision and revision as the shadow baseline.",
+        "Store reports through a host-owned persistence interface.",
+        "Demonstrate host-queue integration for nonblocking shadow execution.",
+        "Test that errors, skips, reviews, and passes never change existing application actions."
+      ],
+      "tags": [
+        "v0",
+        "cassandra",
+        "shadow"
+      ],
+      "depends_on": [
+        "T038",
+        "T044",
+        "T058",
+        "T059"
+      ]
+    },
+    {
+      "id": "T062",
+      "title": "Create the public synthetic challenge dataset",
+      "priority": 2,
+      "status": "todo",
+      "details": "Build shareable challenge cases without private Discord content or reliability claims. Sources: MVP_SPEC.md section 13; .measuretwice/README.md.",
+      "steps": [
+        "Cover decisions versus suggestions, negation, attribution, intentional changes, and delayed corrections.",
+        "Add duplicate concerns, partial support, missing context, embedded instructions, consequence levels, and relevant languages.",
+        "Label proposed component answers and final outcomes separately.",
+        "Record generation provenance, group identities, slices, intended scope, and dataset revision.",
+        "Mark all generated labels unreviewed until actual human review occurs.",
+        "Keep challenge cases separate from representative population evidence."
+      ],
+      "tags": [
+        "v0",
+        "benchmark",
+        "datasets"
+      ],
+      "depends_on": [
+        "T039",
+        "T040",
+        "T041",
+        "T059"
+      ]
+    },
+    {
+      "id": "T063",
+      "title": "Obtain human review of public challenge labels",
+      "priority": 3,
+      "status": "todo",
+      "details": "Human reviewers establish the public reference labels; model suggestions remain attributed. Sources: MVP_SPEC.md sections 7, 10, 13; AGENTS.md section 9.",
+      "steps": [
+        "Prepare label guidelines explaining each component answer and overall outcome.",
+        "Collect actual human judgments and reviewer attribution for every published reference label.",
+        "Resolve disagreements or retain explicit review labels for ambiguous cases.",
+        "Preserve original suggestions, corrections, and review provenance.",
+        "Validate accepted labels against definition semantics and publish dataset hashes.",
+        "Do not mark review complete without recorded human judgments."
+      ],
+      "tags": [
+        "v0",
+        "benchmark",
+        "human-review"
+      ],
+      "depends_on": [
+        "T040",
+        "T062"
+      ]
+    },
+    {
+      "id": "T064",
+      "title": "Prepare representative Cassandra calibration data",
+      "priority": 3,
+      "status": "todo",
+      "details": "Collect separately reviewed fitting and validation data for the declared pilot population. Sources: MVP_SPEC.md sections 7, 10, 13.",
+      "steps": [
+        "Record owner goals, intended population, relevant languages, important slices, and sampling assumptions.",
+        "Collect cases from actual candidate traffic, including baseline passes and silent decisions.",
+        "Keep private source snapshots in explicitly managed host storage.",
+        "Obtain attributed reference answers and outcomes under written label guidelines.",
+        "Split related conversations or source groups without overlap and reserve independent validation cases.",
+        "Write a versioned calibration plan with explicit error denominators, evidence requirements, and review tradeoffs."
+      ],
+      "tags": [
+        "v0",
+        "cassandra",
+        "datasets",
+        "calibration"
+      ],
+      "depends_on": [
+        "T040",
+        "T041",
+        "T045",
+        "T047",
+        "T061"
+      ]
+    },
+    {
+      "id": "T065",
+      "title": "Add an opt-in live Jev benchmark",
+      "priority": 3,
+      "status": "todo",
+      "details": "Exercise all three Jev primitives with recorded versions and actual failures. Ordinary tests remain offline. Sources: MVP_SPEC.md sections 13, 15.",
+      "steps": [
+        "Add an explicit live-run entry point with caller-supplied credentials and bounded spend, time, and concurrency.",
+        "Run the reviewed public challenge cases through the full intervention workflow.",
+        "Record resolved models, adapter versions, translations, datasets, profiles, and report identities.",
+        "Capture actual errors, skips, latency, usage, per-case outcomes, and metric denominators.",
+        "Keep synthetic challenge performance distinct from population qualification.",
+        "Test offline that normal verification cannot trigger live provider calls."
+      ],
+      "tags": [
+        "v0",
+        "benchmark",
+        "jev"
+      ],
+      "depends_on": [
+        "T024",
+        "T032",
+        "T044",
+        "T059",
+        "T063"
+      ]
+    },
+    {
+      "id": "T066",
+      "title": "Run and assess the Cassandra shadow pilot",
+      "priority": 4,
+      "status": "todo",
+      "details": "Exercise the complete workflow before considering host enforcement. Sources: MVP_SPEC.md sections 7-10, 13-15.",
+      "steps": [
+        "Start with the existing Cassandra policy and an explicit exploration shadow profile.",
+        "Fit and independently validate a candidate against the owner-approved plan.",
+        "Record caught interpretation errors, valid proposals rejected, missed useful interventions, and review effort.",
+        "Measure actual latency, usage, cost where available, and maintenance effort.",
+        "Review disagreements and sampled agreements without treating baseline silence as ground truth.",
+        "Record qualification and limitations; leave promotion to explicit host review and selection."
+      ],
+      "tags": [
+        "v0",
+        "cassandra",
+        "pilot"
+      ],
+      "depends_on": [
+        "T045",
+        "T046",
+        "T050",
+        "T051",
+        "T061",
+        "T064",
+        "T065"
+      ]
+    },
+    {
+      "id": "T067",
+      "title": "Compare the pilot with direct Jev SDK use",
+      "priority": 4,
+      "status": "todo",
+      "details": "Measure whether measuretwice reduces integration or maintenance work for the same task. Sources: MVP_SPEC.md section 13; research/04-positioning-response.md section 6.",
+      "steps": [
+        "Implement the same memory and intervention checks with direct official SDK calls.",
+        "Use matching cases, input projections, model versions, and declared decision goals.",
+        "Record integration steps, maintenance changes, review effort, latency, usage, and observable failures.",
+        "Compare concrete changed cases and outcomes with measuretwice reports.",
+        "Publish measured tradeoffs and limitations without assuming the library is better.",
+        "Keep this comparison separate from qualification evidence."
+      ],
+      "tags": [
+        "v0",
+        "benchmark",
+        "comparison"
+      ],
+      "depends_on": [
+        "T024",
+        "T059",
+        "T065",
+        "T066"
+      ]
+    },
+    {
+      "id": "T068",
+      "title": "Test portability with a second application",
+      "priority": 4,
+      "status": "todo",
+      "details": "Use an unrelated workflow before adding more abstractions. Sources: MVP_SPEC.md section 13; research/02-use-case-examples.md; research/04-positioning-response.md section 6.",
+      "steps": [
+        "Implement a small example that compares an implementation plan with supplied requirements and capability documentation.",
+        "Use the same check, case, evaluator, profile, and report contracts.",
+        "Keep domain-specific retrieval, credentials, storage, and actions in the host application.",
+        "Exercise authoring, evaluation, calibration, shadow results, and revision comparison.",
+        "Record integration friction and missing requirements with actual examples.",
+        "Add shared abstractions only when this application demonstrates a repeated need."
+      ],
+      "tags": [
+        "v0",
+        "examples",
+        "portability"
+      ],
+      "depends_on": [
+        "T046",
+        "T050",
+        "T051",
+        "T059"
+      ]
+    },
+    {
+      "id": "T069",
+      "title": "Publish benchmark methods and measured limitations",
+      "priority": 4,
+      "status": "todo",
+      "details": "Make results reproducible within their actual scope. Sources: MVP_SPEC.md sections 7, 13, 15; AGENTS.md section 9.",
+      "steps": [
+        "Publish shareable case hashes, label provenance, split procedures, versions, and declared metrics.",
+        "Report counts, denominators, intervals, review burden, errors, skips, latency, usage, and actual failures.",
+        "Describe source grouping, selection bias, synthetic challenge limits, and representative-data limits.",
+        "Separate direct-SDK comparisons, development results, and independent qualification evidence.",
+        "Link each performance claim to calculated report fields.",
+        "State unavailable evidence instead of inventing results or claiming universal reliability."
+      ],
+      "tags": [
+        "v0",
+        "benchmark",
+        "documentation"
+      ],
+      "depends_on": [
+        "T043",
+        "T063",
+        "T065",
+        "T066",
+        "T067",
+        "T068"
+      ]
+    },
+    {
+      "id": "T070",
+      "title": "Write the first-run README and setup guide",
+      "priority": 2,
+      "status": "todo",
+      "details": "Give a new developer a short working path to an exploration shadow report. Sources: MVP_SPEC.md sections 2, 11, 15; AGENTS.md section 8.",
+      "steps": [
+        "Explain measuretwice using checks, cases, and reports before introducing numerical policy details.",
+        "Document supported Node targets and installation without a Rust compiler.",
+        "Provide a complete typed memory example and reproducible offline verification.",
+        "Document explicit opt-in live execution and host-managed credentials.",
+        "Show the .measuretwice convention, explicit paths, and optional trusted JSON export.",
+        "Link to profile and calibration guidance when the reader moves from exploration to reliance."
+      ],
+      "tags": [
+        "v0",
+        "documentation",
+        "quickstart"
+      ],
+      "depends_on": [
+        "T021",
+        "T055",
+        "T058"
+      ]
+    },
+    {
+      "id": "T071",
+      "title": "Publish API, schema, and CLI references",
+      "priority": 3,
+      "status": "todo",
+      "details": "Document the implemented contracts with one authoritative explanation for each behavior. Sources: MVP_SPEC.md sections 4-12; AGENTS.md section 8.",
+      "steps": [
+        "Document defineChecks, load, run, calibrate, evaluate, compare, and inspection interfaces.",
+        "State inputs, outputs, side effects, resource limits, modes, and failure behavior.",
+        "Publish artifact schemas, the supported input subset, validation errors, and stable reason codes.",
+        "Document exact string semantics, canonicalization, profile compatibility, and evaluator registration.",
+        "Document all CLI commands, arguments, output formats, and exit behavior.",
+        "Verify examples against compiled public interfaces and published schemas."
+      ],
+      "tags": [
+        "v0",
+        "documentation",
+        "reference"
+      ],
+      "depends_on": [
+        "T017",
+        "T022",
+        "T035",
+        "T051",
+        "T055",
+        "T056"
+      ]
+    },
+    {
+      "id": "T072",
+      "title": "Write the complete calibration and selection guide",
+      "priority": 3,
+      "status": "todo",
+      "details": "Document one journey from draft requirements to explicit profile selection. Sources: MVP_SPEC.md sections 7-11, 15.",
+      "steps": [
+        "Walk through reviewed cases, owner goals, a calibration plan, fitting, and frozen independent validation.",
+        "Explain qualification states, interval assumptions, denominators, slices, and insufficient evidence.",
+        "Continue through shadow operation, profile inspection, review exports, and revision comparison.",
+        "Show explicit host selection of a reviewed compatible profile hash.",
+        "Explain fresh validation requirements after material changes or holdout reuse.",
+        "Document managed qualification evidence and why passing reports do not authorize application actions."
+      ],
+      "tags": [
+        "v0",
+        "documentation",
+        "calibration"
+      ],
+      "depends_on": [
+        "T045",
+        "T050",
+        "T051",
+        "T052",
+        "T056",
+        "T059"
+      ]
+    },
+    {
+      "id": "T073",
+      "title": "Write coding-agent authoring and review guides",
+      "priority": 3,
+      "status": "todo",
+      "details": "Support existing coding agents without a built-in autonomous authoring service. Sources: MVP_SPEC.md sections 2, 7, 14-15; research/03-checks-yaml-architecture.md.",
+      "steps": [
+        "Guide an agent from requirements to narrow TypeScript checks and an inventory of uncovered requirements.",
+        "Generate counterexamples and ambiguous cases with explicit synthetic, unreviewed provenance.",
+        "Keep human label collection and owner goal decisions explicit.",
+        "Use library and CLI operations to calculate metrics and produce linked explanations.",
+        "Require proposed definition and policy changes to remain reviewable artifacts.",
+        "Forbid fabricated metrics, relabeled model judgments, weakened qualification goals, and automatic promotion."
+      ],
+      "tags": [
+        "v0",
+        "documentation",
+        "agent-workflow"
+      ],
+      "depends_on": [
+        "T010",
+        "T017",
+        "T040",
+        "T047",
+        "T055",
+        "T056"
+      ]
+    },
+    {
+      "id": "T074",
+      "title": "Document runtime operation and evidence retention",
+      "priority": 3,
+      "status": "todo",
+      "details": "Explain resource bounds and host responsibilities with complete failure guidance. Sources: MVP_SPEC.md sections 5, 8-12; AGENTS.md sections 8, 10.",
+      "steps": [
+        "Document concurrency, pending work, total deadlines, backoff, retries, cancellation, and oversized-input behavior.",
+        "Explain partial failures, sanitized errors, all report outcomes, and terminal-state handling.",
+        "Document host-controlled credentials, storage, snapshots, retention, permissions, and delivery.",
+        "Show durable host-queue usage and the latency of awaited shadow calls.",
+        "Document model changes, preprocessing versions, scope changes, requalification, and retained report references.",
+        "Keep provider confidence, measured correctness, source completeness, and application authorization distinct."
+      ],
+      "tags": [
+        "v0",
+        "documentation",
+        "operations"
+      ],
+      "depends_on": [
+        "T032",
+        "T033",
+        "T035",
+        "T036",
+        "T038",
+        "T051"
+      ]
+    },
+    {
+      "id": "T075",
+      "title": "Update design records and existing project guides",
+      "priority": 4,
+      "status": "todo",
+      "details": "Align current guidance with implemented behavior while preserving historical research records. Sources: AGENTS.md sections 1, 5, 8, 11; MVP_SPEC.md; .measuretwice/README.md; mvp-guide.html; research/index.md.",
+      "steps": [
+        "Record material architecture choices, dependency reasons, module ownership, and data flow.",
+        "Update the specification and examples together for any explicit contract changes.",
+        "Keep the HTML guide's simulated results clearly marked and align its rules with Rust behavior.",
+        "Mark proposed, implemented, and measured behavior accurately.",
+        "Check document links, lowercase project naming, simple language, and reference consistency.",
+        "Add migration instructions only when a published contract changes."
+      ],
+      "tags": [
+        "v0",
+        "documentation",
+        "architecture"
+      ],
+      "depends_on": [
+        "T037",
+        "T060",
+        "T071",
+        "T072",
+        "T073",
+        "T074"
+      ]
+    },
+    {
+      "id": "T076",
+      "title": "Test the workflow with a new developer",
+      "priority": 4,
+      "status": "todo",
+      "details": "Verify that the authoring and inspection experience works without an architecture lecture. Sources: MVP_SPEC.md section 15; AGENTS.md section 3.",
+      "steps": [
+        "Give a developer the check definition and a report before explaining internal architecture.",
+        "Verify that the developer can identify requirements, supplied evidence, outcomes, and next steps.",
+        "Measure whether the developer can integrate an exploration shadow run within one working session.",
+        "Ask the developer to trace an outcome to its measurements and evaluated policy.",
+        "Exercise agent-assisted drafting from the published guide and validate the generated definitions and provenance.",
+        "Record observed confusion and fix demonstrated problems without hiding qualification work."
+      ],
+      "tags": [
+        "v0",
+        "usability",
+        "acceptance"
+      ],
+      "depends_on": [
+        "T058",
+        "T059",
+        "T070",
+        "T071",
+        "T072",
+        "T073"
+      ]
+    },
+    {
+      "id": "T077",
+      "title": "Run runtime conformance and adversarial checks",
+      "priority": 4,
+      "status": "todo",
+      "details": "Verify behavior across the native boundary, wrapper scheduler, adapters, and reports. Sources: MVP_SPEC.md sections 12, 15; AGENTS.md sections 6, 10.",
+      "steps": [
+        "Exercise cancellation, deadlines, retries, saturation, malformed assessments, and partial failure in combination.",
+        "Test repeated and late callbacks against immutable terminal reports.",
+        "Test cross-case isolation, unauthorized input fields, embedded instructions, and oversized evidence.",
+        "Verify that unvalidated profiles and changed model aliases cannot enter enforcement.",
+        "Confirm that evaluation, calibration, and shadow execution cannot change host actions or selected profile hashes.",
+        "Run the shared fixtures with exact, Jev-fixture, and label-only test adapters without live calls."
+      ],
+      "tags": [
+        "v0",
+        "testing",
+        "runtime"
+      ],
+      "depends_on": [
+        "T021",
+        "T023",
+        "T032",
+        "T033",
+        "T035",
+        "T036",
+        "T038",
+        "T044",
+        "T050"
+      ]
+    },
+    {
+      "id": "T078",
+      "title": "Verify formal model applicability to the implementation",
+      "priority": 4,
+      "status": "todo",
+      "details": "Check model results and document their limited correspondence to implemented state behavior. Sources: AGENTS.md section 7; MVP_SPEC.md sections 5, 8, 12; research/05-formal-verification-extension.md section 6.",
+      "steps": [
+        "Map current Rust and wrapper transitions to each TLA+ model.",
+        "Update models or applicability records for material implementation changes.",
+        "Run the declared bounded safety checks and required progress checks with explicit fairness assumptions.",
+        "Record tool versions, configurations, bounds, completion status, and excluded behavior.",
+        "Turn applicable counterexamples into regression tests.",
+        "Report incomplete exploration as inconclusive and avoid claiming implementation proof from a checked model."
+      ],
+      "tags": [
+        "v0",
+        "formal-models",
+        "verification"
+      ],
+      "depends_on": [
+        "T007",
+        "T008",
+        "T015",
+        "T035",
+        "T038",
+        "T050",
+        "T051",
+        "T077"
+      ]
+    },
+    {
+      "id": "T079",
+      "title": "Audit all v0 acceptance criteria",
+      "priority": 4,
+      "status": "todo",
+      "details": "Review the complete TypeScript pilot against the current specification. Sources: MVP_SPEC.md sections 14-15; AGENTS.md section 11.",
+      "steps": [
+        "Map all fifteen acceptance criteria to implemented behavior and recorded verification.",
+        "Review domain boundaries, portable contracts, inference, hashes, profiles, and report semantics.",
+        "Run the required software, statistical, packaging, documentation, example, and formal checks.",
+        "Review benchmark evidence, human label provenance, usability results, and outstanding limitations.",
+        "Resolve blocking failures without weakening assertions or measurement targets.",
+        "Record the release decision and any unverified claims explicitly."
+      ],
+      "tags": [
+        "v0",
+        "acceptance",
+        "release"
+      ],
+      "depends_on": [
+        "T053",
+        "T057",
+        "T060",
+        "T069",
+        "T075",
+        "T076",
+        "T077",
+        "T078"
+      ]
+    },
+    {
+      "id": "T080",
+      "title": "Prepare the TypeScript pilot release",
+      "priority": 4,
+      "status": "todo",
+      "details": "Deliver the small Rust core, native Node artifacts, public TypeScript package, and CLI with reproducible release checks. Sources: MVP_SPEC.md sections 5, 14-15.",
+      "steps": [
+        "Build final native artifacts and package the complete public API, CLI, declarations, schemas, examples, and license.",
+        "Run clean installation and complete workflow smoke tests on every declared Node target without Rust tooling.",
+        "Verify pinned versions, artifact contents, public documentation, and release notes.",
+        "Keep live benchmarks opt-in and state measured limits in release materials.",
+        "Publish versioned artifacts through the project's release procedure.",
+        "Document that Python is the next delivery and that deferred features remain outside v0."
+      ],
+      "tags": [
+        "v0",
+        "release",
+        "packaging"
+      ],
+      "depends_on": [
+        "T020",
+        "T021",
+        "T079"
+      ]
+    },
+    {
+      "id": "T081",
+      "title": "Specify Python authoring and supported platforms",
+      "priority": 5,
+      "status": "todo",
+      "details": "Plan the next SDK after the TypeScript pilot, using the same portable contracts. Sources: MVP_SPEC.md sections 2, 5, 14.",
+      "steps": [
+        "Choose an idiomatic Python schema-authoring integration that emits the supported JSON contract.",
+        "Document public operation signatures, async behavior, error mapping, and cancellation.",
+        "Declare supported Python versions, operating systems, architectures, and binary targets.",
+        "Define exact TypeScript-to-Python conformance requirements without assuming evaluator equivalence.",
+        "Record dependency choices and preserve Rust ownership of decision and statistical calculations.",
+        "Require no TypeScript execution or YAML loading for Python users."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "contracts"
+      ],
+      "depends_on": [
+        "T006",
+        "T071",
+        "T074",
+        "T080"
+      ]
+    },
+    {
+      "id": "T082",
+      "title": "Add thin PyO3 bindings for the Rust core",
+      "priority": 5,
+      "status": "todo",
+      "details": "Reuse authoritative Rust validation, state checks, rules, hashes, statistics, and reports. Sources: MVP_SPEC.md section 5.",
+      "steps": [
+        "Write binding tests using the shared valid and invalid contract fixtures.",
+        "Expose serializable operations through PyO3 without leaking binding types into the public API.",
+        "Preserve numeric limits, Unicode behavior, scale order, and stable error reasons.",
+        "Keep long calculations away from the Python async event loop.",
+        "Verify that bindings make no provider calls or arbitrary callbacks.",
+        "Check equal canonical content and hashes across direct Rust, Node, and Python."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "bindings"
+      ],
+      "depends_on": [
+        "T016",
+        "T053",
+        "T081"
+      ]
+    },
+    {
+      "id": "T083",
+      "title": "Implement Python definitions and JSON interchange",
+      "priority": 5,
+      "status": "todo",
+      "details": "Provide native Python authoring and loading without duplicating Rust domain validation. Sources: MVP_SPEC.md section 5.",
+      "steps": [
+        "Implement the chosen Python authoring interface for check definitions and input schemas.",
+        "Validate authoring output through Rust and preserve useful Python typing.",
+        "Reject unsupported executable validators, transforms, coercion, and nonportable values.",
+        "Load explicit portable JSON definitions without invoking TypeScript.",
+        "Verify serialization round trips and shared hashes against TypeBox and JSON fixtures.",
+        "Document conversion limits and field-path errors."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "authoring"
+      ],
+      "depends_on": [
+        "T081",
+        "T082"
+      ]
+    },
+    {
+      "id": "T084",
+      "title": "Implement the Python runtime and Jev adapter",
+      "priority": 5,
+      "status": "todo",
+      "details": "The native Python adapter must pass the same translation and runtime conformance tests. Sources: MVP_SPEC.md sections 5-6, 12.",
+      "steps": [
+        "Verify and pin the supported native provider client and its version, retry, cancellation, and service-limit behavior.",
+        "Implement explicit evaluator registration and Choice, Noul, and Score translations.",
+        "Normalize actual provider measurements without inventing confidence or evidence.",
+        "Implement bounded concurrency, pending work, total deadlines, retries, and cancellation.",
+        "Preserve input projection, case isolation, terminal-state checks, privacy, and reporting-only behavior.",
+        "Record Python adapter identities and require new qualification for material binding changes."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "runtime",
+        "jev"
+      ],
+      "depends_on": [
+        "T023",
+        "T024",
+        "T077",
+        "T082",
+        "T083"
+      ]
+    },
+    {
+      "id": "T085",
+      "title": "Expose Python evaluation and calibration APIs",
+      "priority": 5,
+      "status": "todo",
+      "details": "Provide the same workflows while keeping all numerical policy and statistics in Rust. Sources: MVP_SPEC.md sections 5, 7-10, 14.",
+      "steps": [
+        "Expose load, run, evaluate, calibrate, compare, and profile/report inspection through the Python wrapper.",
+        "Support versioned JSONL datasets, label provenance, grouped splits, and review exchange.",
+        "Reuse Rust candidate fitting, uncertainty calculations, qualification, and compatibility checks.",
+        "Keep long calculations off the async event loop and preserve bounded cancellation behavior.",
+        "Keep profile selection, credentials, source snapshots, storage, and application actions with the host.",
+        "Verify failure reports and unvalidated exploration behavior against shared fixtures."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "evaluation",
+        "calibration"
+      ],
+      "depends_on": [
+        "T044",
+        "T046",
+        "T050",
+        "T051",
+        "T052",
+        "T082",
+        "T084"
+      ]
+    },
+    {
+      "id": "T086",
+      "title": "Build and test prebuilt Python packages",
+      "priority": 5,
+      "status": "todo",
+      "details": "Use maturin and prebuilt wheels for the declared Python platform matrix. Sources: MVP_SPEC.md section 5.",
+      "steps": [
+        "Configure maturin packaging for the PyO3 binding and public Python package.",
+        "Build wheels for every supported Python target.",
+        "Verify license files, schemas, package metadata, and required runtime artifacts.",
+        "Install each wheel in a clean environment without a Rust compiler.",
+        "Run public exact-rule and mocked semantic, evaluation, and calibration smoke cases.",
+        "Document unsupported targets and source-build limitations."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "packaging"
+      ],
+      "depends_on": [
+        "T081",
+        "T082",
+        "T083",
+        "T084",
+        "T085"
+      ]
+    },
+    {
+      "id": "T087",
+      "title": "Publish Python guides and interchange examples",
+      "priority": 5,
+      "status": "todo",
+      "details": "Extend the documented workflow without presenting language portability as evaluator equivalence. Sources: MVP_SPEC.md sections 5, 14; AGENTS.md section 8.",
+      "steps": [
+        "Write Python installation, authoring, memory, intervention, calibration, and shadow examples.",
+        "Document inputs, outputs, effects, failures, resource limits, and supported schema construction.",
+        "Show definition and report exchange with TypeScript through the shared JSON contract.",
+        "Demonstrate identical hashes while recording actual adapter versions and translations.",
+        "Explain when profile qualification must be repeated across language implementations.",
+        "Run every example against the packaged public interface."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "documentation"
+      ],
+      "depends_on": [
+        "T071",
+        "T072",
+        "T074",
+        "T083",
+        "T085",
+        "T086"
+      ]
+    },
+    {
+      "id": "T088",
+      "title": "Verify Python conformance and prepare its release",
+      "priority": 5,
+      "status": "todo",
+      "details": "Release the second SDK only after shared contract, runtime, adapter, and packaging checks pass. Sources: MVP_SPEC.md sections 5, 14-15.",
+      "steps": [
+        "Run shared validation, serialization, hashing, exact-rule, policy, statistical, and qualification fixtures across both wrappers.",
+        "Run translation, scheduling, deadline, retry, cancellation, partial-failure, and terminal-state conformance cases.",
+        "Update formal model applicability records for the Python runtime boundary.",
+        "Verify clean installations on every declared Python target and review public examples.",
+        "Keep live provider checks opt-in and report unverified evaluator equivalence honestly.",
+        "Publish versioned artifacts and release notes through the project's release procedure."
+      ],
+      "tags": [
+        "next-sdk",
+        "python",
+        "release",
+        "testing"
+      ],
+      "depends_on": [
+        "T078",
+        "T085",
+        "T086",
+        "T087"
+      ]
+    }
+  ]
+}
