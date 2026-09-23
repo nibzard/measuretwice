@@ -65,8 +65,8 @@ never an array.
 | `minLength` | Integer from 0 to 250,000 | Optional. |
 | `maxLength` | Integer from 0 to 250,000 | Optional. |
 
-The hashing and string contract will define how a length is counted. This
-document fixes only the range of the bounds.
+The [canonical hashing and string contract](hashing.md) defines how a length
+is counted. This document fixes only the range of the bounds.
 
 ### Numbers
 
@@ -171,8 +171,8 @@ Input data limits:
 | The complete input object | 4,194,304 bytes in UTF-8 encoding | `oversized_input` |
 | One numeric value | A finite value in the IEEE 754 double format | `invalid_field_type` |
 
-The hashing and string contract defines the canonical numeric representation.
-It is published separately.
+The [canonical hashing and string contract](hashing.md) defines the canonical
+numeric representation.
 
 ## Validation behavior
 

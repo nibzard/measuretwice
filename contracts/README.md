@@ -44,9 +44,11 @@ new artifact with a new content hash. Old hashes keep their meaning.
 - JSON Schema is the first gate. The Rust core also enforces the cross-field
   invariants in this document. A schema-valid artifact can still be invalid.
 
-The hashing contract will define canonicalization, hash domains, and the digest.
-It will publish one procedure for all artifacts. Until then, hash fields record
-the agreement that hashes are canonical and content-bound, not format-bound.
+The [canonical hashing and string contract](v0/hashing.md) defines
+canonicalization, the hash domains, the digest, and the exact string rules.
+One Rust procedure implements it. Hash fields are canonical and content-bound,
+not format-bound. Its machine-checkable fixture companion is
+[hashing.schema.json](v0/hashing.schema.json).
 
 ### Authoring-to-contract conversion
 
@@ -255,6 +257,7 @@ Validation reasons, reported before execution:
 | `empty_check_set` | The definition has no checks. |
 | `unsupported_keyword` | The input schema uses a keyword outside the supported subset. |
 | `nonportable_value` | Authoring produced a value that JSON cannot preserve. |
+| `hash_mismatch` | A stored self-hash differs from the computed digest. The artifact is an edited or corrupted copy. |
 | `oversized_input` | An input or evidence item exceeds its published limit. No truncation occurs. |
 | `unsupported_format` | A path names YAML or TypeScript source, which loaders do not accept. |
 
@@ -400,7 +403,8 @@ Related contracts published after this freeze:
 - [Supported input schema subset](v0/input-schema.md), with the
   machine-checkable [meta-schema](v0/input-schema.schema.json). Published on
   23 September 2026.
-- The hashing and string contract, covering canonicalization, hash domains,
-  Unicode length, and matching. Not yet published.
+- [Canonical hashing and string semantics](v0/hashing.md), with the
+  machine-checkable [fixture schema](v0/hashing.schema.json). Published on
+  23 September 2026. Adds the reason code `hash_mismatch`.
 - The cross-language conformance fixtures that pin these contracts. Not yet
   published.

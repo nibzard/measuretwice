@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measuretwice.dev/contracts/v0/hashing.schema.json",
+  "title": "measuretwice canonical hashing fixture set (v0)",
+  "description": "Machine-checkable companion to hashing.md. Defines the hash domains and the record shapes for shared conformance fixtures. The Rust core is the authority. Fixtures pin wrapper behavior to it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version"},
+    "hashes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/hash_fixture"},
+      "description": "Canonicalization and content-hash fixtures."
+    },
+    "string_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/string_rule_fixture"},
+      "description": "Length counting and matching fixtures for the exact rules."
+    }
+  },
+  "$defs": {
+    "hash_domain": {
+      "enum": ["definition", "input", "translation", "profile", "plan", "dataset", "split"],
+      "description": "Hash domain from hashing.md. The domain tag separates digests of the same canonical content under different kinds."
+    },
+    "hash_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "value", "canonical", "content_hash"],
+      "properties": {
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "What this fixture pins."
+        },
+        "domain": {"$ref": "#/$defs/hash_domain"},
+        "value": {
+          "description": "The complete hashed content inside the domain boundary, before canonicalization. Any JSON value that the boundary admits."
+        },
+        "canonical": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4194304,
+          "description": "Expected canonical form of value, as hashing.md defines it. One line, no whitespace between tokens."
+        },
+        "content_hash": {
+          "$ref": "common.schema.json#/$defs/content_hash",
+          "description": "Expected SHA-256 of the domain tag, one zero byte, and canonical."
+        }
+      }
+    },
+    "string_rule_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "parameter", "input", "outcome"],
+      "properties": {
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "rule": {
+          "enum": ["maxLength", "includes", "excludes"],
+          "description": "Rule under test. Same names as the definition contract."
+        },
+        "parameter": {
+          "description": "Rule parameter. An integer for maxLength. A nonempty string for includes and excludes."
+        },
+        "input": {
+          "type": "string",
+          "maxLength": 1048576,
+          "description": "The one string input under test."
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Expected code point count of input. Required for maxLength fixtures."
+        },
+        "outcome": {
+          "enum": ["pass", "fail"],
+          "description": "Expected rule outcome. Exact rules produce pass or fail only."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"rule": {"const": "maxLength"}},
+            "required": ["rule"]
+          },
+          "then": {
+            "properties": {
+              "parameter": {"type": "integer", "minimum": 0}
+            },
+            "required": ["length"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"rule": {"enum": ["includes", "excludes"]}},
+            "required": ["rule"]
+          },
+          "then": {
+            "properties": {
+              "parameter": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
