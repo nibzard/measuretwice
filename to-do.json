@@ -282,15 +282,15 @@
         "T001",
         "T006"
       ],
-      "updated_at": "2026-09-23T23:00:18Z",
+      "updated_at": "2026-09-23T23:02:00Z",
       "files": [
+        ".gitignore",
         "DEVELOPING.md",
         "TESTING.md",
-        ".gitignore",
         "models/README.md",
         "models/execution/Execution.cfg",
-        "models/execution/ExecutionSaturation.cfg",
         "models/execution/Execution.tla",
+        "models/execution/ExecutionSaturation.cfg",
         "models/execution/README.md",
         "tests/repo/docs.test.ts",
         "tests/repo/models.test.ts",
@@ -301,7 +301,7 @@
       "id": "T008",
       "title": "Model profile qualification and host selection",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Model qualification separately from trusted host selection and application actions. Sources: MVP_SPEC.md sections 8-10; AGENTS.md section 7.",
       "steps": [
         "Define candidate, qualification, evaluation, shadow, host selection, and enforcement transitions.",
@@ -319,6 +319,16 @@
       "depends_on": [
         "T001",
         "T006"
+      ],
+      "updated_at": "2026-09-23T23:18:43Z",
+      "files": [
+        "models/README.md",
+        "models/qualification/Qualification.cfg",
+        "models/qualification/Qualification.tla",
+        "models/qualification/README.md",
+        "TESTING.md",
+        "tests/repo/models.test.ts",
+        "to-do.json"
       ]
     },
     {

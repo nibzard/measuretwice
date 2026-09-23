@@ -97,7 +97,7 @@ its runner rule.
 
 The TLA+ models and their records live in [models/](models/README.md).
 AGENTS.md section 7 requires them for critical state behavior. The
-execution-state model is the first one.
+execution-state model and the profile-qualification model are published.
 
 - The repository check `tests/repo/models.test.ts` verifies that each
   record matches its module and its configuration. It is offline and

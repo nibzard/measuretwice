@@ -12,7 +12,7 @@ and the mapping to the code.
 | Model | Path | Record | Status |
 | --- | --- | --- | --- |
 | Execution transitions | [execution/Execution.tla](execution/Execution.tla) | [execution/README.md](execution/README.md) | Checked, complete, 23 September 2026. |
-| Profile qualification | Planned for task T008 | Not started | Todo. |
+| Profile qualification and host selection | [qualification/Qualification.tla](qualification/Qualification.tla) | [qualification/README.md](qualification/README.md) | Checked, complete, 23 September 2026. |
 
 ## Running the checks
 
@@ -37,6 +37,12 @@ java -Xmx4g -XX:+UseParallelGC \
   -cp ~/.cache/measuretwice-tla/tla2tools.jar tlc2.TLC \
   -deadlock -nowarning \
   -config models/execution/ExecutionSaturation.cfg models/execution/Execution.tla
+
+java -Xmx4g -XX:+UseParallelGC \
+  -cp ~/.cache/measuretwice-tla/tla2tools.jar tlc2.TLC \
+  -deadlock -nowarning \
+  -config models/qualification/Qualification.cfg \
+  models/qualification/Qualification.tla
 ```
 
 The `-deadlock` flag is expected. A terminal report has no outgoing
