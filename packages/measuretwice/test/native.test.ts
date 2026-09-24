@@ -18,6 +18,8 @@ import {
   NativeFailure,
   nativeAssessRuleChecks,
   nativeCanonicalForm,
+  nativeCheckCalibrationBinding,
+  nativeCheckCalibrationDatasets,
   nativeCheckProfileCompatibility,
   nativeCompareEvaluations,
   nativeComputeSelfHash,
@@ -27,11 +29,15 @@ import {
   nativeDecideQuestionCheck,
   nativeExportShadowReviews,
   nativeEvaluateDataset,
+  nativeFitPolicy,
   nativeParseIntervalRequest,
+  nativeQualifyCandidate,
   nativeSplitHash,
   nativeUncertaintyIntervals,
   nativeValidateCase,
+  nativeValidateDataset,
   nativeValidateDefinition,
+  nativeValidatePlan,
   nativeValidateProfile,
   nativeValidateReviewLabels,
   nativeVerifySelfHash,
@@ -71,6 +77,37 @@ function failureOf(operation: () => unknown): NativeFailure {
     throw error;
   }
   throw new Error("the operation was accepted");
+}
+
+/** Awaits one boundary call and returns the stable failure it must reject with. */
+async function rejectionOf(operation: () => Promise<unknown>): Promise<NativeFailure> {
+  try {
+    await operation();
+  } catch (error) {
+    if (error instanceof NativeFailure) {
+      return error;
+    }
+    throw error;
+  }
+  throw new Error("the operation was accepted");
+}
+
+/** Moves one split of one validated dataset into the split-identity shape. */
+function splitIdentity(
+  datasetId: string,
+  revision: string,
+  split: { id: string; purpose: string; groups: string[]; recordCount: number; contentHash: string; caseIds: string[] },
+): Record<string, unknown> {
+  return {
+    dataset: datasetId,
+    revision,
+    split: split.id,
+    purpose: split.purpose,
+    groups: split.groups,
+    record_count: split.recordCount,
+    content_hash: split.contentHash,
+    case_ids: split.caseIds,
+  };
 }
 
 /** Every valid definition fixture with its check kinds and exact-only flag. */
@@ -1273,6 +1310,290 @@ test("the label validation crosses the boundary with its line paths", () => {
     failureOf(() => nativeValidateReviewLabels(definitionText, JSON.stringify("review-case"), `${good}\n`))
       .fieldPath,
   ).toBe("/exported");
+});
+
+test("the calibration plan boundary validates plans and checks their bindings", () => {
+  const document = fixtureDocument("plans/validation.json");
+  const plan = document.plans.find(
+    (entry: Record<string, any>) => entry.id === "message-supported-calibration",
+  );
+  const definitionText = fixtureText(
+    `definitions/valid/${String(document.definition)}`,
+  );
+  const registered = JSON.stringify([
+    { evaluator: "jev-choice", adapter_version: "0.1.0" },
+  ]);
+
+  // The validated meaning of the plan: the computed identity, the grid size,
+  // the evaluator configuration, and both dataset selections.
+  const info = nativeValidatePlan(JSON.stringify(plan));
+  const facts = document.facts[String(plan.id)];
+  expect(info.id).toBe(plan.id);
+  expect(info.contentHash).toBe(facts.content_hash);
+  expect(info.candidateCount).toBe(facts.candidate_count);
+  expect(info.evaluator).toBe("jev-choice");
+  expect(info.adapterVersion).toBe("0.1.0");
+  expect(info.modelRequested).toBe("jev-1.13");
+  expect(info.definitionName).toBe("message-supported");
+  expect(info.fitting).toEqual({
+    dataset: "plan-cases",
+    revision: "2026-09-24.1",
+    split: "fit",
+  });
+
+  // The binding checks answer before one dataset is read.
+  expect(() =>
+    nativeCheckCalibrationBinding(
+      JSON.stringify(plan),
+      definitionText,
+      registered,
+    ),
+  ).not.toThrow();
+  const unregistered = failureOf(() =>
+    nativeCheckCalibrationBinding(
+      JSON.stringify(plan),
+      definitionText,
+      JSON.stringify([{ evaluator: "scripted-choice", adapter_version: "0.1.0" }]),
+    ),
+  );
+  expect(unregistered.code).toBe("evaluator_mismatch");
+  expect(unregistered.fieldPath).toBe("/plan/evaluator/evaluator");
+  const wrongVersion = failureOf(() =>
+    nativeCheckCalibrationBinding(
+      JSON.stringify(plan),
+      definitionText,
+      JSON.stringify([{ evaluator: "jev-choice", adapter_version: "0.2.0" }]),
+    ),
+  );
+  expect(wrongVersion.code).toBe("evaluator_mismatch");
+  expect(wrongVersion.fieldPath).toBe("/plan/evaluator/adapter_version");
+
+  // The dataset checks compare both selections with the loaded splits.
+  const metadataText = JSON.stringify(document.dataset);
+  const dataset = nativeValidateDataset(metadataText, document.dataset_records, definitionText);
+  const byId = new Map(dataset.metadata.splits.map((split: any) => [split.id, split]));
+  const fitting = splitIdentity(
+    dataset.identity.datasetId,
+    dataset.identity.revision,
+    byId.get("fit"),
+  );
+  const validation = splitIdentity(
+    dataset.identity.datasetId,
+    dataset.identity.revision,
+    byId.get("holdout"),
+  );
+  expect(() =>
+    nativeCheckCalibrationDatasets(
+      JSON.stringify(plan),
+      JSON.stringify(fitting),
+      JSON.stringify(validation),
+    ),
+  ).not.toThrow();
+  const swapped = failureOf(() =>
+    nativeCheckCalibrationDatasets(
+      JSON.stringify(plan),
+      JSON.stringify(validation),
+      JSON.stringify(fitting),
+    ),
+  );
+  expect(swapped.code).toBe("invalid_field_type");
+  expect(swapped.fieldPath).toBe("/plan/datasets/fitting/split");
+
+  // One plan that fails its contract keeps the core code and field path.
+  const invalid = document.invalid[0];
+  const refused = failureOf(() => nativeValidatePlan(JSON.stringify(invalid.plan)));
+  expect(refused.code).toBe(invalid.expected.reason_code);
+  expect(refused.fieldPath).toBe(invalid.expected.field_path);
+});
+
+test("the fitting search answers on the worker thread with the stated facts", async () => {
+  const document = fixtureDocument("fitting/search.json");
+  const definitionText = fixtureText(`definitions/valid/${String(document.definition)}`);
+  const metadataText = JSON.stringify(document.dataset);
+  const recordsText = String(document.dataset_records);
+  const planText = JSON.stringify(document.plans[0]);
+  const facts = document.facts[String(document.plans[0].id)];
+
+  const report = JSON.parse(
+    await nativeFitPolicy(
+      planText,
+      metadataText,
+      recordsText,
+      definitionText,
+      JSON.stringify(document.assessments),
+    ),
+  );
+  expect(report.status).toBe(facts.status);
+  expect(report.case_count).toBe(facts.case_count);
+  expect(report.candidate_count).toBe(facts.candidate_count);
+  expect(report.split_content_hash).toBe(facts.split_content_hash);
+  expect(report.selected.index).toBe(facts.selected.index);
+  expect(report.selected.candidate).toEqual(facts.selected.candidate);
+  expect(report.selected.objective).toEqual(facts.selected.objective);
+  expect(report.statement).toContain("development evidence");
+
+  // One rejection crosses the async boundary with the domain failure: the
+  // strict gate keeps its code and its field path.
+  const malformed = await rejectionOf(() =>
+    nativeFitPolicy(planText, metadataText, recordsText, definitionText, "{"),
+  );
+  expect(malformed.code).toBe("invalid_json");
+  const missing = await rejectionOf(() =>
+    nativeFitPolicy(planText, metadataText, recordsText, definitionText, JSON.stringify({})),
+  );
+  expect(missing.code).toBe("missing_field");
+  expect(missing.fieldPath).toBe(`/assessments/${String(document.fitting_cases[0])}`);
+
+  // The invalid rows of the fixture keep their codes and paths. The plan
+  // rows name one broken plan; the assessment rows name the valid plan with
+  // one broken assessment set.
+  for (const row of document.invalid) {
+    const brokenPlan = row.plan === undefined
+      ? planText
+      : JSON.stringify(row.plan);
+    const brokenAssessments = row.assessments === undefined
+      ? document.assessments
+      : row.assessments;
+    const failure = await rejectionOf(() =>
+      nativeFitPolicy(
+        brokenPlan,
+        metadataText,
+        recordsText,
+        definitionText,
+        JSON.stringify(brokenAssessments),
+      ),
+    );
+    expect(failure.code, String(row.note)).toBe(row.expected.reason_code);
+    expect(failure.fieldPath, String(row.note)).toBe(row.expected.field_path);
+  }
+});
+
+test("the frozen validation answers on the worker thread with the stated facts", async () => {
+  const document = fixtureDocument("qualification/validation.json");
+  const definitionText = fixtureText(`definitions/valid/${String(document.definition)}`);
+  const metadataText = JSON.stringify(document.dataset);
+  const recordsText = String(document.dataset_records);
+  const requestText = JSON.stringify(document.request);
+  const fittingText = JSON.stringify(document.fitting_assessments);
+
+  // The plans of the primary dataset under the default request: one
+  // validated scope on the observed value, one on the upper confidence
+  // bound, one unmet goal, one plan minimum above the validation counts, and
+  // one important slice below its floor. The reused holdout and the
+  // correlated-group plans state their own requests and datasets; the Rust
+  // fixture suite drives every row.
+  const driven = ["validated-plan", "bound-plan", "small-sample-plan", "slice-plan"];
+  for (const id of driven) {
+    const plan = document.plans.find((entry: Record<string, any>) => entry.id === id);
+    const facts = document.facts[id];
+    const report = JSON.parse(
+      await nativeQualifyCandidate(
+        JSON.stringify(plan),
+        metadataText,
+        recordsText,
+        definitionText,
+        fittingText,
+        requestText,
+        JSON.stringify(
+          id === "unmet-plan" ? document.assessment_overrides[id] : document.assessments,
+        ),
+      ),
+    );
+    expect(report.status, id).toBe(facts.status);
+    expect(report.candidate, id).toEqual(facts.candidate);
+    expect(report.candidate_index, id).toBe(facts.candidate_index);
+    expect(report.case_count, id).toBe(facts.case_count);
+    expect(report.evidence.class, id).toBe(facts.evidence_class);
+    expect(
+      report.goals.map((goal: any) => [goal.numerator, goal.denominator, goal.met]),
+      id,
+    ).toEqual(facts.goals.map((goal: any) => [goal.numerator, goal.denominator, goal.met]));
+    expect(
+      report.reasons.map((reason: any) => reason.code),
+      id,
+    ).toEqual(facts.reasons);
+  }
+
+  // The reused holdout: the request states the validation split as one the
+  // earlier claim consumed, so the split is development data and one new
+  // claim needs fresh evidence. The fixture names the split; the boundary
+  // reads one split identity, so the name resolves against the loaded
+  // dataset.
+  const reused = document.plans.find(
+    (entry: Record<string, any>) => entry.id === "reused-plan",
+  );
+  const dataset = nativeValidateDataset(metadataText, recordsText, definitionText);
+  const holdout = dataset.metadata.splits.find(
+    (split: any) => split.id === "holdout",
+  )!;
+  const reusedRequest = {
+    sampling: "independent_cases",
+    previously_used: [
+      splitIdentity(dataset.identity.datasetId, dataset.identity.revision, holdout),
+    ],
+  };
+  const reusedReport = JSON.parse(
+    await nativeQualifyCandidate(
+      JSON.stringify(reused),
+      metadataText,
+      recordsText,
+      definitionText,
+      fittingText,
+      JSON.stringify(reusedRequest),
+      JSON.stringify(document.assessments),
+    ),
+  );
+  expect(reusedReport.status).toBe(document.facts["reused-plan"].status);
+  expect(reusedReport.evidence.class).toBe("development");
+  expect(reusedReport.evidence.needs_fresh_evidence).toBe(true);
+
+  // One malformed validation request fails before one case is read.
+  const planText = JSON.stringify(document.plans[0]);
+  const broken = await rejectionOf(() =>
+    nativeQualifyCandidate(
+      planText,
+      metadataText,
+      recordsText,
+      definitionText,
+      fittingText,
+      '{"sampling": "every_case"}',
+      JSON.stringify(document.assessments),
+    ),
+  );
+  expect(broken.code).toBe("unsupported_sampling");
+  expect(broken.fieldPath).toBe("/sampling");
+
+  // One assessment set that names one fitting case never enters the
+  // validation, and one validation case without its stored assessment fails
+  // with its path.
+  const withFitting = { ...document.assessments, ...document.fitting_assessments };
+  const mixed = await rejectionOf(() =>
+    nativeQualifyCandidate(
+      planText,
+      metadataText,
+      recordsText,
+      definitionText,
+      fittingText,
+      requestText,
+      JSON.stringify(withFitting),
+    ),
+  );
+  expect(mixed.code).toBe("unknown_field");
+  expect(mixed.fieldPath).toBe("/assessments/fit-case-1");
+  const missingCase = { ...document.assessments };
+  delete missingCase[Object.keys(document.assessments)[0]!];
+  const absent = await rejectionOf(() =>
+    nativeQualifyCandidate(
+      planText,
+      metadataText,
+      recordsText,
+      definitionText,
+      fittingText,
+      requestText,
+      JSON.stringify(missingCase),
+    ),
+  );
+  expect(absent.code).toBe("missing_field");
 });
 
 test("the dataset measurement refuses broken reports and empty evaluations", () => {

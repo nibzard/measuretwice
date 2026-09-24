@@ -30,6 +30,37 @@ import { contractVersion } from "measuretwice";
 contractVersion(); // 1
 ```
 
+`calibrate` runs one complete calibration in the library. It reads your
+calibration plan and your labeled dataset, measures the development cases
+through the evaluator you registered, searches the permitted policy family
+in the Rust core, and validates the frozen candidate on your independent
+split. It returns one candidate profile with the fitting and qualification
+reports, whatever the evidence established. It promotes nothing: review the
+evidence, store it, and select one reviewed profile hash yourself.
+
+```ts
+import {
+  calibrate,
+  createJevEvaluator,
+  defineChecks,
+  registerEvaluators,
+} from "measuretwice";
+
+const calibration = await calibrate(intervention, {
+  plan: ".measuretwice/calibration-plan.json",
+  metadata: ".measuretwice/cases/intervention.json",
+  records: ".measuretwice/cases/intervention.jsonl",
+  evaluators: registerEvaluators(createJevEvaluator()),
+  sampling: "grouped_cases",
+  evaluationReports: [".measuretwice/reports/intervention-validation.json"],
+});
+
+calibration.profile.qualification.status; // "validated_for_scope"
+```
+
+The plan declares your goals, so no result weakens them. When the evidence
+falls short, the status says so and the profile states the counts.
+
 ## The command-line interface
 
 The package ships the `measuretwice` command. It reads explicit `.json`

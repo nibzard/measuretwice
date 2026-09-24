@@ -594,9 +594,15 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
   caller?.addEventListener("abort", onCallerAbort, { once: true });
 
   // Admission in definition order. One free active slot starts new work,
-  // one free pending slot queues it, and one spent queue skips it.
+  // one free pending slot queues it, and one spent queue skips it. One run
+  // that ended during admission, such as one caller abort that one adapter
+  // stated from inside the first attempt, admits no further work: the
+  // terminal report is frozen, and no later check may cross the boundary.
   emit({ type: "submit", checks });
   for (const check of checks) {
+    if (ended || settled) {
+      break;
+    }
     if (active < options.execution.max_active) {
       startAttempt(check);
     } else if (neverStarted.size < options.execution.max_pending) {

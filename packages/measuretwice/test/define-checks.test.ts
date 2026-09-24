@@ -614,6 +614,7 @@ test("the package entry point exposes the authoring and run API without native t
     "JEV_STATE_BUDGET_BYTES",
     "JEV_TRANSLATION_VERSION",
     "ValidationError",
+    "calibrate",
     "classifyValidationEvidence",
     "compare",
     "contractVersion",

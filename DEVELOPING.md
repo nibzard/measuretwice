@@ -1257,6 +1257,65 @@ one type that holds the four contract words.
 the reason codes, the goal rows, and every refusal stated by the Rust
 boundary.
 
+Decided in T050: `packages/measuretwice/src/calibrate.ts` owns the
+calibration orchestration and nothing else. The Node binding crosses the
+core boundaries the orchestration needs: `validatePlan` returns the
+validated meaning of one plan with its computed identity, its grid size,
+its evaluator configuration, and both dataset selections;
+`checkCalibrationBinding` runs the definition and the evaluator checks of
+the plan before one dataset is read, and `checkCalibrationDatasets` runs
+the split checks before one case is measured, so one plan that the loaded
+world refuses costs no spend. `fitPolicy` and `qualifyCandidate` run as
+libuv worker tasks: the binding states them as `Task` implementations whose
+`compute` reads the plan text, the dataset texts, and the stored assessments
+and returns one serialized report, so the bounded search and the frozen
+validation never block the Node event loop, no JavaScript runs during them,
+and no callback reaches user code. The qualification task re-runs the
+deterministic search over the same fitting assessments first, because the
+search is one pure function of its inputs: the freeze holds by construction
+and no serialized fit report can drift between the two phases of one
+calibration. The async rejections cross through the same failure
+translation as the sync ones.
+
+The wrapper reads the plan, the dataset metadata, and the dataset records
+through the bounded readers, then measures both splits through the same
+validated execution path as one ordinary run: `createExplorationProfile`
+derives one measurement profile that binds every question check to the
+evaluator the plan names, with the model alias the plan requests, `load`
+binds it through one synthetic path served by one delegating file access,
+and every case runs as one shadow run inside the effective execution
+configuration. The runs carry the bounds, the retries, the deadline, and
+the cancellation, and their stored assessments, and nothing else, enter the
+search: no reference label, no tag, and no provenance field reaches one
+evaluator request. One case that ends without one stored assessment refuses
+the calibration with the operational code of its own record, one aborted
+signal refuses with `run_cancelled` and one pre-aborted signal with
+`cancelled_before_start`, and two resolved model versions refuse with
+`model_resolution_changed`, because one calibration measures with one model.
+
+The candidate profile copies the measurement bindings with the resolved
+model version, applies the frozen candidate to every question check,
+records the complete evidence the profile contract requires, and states the
+qualification the evidence computed. The label provenance is counted from
+the loaded dataset, the statistical method statement comes from the
+qualification report, and the host states the evaluation-report references,
+because the host owns the storage and the contracts require the complete
+evidence set. Every rate of every scope, the bounds of the complete check
+set, the measured sample counts, and the statement of every important slice
+cross into `performance` unchanged. The artifact is signed with the core
+self-hash, validated through the complete contract, and loaded once through
+the public boundary before it returns, so the host receives one profile
+that binds as generated. No feasible candidate is one valid result: the
+profile then records the objective-best candidate of the permitted family
+with `criteria_not_met` and one method statement that names the missing
+validation, and the calibration measures no validation case, because no
+frozen candidate exists to validate. Whatever the status, the calibration
+promotes nothing: the host reviews the evidence and selects one reviewed
+content hash, and enforcement still refuses the candidate until then. The
+scheduler admission loop stops after one run that ended during admission,
+such as one caller abort stated from inside the first attempt, so that path
+returns the frozen cancelled report instead of one internal refusal.
+
 Decided in T054: the CLI is one entry module and one file module.
 `packages/measuretwice/src/cli.ts` owns the surface and nothing else.
 `parseCliArguments` maps one command line into one typed invocation of the

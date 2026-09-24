@@ -459,6 +459,157 @@ export function nativeUncertaintyIntervals(
   );
 }
 
+/** One dataset selection of one validated plan. */
+export interface NativePlanSelection {
+  /** Stable dataset identifier the selection names. */
+  dataset: string;
+  /** Dataset revision the selection names. */
+  revision: string;
+  /** Stable split identifier the selection names. */
+  split: string;
+}
+
+/** The validated meaning of one calibration plan, as the core reads it. */
+export interface NativePlanInfo {
+  /** Stable plan identifier. */
+  id: string;
+  /** Computed identity of the plan in the plan domain. */
+  contentHash: string;
+  /** Name of the calibrated definition. */
+  definitionName: string;
+  /** Content hash of the calibrated definition. */
+  definitionHash: string;
+  /** The declared population of the qualification claim. */
+  intendedPopulation: string;
+  /** The declared grouping and independence assumptions. */
+  samplingAssumptions: string;
+  /** The declared confidence level of every interval. */
+  confidenceLevel: number;
+  /** The registered evaluator the plan measures with. */
+  evaluator: string;
+  /** The adapter version of the measurement. */
+  adapterVersion: string;
+  /** The content hash of the translated questions the plan freezes. */
+  translationHash?: string | null;
+  /** The model identifier the plan requests. */
+  modelRequested?: string | null;
+  /** The fitting selection of the plan. */
+  fitting: NativePlanSelection;
+  /** The validation selection of the plan. */
+  validation: NativePlanSelection;
+  /** Candidates the permitted grid enumerates, in declared order. */
+  candidateCount: number;
+}
+
+/** Validates one calibration plan through the complete core contract. */
+export function nativeValidatePlan(planText: string): NativePlanInfo {
+  return call(() => binding.validatePlan(planText));
+}
+
+/**
+ * Checks one validated plan against the loaded definition and the registered
+ * evaluators, before any data is read.
+ *
+ * The definition text holds the loaded definition and the registered text
+ * one array of the evaluators the host registered. The core runs the two
+ * binding checks of the plan boundary that need no data, so one plan that
+ * the loaded definition or the registry refuses fails here before one
+ * dataset is read.
+ */
+export function nativeCheckCalibrationBinding(
+  planText: string,
+  definitionText: string,
+  registeredText: string,
+): void {
+  call(() => binding.checkCalibrationBinding(planText, definitionText, registeredText));
+}
+
+/**
+ * Checks the two dataset selections of one validated plan against the loaded
+ * splits, before any case is measured.
+ *
+ * The two split texts hold the fitting and the validation split identities
+ * of the loaded dataset, each as `loadDataset` states them. Each selection
+ * must name the offered split of the offered revision and the declared
+ * purpose of its role, and the two selections must share no group and no
+ * case.
+ */
+export function nativeCheckCalibrationDatasets(
+  planText: string,
+  fittingText: string,
+  validationText: string,
+): void {
+  call(() => binding.checkCalibrationDatasets(planText, fittingText, validationText));
+}
+
+/** Runs one binding call that resolves asynchronously and lifts its failure. */
+async function callAsync<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const record = failureRecord(error);
+    if (record === null) {
+      throw error;
+    }
+    throw new NativeFailure(record.code, record.message, record.field_path);
+  }
+}
+
+/**
+ * Searches the permitted candidate family on the fitting split.
+ *
+ * The texts follow the rules of `nativeValidatePlan` and
+ * `nativeValidateDataset`, and the assessments text holds one object keyed by
+ * case identifier, then by question check identifier, holding the stored
+ * assessment of that check. The libuv worker thread runs the search, so the
+ * Node event loop stays free, and no JavaScript code runs during it. The
+ * result is the complete fitting report as one JSON document.
+ */
+export function nativeFitPolicy(
+  planText: string,
+  metadataText: string,
+  recordsText: string,
+  definitionText: string,
+  assessmentsText: string,
+): Promise<string> {
+  return callAsync(() =>
+    binding.fitPolicy(planText, metadataText, recordsText, definitionText, assessmentsText),
+  );
+}
+
+/**
+ * Qualifies the frozen candidate of one calibration on independent cases.
+ *
+ * The texts follow the rules of `nativeFitPolicy`. The fitting assessments
+ * text holds the same stored assessments the search read, so the core
+ * re-derives the frozen candidate itself, and the validation assessments
+ * text holds the stored assessments of the validation split. The request
+ * text holds one validation request object. The libuv worker thread runs the
+ * computation, and the result is the complete qualification report as one
+ * JSON document.
+ */
+export function nativeQualifyCandidate(
+  planText: string,
+  metadataText: string,
+  recordsText: string,
+  definitionText: string,
+  fittingAssessmentsText: string,
+  requestText: string,
+  validationAssessmentsText: string,
+): Promise<string> {
+  return callAsync(() =>
+    binding.qualifyCandidate(
+      planText,
+      metadataText,
+      recordsText,
+      definitionText,
+      fittingAssessmentsText,
+      requestText,
+      validationAssessmentsText,
+    ),
+  );
+}
+
 /**
  * Exports the stored shadow reports that need one human review.
  *

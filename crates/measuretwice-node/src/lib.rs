@@ -29,9 +29,11 @@ use measuretwice_core::error::{ReasonCode, ValidationError};
 use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
 use measuretwice_core::{
-    assessment, case, comparison, dataset, definition, hashing, intervals, json, metrics, policy,
-    profile, report, review, rule, run_state, splits,
+    assessment, case, comparison, dataset, definition, fitting, hashing, intervals, json, metrics,
+    plan, policy, profile, qualification, report, review, rule, run_state, splits,
 };
+use napi::bindgen_prelude::AsyncTask;
+use napi::{Env, Task};
 use serde_json::Value;
 
 // Every exported signature states `Result<T, napi::Error>` in full. The
@@ -1037,6 +1039,369 @@ pub fn uncertainty_intervals(
 pub fn parse_interval_request(request_text: String) -> Result<String, napi::Error> {
     let request = lift(intervals::parse_interval_request_str(&request_text))?;
     Ok(serde_json::to_string(&request).expect("the request serializes"))
+}
+
+// ---------------------------------------------------------------------------
+// Calibration plans, the bounded fitting search, and the frozen validation.
+// ---------------------------------------------------------------------------
+
+/// One dataset selection of one calibration plan, as data.
+#[napi(object)]
+pub struct PlanSelectionInfo {
+    /// Stable dataset identifier the selection names.
+    pub dataset: String,
+    /// Dataset revision the selection names.
+    pub revision: String,
+    /// Stable split identifier the selection names.
+    pub split: String,
+}
+
+/// The validated meaning of one calibration plan.
+#[napi(object)]
+pub struct PlanInfo {
+    /// Stable plan identifier.
+    pub id: String,
+    /// Computed identity of the plan in the plan domain.
+    pub content_hash: String,
+    /// Name of the calibrated definition.
+    pub definition_name: String,
+    /// Content hash of the calibrated definition.
+    pub definition_hash: String,
+    /// The declared population of the qualification claim.
+    pub intended_population: String,
+    /// The declared grouping and independence assumptions.
+    pub sampling_assumptions: String,
+    /// The declared confidence level of every interval.
+    pub confidence_level: f64,
+    /// The registered evaluator the plan measures with.
+    pub evaluator: String,
+    /// The adapter version of the measurement.
+    pub adapter_version: String,
+    /// The content hash of the translated questions the plan freezes.
+    pub translation_hash: Option<String>,
+    /// The model identifier the plan requests.
+    pub model_requested: Option<String>,
+    /// The fitting selection of the plan.
+    pub fitting: PlanSelectionInfo,
+    /// The validation selection of the plan.
+    pub validation: PlanSelectionInfo,
+    /// Candidates the permitted grid enumerates, in declared order.
+    pub candidate_count: u32,
+}
+
+/// Reads the validated meaning of one plan into the boundary shape.
+fn plan_info(plan: &plan::ValidatedPlan) -> PlanInfo {
+    let evaluator = plan.evaluator();
+    let selection = |entry: &plan::DatasetSelection| PlanSelectionInfo {
+        dataset: entry.dataset.clone(),
+        revision: entry.revision.clone(),
+        split: entry.split.clone(),
+    };
+    PlanInfo {
+        id: plan.id().to_owned(),
+        content_hash: plan.content_hash().to_owned(),
+        definition_name: plan.definition_name().to_owned(),
+        definition_hash: plan.definition_hash().to_owned(),
+        intended_population: plan.intended_population().to_owned(),
+        sampling_assumptions: plan.sampling_assumptions().to_owned(),
+        confidence_level: plan.confidence_level().as_f64(),
+        evaluator: evaluator.evaluator.clone(),
+        adapter_version: evaluator.adapter_version.clone(),
+        translation_hash: evaluator.translation_hash.clone(),
+        model_requested: evaluator.model_requested.clone(),
+        fitting: selection(&plan.datasets().fitting),
+        validation: selection(&plan.datasets().validation),
+        candidate_count: plan.candidate_count() as u32,
+    }
+}
+
+/// Validates one calibration plan through the complete core contract.
+///
+/// The plan text holds one plan artifact of the frozen contract. The stored
+/// self-hash is verified last, so one field defect names its own field. The
+/// result is the validated meaning of the plan, including the computed plan
+/// identity that one candidate profile records in its evidence.
+#[napi]
+pub fn validate_plan(plan_text: String) -> Result<PlanInfo, napi::Error> {
+    let plan = lift(plan::validate_plan_str(&plan_text))?;
+    Ok(plan_info(&plan))
+}
+
+/// Parses one split identity and moves one failure under the stated prefix.
+fn split_identity(text: &str, prefix: &str) -> Result<splits::SplitIdentity, napi::Error> {
+    let value = strict(text)?;
+    splits::parse_split_identity(&value).map_err(|error| {
+        failure(ValidationError {
+            field_path: format!("{prefix}{}", error.field_path),
+            ..error
+        })
+    })
+}
+
+/// Checks one validated plan against the loaded definition and the
+/// registered evaluators, before any data is read.
+///
+/// The definition text holds the loaded definition and the registered text
+/// one array of the evaluators the host registered (`evaluator`,
+/// `adapter_version`). The core runs the two binding checks of the plan
+/// boundary that need no data: the plan binds the loaded definition, and one
+/// registered evaluator serves the plan with the recorded adapter version.
+/// One exact-only definition takes no plan, and one foreign definition hash
+/// fails `definition_mismatch`, so one wrapper refuses one plan that cannot
+/// measure before it reads one dataset.
+#[napi]
+pub fn check_calibration_binding(
+    plan_text: String,
+    definition_text: String,
+    registered_text: String,
+) -> Result<(), napi::Error> {
+    let validated_definition = lift(definition::validate_definition_str(&definition_text))?;
+    let plan = lift(plan::validate_plan_str(&plan_text))?;
+    lift(plan::check_plan_definition(
+        &plan,
+        &validated_definition,
+        "/plan",
+    ))?;
+    let registered = lift(plan::parse_registered_evaluators(
+        &strict(&registered_text)?,
+        "/evaluators",
+    ))?;
+    lift(plan::check_plan_evaluator(&plan, &registered, "/plan"))
+}
+
+/// Checks the two dataset selections of one validated plan against the
+/// loaded splits, before any case is measured.
+///
+/// The two split texts hold the fitting and the validation split identities
+/// of the loaded dataset, each as `loadDataset` states them. Each selection
+/// must name the offered split of the offered dataset revision and the
+/// declared purpose of its role, and the two selections must share no group
+/// and no case. Every failure crosses before one case is measured, so no
+/// spend happens on one plan that the loaded data refuses.
+#[napi]
+pub fn check_calibration_datasets(
+    plan_text: String,
+    fitting_text: String,
+    validation_text: String,
+) -> Result<(), napi::Error> {
+    let plan = lift(plan::validate_plan_str(&plan_text))?;
+    let fitting = split_identity(&fitting_text, "/datasets/fitting")?;
+    let validation = split_identity(&validation_text, "/datasets/validation")?;
+    lift(plan::check_plan_datasets(
+        &plan,
+        &fitting,
+        &validation,
+        "/plan",
+    ))
+}
+
+/// Rebuilds the validated inputs of one calibration calculation.
+///
+/// The definition text, the metadata text, and the records text cross exactly
+/// as the wrapper read them, so the core stays the one validation authority
+/// and no parsed copy drifts between the wrapper and the calculation. The
+/// caller validates the loaded dataset against the returned definition,
+/// because the validated value borrows both and cannot cross this boundary.
+fn calibration_inputs(
+    definition_text: &str,
+    metadata_text: &str,
+    records_text: &str,
+    plan_text: &str,
+) -> Result<
+    (
+        definition::ValidatedDefinition,
+        dataset::Dataset,
+        plan::ValidatedPlan,
+    ),
+    napi::Error,
+> {
+    let validated_definition = lift(definition::validate_definition_str(definition_text))?;
+    let loaded = lift(dataset::load_dataset(metadata_text, records_text))?;
+    let plan = lift(plan::validate_plan_str(plan_text))?;
+    Ok((validated_definition, loaded, plan))
+}
+
+/// The bounded fitting search of one calibration, run off the event loop.
+pub struct FitPolicyTask {
+    plan_text: String,
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    assessments_text: String,
+}
+
+#[napi]
+impl Task for FitPolicyTask {
+    type Output = String;
+    type JsValue = String;
+
+    /// Enumerates the permitted candidate family on the fitting split.
+    ///
+    /// The computation calls no JavaScript and no provider: it reads the
+    /// plan, the dataset, the definition, and the stored assessments, and it
+    /// returns one serialized fitting report. The libuv worker thread runs
+    /// it, so the search of up to the published decision limit never blocks
+    /// the Node event loop.
+    fn compute(&mut self) -> napi::Result<String> {
+        let (definition, loaded, plan) = calibration_inputs(
+            &self.definition_text,
+            &self.metadata_text,
+            &self.records_text,
+            &self.plan_text,
+        )?;
+        let validated = lift(dataset::validate_dataset(&loaded, &definition))?;
+        let report = lift(fitting::fit_policy_str(
+            &plan,
+            &validated,
+            &self.assessments_text,
+        ))?;
+        serde_json::to_string(&report).map_err(|error| {
+            napi::Error::new(
+                napi::Status::GenericFailure,
+                format!("the fitting report serializes: {error}"),
+            )
+        })
+    }
+
+    /// Returns the serialized report to the awaiting caller.
+    fn resolve(&mut self, _env: Env, output: String) -> napi::Result<String> {
+        Ok(output)
+    }
+}
+
+/// Searches the permitted candidate family on the fitting split.
+///
+/// The plan text, the metadata text, and the records text follow the rules of
+/// `validatePlan` and `validateDataset`. The assessments text holds one
+/// object keyed by case identifier; each entry is one object keyed by
+/// question check identifier holding the stored assessment of that check,
+/// exactly as the evaluator recorded it in one run report. Every fitting case
+/// and every question check must state one assessment, and one assessment
+/// that names one validation case fails with its path, so validation data
+/// cannot enter the search.
+///
+/// The result is the complete fitting report as one JSON document: the
+/// identities of the plan, the definition, and the fitting split, the
+/// declared objective with its confidence level, every enumerated candidate
+/// with its measured goal rows, the selected candidate when one is feasible,
+/// and the standing development-evidence statement. No feasible candidate is
+/// one valid result, not one failure.
+#[napi]
+pub fn fit_policy(
+    plan_text: String,
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    assessments_text: String,
+) -> AsyncTask<FitPolicyTask> {
+    AsyncTask::new(FitPolicyTask {
+        plan_text,
+        metadata_text,
+        records_text,
+        definition_text,
+        assessments_text,
+    })
+}
+
+/// The frozen validation of one selected candidate, run off the event loop.
+pub struct QualifyCandidateTask {
+    plan_text: String,
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    fitting_assessments_text: String,
+    request_text: String,
+    validation_assessments_text: String,
+}
+
+#[napi]
+impl Task for QualifyCandidateTask {
+    type Output = String;
+    type JsValue = String;
+
+    /// Freezes the candidate and validates it on independent cases.
+    ///
+    /// The freeze re-runs the deterministic search over the same fitting
+    /// assessments first: the search is one pure function of the plan, the
+    /// dataset, and the stored assessments, so the same inputs select the
+    /// same candidate and no serialized fit report can drift between the two
+    /// phases of one calibration. The validation then replays every
+    /// validation case once under the frozen policy. The computation calls
+    /// no JavaScript and no provider, and the libuv worker thread runs it.
+    fn compute(&mut self) -> napi::Result<String> {
+        let (definition, loaded, plan) = calibration_inputs(
+            &self.definition_text,
+            &self.metadata_text,
+            &self.records_text,
+            &self.plan_text,
+        )?;
+        let validated = lift(dataset::validate_dataset(&loaded, &definition))?;
+        let fit = lift(fitting::fit_policy_str(
+            &plan,
+            &validated,
+            &self.fitting_assessments_text,
+        ))?;
+        let request = lift(qualification::parse_validation_request_str(
+            &self.request_text,
+        ))?;
+        let report = lift(qualification::qualify_candidate_str(
+            &plan,
+            &validated,
+            &fit,
+            &request,
+            &self.validation_assessments_text,
+        ))?;
+        serde_json::to_string(&report).map_err(|error| {
+            napi::Error::new(
+                napi::Status::GenericFailure,
+                format!("the qualification report serializes: {error}"),
+            )
+        })
+    }
+
+    /// Returns the serialized report to the awaiting caller.
+    fn resolve(&mut self, _env: Env, output: String) -> napi::Result<String> {
+        Ok(output)
+    }
+}
+
+/// Qualifies the frozen candidate of one calibration on independent cases.
+///
+/// The plan, metadata, records, and definition texts follow the rules of
+/// `fitPolicy`. The fitting assessments text holds the same stored
+/// assessments the search read, so the freeze re-derives the selected
+/// candidate inside the core. The request text holds one validation request
+/// object (`sampling`, `previously_used`), and the validation assessments
+/// text holds the stored assessments of the validation split under the same
+/// rules as the fitting assessments. One assessment that names one fitting
+/// case fails with its path.
+///
+/// The result is the complete qualification report as one JSON document: the
+/// complete identities of the frozen candidate, the evidence classification
+/// of the validation split, every goal row with its counts and its bounds,
+/// the sample requirements, the important slices, the metric sets with their
+/// intervals, the computed status with its calculated reasons, and the
+/// standing candidate statement. The result selects nothing and changes no
+/// parameter.
+#[napi]
+pub fn qualify_candidate(
+    plan_text: String,
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    fitting_assessments_text: String,
+    request_text: String,
+    validation_assessments_text: String,
+) -> AsyncTask<QualifyCandidateTask> {
+    AsyncTask::new(QualifyCandidateTask {
+        plan_text,
+        metadata_text,
+        records_text,
+        definition_text,
+        fitting_assessments_text,
+        request_text,
+        validation_assessments_text,
+    })
 }
 
 /// Moves one failure into one report position, prefixing

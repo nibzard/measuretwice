@@ -1962,7 +1962,7 @@
       "id": "T050",
       "title": "Implement the calibrate API",
       "priority": 3,
-      "status": "todo",
+      "status": "doing",
       "details": "Orchestrate development assessment, Rust fitting, frozen validation, and candidate artifacts. Sources: MVP_SPEC.md sections 5, 7-8, 11.",
       "steps": [
         "Write workflow tests for successful qualification, missing evidence, unmet goals, cancellation, and evaluator failure.",
@@ -1984,7 +1984,8 @@
         "T047",
         "T048",
         "T049"
-      ]
+      ],
+      "updated_at": "2026-09-24T19:10:24Z"
     },
     {
       "id": "T051",

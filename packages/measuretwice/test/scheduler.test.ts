@@ -943,6 +943,48 @@ test("one pre-aborted caller signal cancels before any work starts", async () =>
   expect(executor.events.map((event) => event.type)).toEqual(["submit", "cancel"]);
 });
 
+test("one abort inside the first attempt stops the admission loop", async () => {
+  const clock = new FakeClock(START_MS);
+  // Two active slots would admit two checks. The first execution aborts the
+  // caller synchronously, before it returns control, so the run ends during
+  // admission and the remaining checks cross no boundary: the frozen
+  // cancelled report returns instead of one internal refusal.
+  const config = execution({ max_active: 2, max_pending: 2 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const caller = new AbortController();
+  let started = 0;
+  const aborting = (attempt: ScheduledAttempt): Promise<ScheduledResolution> => {
+    started += 1;
+    if (started === 1) {
+      caller.abort();
+    }
+    return executor.execute(attempt);
+  };
+  const reportPromise = scheduleRun({
+    state: run.state,
+    caseReferenceText: run.caseReference,
+    profileReferenceText: TRACE_PROFILE,
+    execution: config,
+    execute: aborting,
+    now: () => clock.nowMs(),
+    setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
+    signal: caller.signal,
+    observe: executor.observe,
+  });
+
+  const report = await reportPromise;
+  expect(started).toBe(1);
+  expect(report.completion.status).toBe("cancelled");
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "error", reason: { code: "run_cancelled" } },
+    { check: "summary-mentions-limit", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+  expect(run.state.phase).toBe("cancelled");
+});
+
 test("caller cancellation propagates to adapters and clears queued work", async () => {
   const clock = new FakeClock(START_MS);
   const config = execution({ max_active: 1, max_pending: 2 });

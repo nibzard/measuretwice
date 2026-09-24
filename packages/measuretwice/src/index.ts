@@ -60,8 +60,17 @@
  * metric row keeps the counts and the denominators of both sides, with
  * the evidence class derived from the declared purposes and the cost
  * tradeoff computed only when the recorded usage and the declared cost
- * inputs support it. The public operation `calibrate` is specified in
- * MVP_SPEC.md and arrives with its task.
+ * inputs support it. The public operation `calibrate` runs one complete
+ * calibration: it reads the explicit plan and the datasets, checks every
+ * binding of the plan against the loaded world, measures the development
+ * cases through the registered evaluator on the same validated execution
+ * path as one ordinary run, searches the permitted candidate family in the
+ * Rust core on one worker thread, freezes the selected candidate, validates
+ * it on the independent split, and returns the candidate profile with the
+ * fitting and qualification reports. No feasible candidate is one valid
+ * result, and whatever the evidence established, the calibration promotes
+ * nothing: the host reviews the recorded evidence and selects one reviewed
+ * content hash through its own code.
  *
  * This package never exposes provider SDK types or native binding types.
  * Invalid data fails with one {@link ValidationError} before execution.
@@ -233,6 +242,32 @@ export type {
   EvaluationSliceIntervals,
   IntervalOptions,
 } from "./evaluate.js";
+export { calibrate } from "./calibrate.js";
+export type {
+  Calibration,
+  CalibrationCandidate,
+  CalibrationCounts,
+  CalibrationGoal,
+  CalibrationMetricSet,
+  CalibrationRate,
+  CalibrationSampling,
+  CalibrateOptions,
+  FittingCandidate,
+  FittingReport,
+  FittingStatus,
+  GoalBasis,
+  GoalComparison,
+  GoalEvidence,
+  QualificationEvidence,
+  QualificationGoal,
+  QualificationInterval,
+  QualificationIntervalSet,
+  QualificationReason,
+  QualificationReport,
+  QualificationSlice,
+  SampleRequirement,
+  SelectedCandidate,
+} from "./calibrate.js";
 export { exportShadowReviews, validateReviewLabels } from "./review.js";
 export type {
   AgreementSample,
