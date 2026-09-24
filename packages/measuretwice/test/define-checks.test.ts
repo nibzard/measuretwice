@@ -614,6 +614,7 @@ test("the package entry point exposes the authoring and run API without native t
     "JEV_TRANSLATION_VERSION",
     "ValidationError",
     "contractVersion",
+    "createExplorationProfile",
     "createJevEvaluator",
     "createLabelOnlyEvaluator",
     "createScriptedEvaluator",

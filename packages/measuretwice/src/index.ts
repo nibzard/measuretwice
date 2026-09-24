@@ -9,7 +9,11 @@
  * core validates the complete profile contract, its stored self-hash, and
  * the compatibility of every binding before any execution. The exact
  * rules run in the Rust core today; question checks run through evaluators
- * that the host registers with `registerEvaluators`. The package also ships
+ * that the host registers with `registerEvaluators`.
+ * `createExplorationProfile` generates the explicitly unvalidated starter
+ * profile from one validated definition and the registered evaluators, so
+ * one developer can try semantic checks before any qualification evidence
+ * exists. The package also ships
  * two test adapters, `createScriptedEvaluator` and
  * `createLabelOnlyEvaluator`, that stay offline and prove the contract
  * needs no Jev response shape, `translateJevQuestion`, the versioned
@@ -131,6 +135,12 @@ export type {
   RunReport,
   SanitizedReason,
 } from "./run.js";
+export { createExplorationProfile } from "./exploration.js";
+export type {
+  ExplorationBinding,
+  ExplorationOptions,
+  ExplorationStarterPolicy,
+} from "./exploration.js";
 export { ValidationError } from "./error.js";
 
 /**

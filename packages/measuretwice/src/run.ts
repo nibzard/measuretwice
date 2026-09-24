@@ -626,6 +626,15 @@ export async function load(
           "/mode",
         );
       }
+      // Enforcement runs the complete compatibility gate of the core again,
+      // in enforcement mode: the bindings, then the qualification clause.
+      // One unvalidated profile refuses here, before any case work starts,
+      // whatever checks the definition holds.
+      if (mode === "enforcement" && profile !== undefined && profileText !== undefined) {
+        throughCore(() =>
+          nativeCheckProfileCompatibility(profileText, definitionText, liveBindings, "enforcement"),
+        );
+      }
       // The semantic run path for question checks arrives with its own
       // task. The gate fires before any case work starts, so no evaluator
       // runs and no spend occurs.
@@ -639,17 +648,9 @@ export async function load(
         );
       }
       // Every exact-only definition holds one profile, and the gate above
-      // returned for every other definition. Enforcement runs the complete
-      // compatibility gate of the core again, in enforcement mode: the
-      // bindings, then the qualification clause. One unvalidated profile
-      // refuses here, before any case work starts.
+      // returned for every other definition.
       const bound = profile as Profile;
       const boundText = profileText as string;
-      if (mode === "enforcement") {
-        throughCore(() =>
-          nativeCheckProfileCompatibility(boundText, definitionText, liveBindings, "enforcement"),
-        );
-      }
 
       const caseText = jsonText(caseInput, "");
       const caseInfo = throughCore(() => nativeValidateCase(definitionText, caseText));

@@ -226,11 +226,21 @@ export interface EvaluatorRequest {
  *
  * The hash covers the complete translated question that the adapter sends.
  * `load` compares it with the recorded translation of one bound profile, so
- * one changed translation fails before any execution.
+ * one changed translation fails before any execution. The optional
+ * `question` states the complete translated question itself, so
+ * `createExplorationProfile` can record it inside one generated binding.
  */
 export interface EvaluatorTranslation {
   /** The content hash of the complete translated question. */
   readonly content_hash: string;
+  /**
+   * The complete translated question, as plain JSON data. Optional.
+   *
+   * One adapter that translates states the question beside its hash, so one
+   * generated profile records exactly what the adapter sends. The stated
+   * hash must cover the stated question.
+   */
+  readonly question?: unknown;
 }
 
 /**

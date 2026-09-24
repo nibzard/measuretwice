@@ -553,6 +553,39 @@ enforcement stays with task T035. The shared
 and the mode, and the Rust, native-boundary, and repository suites run
 every row through the boundary.
 
+Decided in T029: exploration profiles are generated, never hand-authored.
+`packages/measuretwice/src/exploration.ts` owns
+`createExplorationProfile` and nothing else. The generator is one pure
+function of one validated definition artifact, the registered evaluators,
+and the stated options: it reads no clock, draws no identifier, and calls
+no provider, so the same inputs produce the same artifact and the same
+content hash on every call. One binding per question check records the
+registered evaluator, its adapter version, and the complete translated
+question in canonical text with its translation hash: one adapter that
+translates states the question through the optional `question` field of
+its `translate` result, and the stated hash must cover the stated
+question; one adapter that translates nothing receives the validated
+question unchanged, so that question is recorded and hashed in the same
+domain. The binding records the requested model alias alone, because
+generation measures nothing and resolves no version. The starter policy
+comes from the per-check entry, the global option, or the documented
+defaults of 0.8 acceptable mass, 0.6 unacceptable mass, and no confidence
+floor; the effective execution configuration comes from the starter
+defaults plus the stated overrides. The qualification stays `unvalidated`
+with the reason `starter_policy`, and the default intended use states that
+starter thresholds carry no qualification evidence. The generator owns no
+validation of its own: it signs the artifact with the core self-hash, then
+runs the complete profile contract and the shadow compatibility check of
+the core over the result, so one returned profile loads as generated and
+one broken option fails with the code and field path of the core. `run`
+now applies the enforcement gate of the core before the pending
+semantic-path gate, so one exploration profile in enforcement mode refuses
+with `qualification_insufficient` before any case work, whatever checks
+the definition holds. Executing the profile changes nothing: the artifact
+is frozen and rewritten by nothing, and the calibration API (task T050)
+replaces the starter numbers with measured parameters as one new profile
+with its own hash.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 
