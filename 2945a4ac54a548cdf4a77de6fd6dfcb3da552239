@@ -1,0 +1,13 @@
+# Context
+
+## Background
+Tail of T049; the bulk is in 08a3bae. The unit test, clippy
+fixes, and the models README line came from a concurrent peer
+session (measuretwice-b4) working on T049 in the same tree; the
+to-do.json status flip was written by the Looper task-status
+process at 19:09.
+
+## Verification
+The peer session ran the full gate on this exact tree:
+fmt, clippy, cargo test (293 + 37), build, typecheck, and
+vitest (40 files, 445 tests), all green.
