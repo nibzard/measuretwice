@@ -1,17 +1,27 @@
 # Development checks
 
 These checks assess changes to measuretwice examples and performance claims.
-They use the proposed TypeScript and TypeBox format in [MVP_SPEC.md](../MVP_SPEC.md).
+They use the TypeScript and TypeBox authoring format of [MVP_SPEC.md](../MVP_SPEC.md).
 
-**Status:** Draft definitions and synthetic development cases. The imported measuretwice API is not implemented yet.
-No live evaluator results or calibrated profiles exist for these checks.
+**Status:** Draft definitions and synthetic development cases. Both
+definitions compile against the implemented `measuretwice` package, and both
+datasets satisfy the frozen dataset contract. The labels are agent-proposed
+and unreviewed. No live evaluator result and no calibrated profile exists for
+these checks.
 
 ## Files
 
-| Definition | Cases | Purpose |
+| Kind | File | Purpose |
 | --- | --- | --- |
-| [example-contract.ts](checks/example-contract.ts) | [example-contract.jsonl](cases/example-contract.jsonl) | Compare an example with its stated contract. |
-| [claim-evidence.ts](checks/claim-evidence.ts) | [claim-evidence.jsonl](cases/claim-evidence.jsonl) | Compare a claim with its supporting evidence. |
+| Definition | [checks/example-contract.ts](checks/example-contract.ts) | Compare an example with its stated contract. |
+| Definition | [checks/claim-evidence.ts](checks/claim-evidence.ts) | Compare a claim with its supporting evidence. |
+| Export | [definitions/example-contract.json](definitions/example-contract.json) | The portable definition, written by the export script. |
+| Export | [definitions/claim-evidence.json](definitions/claim-evidence.json) | The portable definition, written by the export script. |
+| Cases | [cases/example-contract.jsonl](cases/example-contract.jsonl) with [its metadata](cases/example-contract.metadata.json) | Eight example cases with reference labels. |
+| Cases | [cases/claim-evidence.jsonl](cases/claim-evidence.jsonl) with [its metadata](cases/claim-evidence.metadata.json) | Ten claim cases with reference labels. |
+| Runner | [validate.ts](validate.ts) | Validate every artifact offline. |
+| Runner | [jev-shadow.ts](jev-shadow.ts) | Run opt-in shadow experiments with one pinned Jev model. |
+| Runner | [export-definitions.ts](export-definitions.ts) | Write the committed JSON exports. |
 
 Each definition is independent. Supply only its declared inputs.
 This avoids unrelated context and lets each check have its own evaluation history.
@@ -25,8 +35,8 @@ The library and CLI must also accept explicit paths.
 ```text
 .measuretwice/
   checks/       TypeScript definitions with TypeBox input schemas
-  definitions/  Optional JSON exports for the CLI or exchange
-  cases/        Example cases and label provenance
+  definitions/  JSON exports for the CLI or exchange
+  cases/        JSONL records, dataset metadata, and label provenance
   profiles/     Selected evaluator and policy bindings
   reports/      Generated results
   README.md     Local usage instructions
@@ -34,11 +44,11 @@ The library and CLI must also accept explicit paths.
 
 Commit definitions, cases approved for sharing, and selected profiles.
 These initial cases are synthetic drafts; their label status remains explicit.
-Generated reports are ignored by default.
+Generated reports and the compiled `build/` directory are ignored by default.
 Retain evidence needed by a selected profile in a stable, explicitly managed location.
 Do not rely on ignored reports as the only copy of qualification evidence.
 The profiles and reports folders are empty until their artifacts exist.
-Public teaching examples belong in `examples/` when they are added.
+Public teaching examples belong in `examples/`.
 
 ## Prepare the inputs
 
@@ -75,17 +85,31 @@ Execution failures remain errors. They are not semantic answers.
 
 ## Case format and label status
 
-Each JSONL line contains one complete case:
+The records follow the frozen dataset contract of
+[contracts/v0/case-record.schema.json](../contracts/v0/case-record.schema.json).
+Each JSONL line holds one complete case, and one metadata file declares its
+dataset:
 
 - `id`: Stable case identifier.
 - `group`: Identifier for related cases. Keep a group in one dataset split.
 - `tags`: Failure types and scope labels.
-- `input`: Exactly the fields required by the definition.
-- `expected`: Proposed answer and outcome for the check, plus the overall outcome.
-- `label`: Origin, author type, human-review status, and a short explanation.
+- `input`: Exactly the fields that the definition input schema declares.
+- `expected`: Proposed answers and outcomes for each check, plus the overall outcome.
+- `label`: `author_type` (`human` or `model`), `reviewed`, the `origin`, and a short `reason`.
 
-This fixture shape is provisional. It is not an implemented dataset schema.
+The provisional shape is gone. The migration of 24 September 2026 moved each
+record onto the frozen contract and changed no label meaning:
+
+| Provisional field | Frozen field | Value kept |
+| --- | --- | --- |
+| `author_type: "coding_agent"` | `author_type: "model"` | A coding agent counts as one model author. |
+| `human_review_status: "unreviewed"` | `reviewed: false` | No human reviewed one label. |
+| `human_reviewer: null` | absent | One reviewer exists only after one review. |
+| `origin`, `reason` | `origin`, `reason` | Unchanged text, as the agent proposed it. |
+
 All labels were proposed by a coding agent. No label is marked as human-reviewed.
+The metadata of each dataset states `kind: "development_fixture"`, so the
+loader itself reports that the data supports no qualification claim.
 All sample reports and API behaviors inside the cases are synthetic.
 They are not measurements of measuretwice or Jev.
 
@@ -97,22 +121,65 @@ Review each case and its expected answer before using it as a reference label.
 Record the reviewer and any correction in the label record.
 Preserve the distinction between an agent proposal and a human judgment.
 
-## Use before the runner exists
+## Run the checks offline
 
-The repository does not yet contain a runner for these files.
-Read them as review checklists or use them to specify a direct Jev experiment.
-The future library imports these definitions through the application build. The CLI reads explicitly exported JSON; it does not execute TypeScript.
-The Rust core will validate inputs and apply the shared decision rules. YAML loading is deferred.
-Do not report checklist review as a live model evaluation.
+Build the package, then build and run the validation:
 
-A future direct SDK experiment should translate `answers` into a Jev Choice question.
-It must retain the question text, answer descriptions, and exact input fields.
-Expected labels and their explanations must never be sent to the evaluator.
-Record model output separately from the input dataset.
+1. `npm install`
+2. `npm run build`
+3. `npx tsc -p .measuretwice/tsconfig.json`
+4. `node .measuretwice/build/validate.js`
 
-Use an explicitly unvalidated profile for exploration and shadow runs.
-Do not use these draft checks to block changes automatically.
-No API calls are required to read or validate these artifacts.
+The runner validates both definitions and both datasets through the Rust
+core, with no evaluator and no provider call. It checks that the committed
+JSON exports equal the TypeScript definitions, that every reference label
+matches its check meaning, and that every run case holds one identifier and
+one input object alone. One failure names the artifact and exits with one
+error. The suite
+[packages/measuretwice/test/development-checks.test.ts](../packages/measuretwice/test/development-checks.test.ts)
+runs the same validation in the ordinary tests.
+
+The CLI reads the exported definitions and executes no TypeScript source:
+
+```sh
+node packages/measuretwice/dist/cli.js validate .measuretwice/definitions/example-contract.json
+```
+
+After you change one definition, write the export again and commit both:
+
+```sh
+node .measuretwice/build/export-definitions.js
+```
+
+## Run pinned Jev shadow experiments, opt-in
+
+One shadow experiment assesses the same cases through the Jev evaluator and
+stores one report per case beside the dataset. It is opt-in, because one run
+reads one credential and spends one API budget:
+
+```sh
+npm install @typesafe-ai/sdk@0.6.0
+node .measuretwice/build/jev-shadow.js --yes --check example-contract
+```
+
+The rules of the experiment:
+
+- The runner refuses to run until you pass `--yes`. The ordinary tests never
+  cross that gate.
+- The model stays pinned to one versioned identifier, `jev-1.13.0` by
+  default. One alias such as `jev-latest` refuses to load. The report
+  records the version that answered.
+- The generated profile is explicitly unvalidated, so the runs state shadow
+  mode and enforce nothing.
+- Expected labels and their explanations never reach the evaluator. Every
+  run starts from `runCase`, which strips them. The reference labels appear
+  only in the printed comparison.
+- Model output is stored in `reports/`, never inside the dataset. Git
+  ignores that directory.
+- Use `--limit 2` for one first, cheap experiment.
+
+See [providers/jev/README.md](../providers/jev/README.md) for the verified
+provider contract. The client reads its credential from `TYPESAFE_API_KEY`.
 
 ## Evaluation and improvement
 

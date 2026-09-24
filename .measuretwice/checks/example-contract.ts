@@ -1,4 +1,7 @@
-// Proposed API example. The measuretwice package is not implemented yet.
+// SPDX-License-Identifier: Apache-2.0
+// Development check of this repository. The definition compiles against the
+// implemented public package and validates through the Rust core inside
+// `defineChecks`.
 import Type from "typebox";
 import { defineChecks } from "measuretwice";
 

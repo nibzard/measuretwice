@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "example-contract-cases",
+  "name": "Example contract cases",
+  "revision": "2026-09-24.1",
+  "kind": "development_fixture",
+  "intended_population": "Hypothetical contract excerpts with example text that agrees, conflicts, or stays incomplete. Synthetic development cases for this repository. No real specification and no real example.",
+  "sampling_method": "Written by a coding agent to cover field names, runtime policy gaps, shadow behavior, wording, profile binding, embedded instructions, and ambiguous length semantics. No sampling of any real population.",
+  "label_guidelines": "Consistent: every material field, value, and outcome of the example agrees with the supplied contract. Conflicting: at least one material field, value, or outcome conflicts with an explicit contract rule. Incomplete: no definite conflict, but missing or ambiguous contract details prevent one complete assessment.",
+  "languages": ["en"],
+  "splits": [
+    {
+      "id": "explore",
+      "purpose": "fitting",
+      "groups": [
+        "input-names",
+        "length-semantics",
+        "missing-runtime-policy",
+        "profile-binding",
+        "shadow-behavior",
+        "untrusted-example",
+        "wording"
+      ]
+    }
+  ]
+}

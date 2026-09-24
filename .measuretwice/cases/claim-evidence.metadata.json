@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "claim-evidence-cases",
+  "name": "Claim evidence cases",
+  "revision": "2026-09-24.1",
+  "kind": "development_fixture",
+  "intended_population": "Hypothetical performance claims with synthetic report excerpts as their evidence. Development cases for this repository. No real measurement of measuretwice or Jev.",
+  "sampling_method": "Written by a coding agent to cover observed counts, metric definitions, population scope, label provenance, profile versions, missing artifacts, honest uncertainty, baseline agreement, and embedded instructions. No sampling of any real population.",
+  "label_guidelines": "Supported: the evidence establishes every material part of the claim within its stated scope. Conflicting: the claim conflicts with an explicit result, definition, version, or limitation in the evidence. Insufficient: no definite conflict, but the evidence cannot establish part of the claim.",
+  "languages": ["en"],
+  "splits": [
+    {
+      "id": "explore",
+      "purpose": "fitting",
+      "groups": [
+        "baseline-agreement",
+        "honest-uncertainty",
+        "label-provenance",
+        "metric-definition",
+        "missing-artifact",
+        "observed-counts",
+        "population-scope",
+        "profile-version",
+        "untrusted-evidence"
+      ]
+    }
+  ]
+}
