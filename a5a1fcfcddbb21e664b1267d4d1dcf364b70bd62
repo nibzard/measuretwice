@@ -1,0 +1,11 @@
+# Context
+
+## Background
+Tasks T044, T050, and T054-T055 from the same batch snapshot as
+08a3bae. evaluate, compare, and review wrap the native binding;
+the CLI adds bounded JSON file parsing plus validate, run, and
+inspect commands.
+
+## Verification
+vitest run green (40 files, 445 tests), verified on the exact
+tree that includes 2945a4a.
