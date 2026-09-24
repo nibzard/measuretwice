@@ -40,6 +40,8 @@ pub mod hashing;
 pub mod input_schema;
 /// The strict JSON gate for external artifact text.
 pub mod json;
+/// The `probability_mass_v0` decision policy family for question checks.
+pub mod policy;
 /// Component outcomes, the aggregate, completion, and the immutable run
 /// report record.
 pub mod report;

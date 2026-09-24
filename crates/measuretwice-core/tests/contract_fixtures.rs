@@ -1421,3 +1421,141 @@ fn assessment_samples_validate_against_their_checks() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Policy decisions: every sample and the frozen review record.
+// ---------------------------------------------------------------------------
+
+/// Decides one sample of the assessments group under one policy of the
+/// `probability_mass_v0` family. The `assessments` map of the sample's kind
+/// holds one acceptable and one unacceptable answer, so the cutoffs decide.
+fn sample_policy() -> measuretwice_core::report::AppliedPolicy {
+    measuretwice_core::report::AppliedPolicy {
+        accept_cutoff: 0.75,
+        rejection_cutoff: 0.65,
+        confidence_floor: None,
+    }
+}
+
+#[test]
+fn assessment_samples_decide_under_the_probability_mass_family() {
+    use measuretwice_core::policy;
+    use measuretwice_core::report::Outcome;
+
+    let document = fixture_document("assessments/samples.json");
+    let valid = document["valid"].as_array().expect("valid records");
+
+    // One row per valid sample: the expected decision of the family, or the
+    // expected rejection when the sample states no measurement that the
+    // family requires.
+    let rows: &[(&str, &str, Outcome)] = &[
+        // One label-only categorical answer states no distribution, so the
+        // family fails explicitly instead of inventing mass.
+        (
+            "A label-only categorical assessment",
+            "missing",
+            Outcome::Review,
+        ),
+        // The distribution puts 0.82 on the accepted label.
+        (
+            "A categorical assessment with every optional measurement present.",
+            "pass",
+            Outcome::Pass,
+        ),
+        // The binary check accepts no, and the value selects yes.
+        (
+            "A binary assessment holds a value and nothing else.",
+            "fail",
+            Outcome::Fail,
+        ),
+        // The distribution puts 0.9 on the levels from at_least upward.
+        (
+            "An ordered assessment keeps a fractional position without rounding and reports its distribution over the named levels.",
+            "pass",
+            Outcome::Pass,
+        ),
+    ];
+    assert_eq!(valid.len(), rows.len(), "the sample table changed");
+    for (record, (prefix, decision, expected)) in valid.iter().zip(rows.iter()) {
+        let note = record["note"].as_str().expect("a note");
+        assert!(
+            note.starts_with(prefix),
+            "{note} no longer matches {prefix}"
+        );
+        let assessment = &record["assessment"];
+        let kind = assessment["kind"].as_str().expect("a kind");
+        let definition = assessment_definition(
+            kind,
+            &["prior_decision", "conversation", "proposed_message"],
+        );
+        if decision == &"missing" {
+            let error = policy::decide(
+                &definition,
+                assessment_check(kind),
+                assessment,
+                &sample_policy(),
+            )
+            .err()
+            .unwrap_or_else(|| panic!("{note}: the assessment without mass was accepted"));
+            assert_eq!(error.code, ReasonCode::MissingField, "{note}: {error}");
+            assert_eq!(error.field_path, "/assessment/distribution");
+            continue;
+        }
+        let outcome = policy::decide(
+            &definition,
+            assessment_check(kind),
+            assessment,
+            &sample_policy(),
+        )
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(
+            outcome, *expected,
+            "{note}: expected the decision {decision}"
+        );
+        assert_eq!(outcome.as_str(), *decision, "{note}");
+    }
+}
+
+#[test]
+fn the_frozen_review_record_reproduces_through_the_policy() {
+    use measuretwice_core::policy;
+    use measuretwice_core::report::Outcome;
+
+    // The review sample of the outcomes group states one label-only
+    // categorical assessment of the check message-supported with one applied
+    // policy. The selected label is one declared review label, so the family
+    // reproduces the frozen outcome without reading any mass.
+    let document = fixture_document("reports/outcomes.json");
+    let sample = document["check_records"]
+        .as_array()
+        .expect("a record array")
+        .iter()
+        .find(|sample| sample["record"]["applied_policy"].is_object())
+        .expect("one question record with one applied policy");
+    let record = &sample["record"];
+    let applied = &record["applied_policy"];
+    let parameters = measuretwice_core::report::AppliedPolicy {
+        accept_cutoff: applied["accept_cutoff"].as_f64().expect("an accept cutoff"),
+        rejection_cutoff: applied["rejection_cutoff"]
+            .as_f64()
+            .expect("a rejection cutoff"),
+        confidence_floor: applied["confidence_floor"].as_f64(),
+    };
+    let definition = assessment_definition(
+        "categorical",
+        &["prior_decision", "conversation", "proposed_message"],
+    );
+    let outcome = policy::decide(
+        &definition,
+        record["check"].as_str().expect("a check"),
+        &record["assessment"],
+        &parameters,
+    )
+    .unwrap_or_else(|error| panic!("the frozen record decides: {error}"));
+    assert_eq!(
+        outcome,
+        Outcome::from_word(record["outcome"].as_str().expect("an outcome"))
+            .expect("a contract outcome")
+    );
+    assert_eq!(outcome, Outcome::Review);
+}

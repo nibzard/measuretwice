@@ -492,6 +492,32 @@ checks in `tests/repo/fixtures.test.ts` and the Rust integration tests of
 `fixtures/assessments/samples.json` keep the two boundaries honest. The
 semantic run path that schedules these executions is task T034.
 
+Decided in T027: the v0 decision policy is one Rust module and no wrapper
+rule. `measuretwice_core::policy` owns the `probability_mass_v0` family
+over the same `AppliedPolicy` record that the run report stores, so the
+numerical parameters keep one shape everywhere. `policy::decide` runs one
+fixed order: the policy fit and its parameter ranges, the assessment
+contract, one declared review label of one Choice answer, the optional
+confidence floor, then the two cutoffs with acceptance first. The
+acceptable and the unacceptable mass come from the accept and review sets
+of the check and the reported distribution, with scale acceptance
+expanded over the declared order. One binary answer derives exact
+zero-one masses from its value and the accepted answer, because Noul
+reports no distribution. One categorical or ordered answer without one
+distribution fails with `missing_field`, because one reported label,
+level, position, or ordinal mean is no mass. One confidence floor
+abstains on Choice and Score answers only: one reported confidence below
+the floor reviews, and one absent confidence reviews too, because it
+cannot support the floor that the selected policy requires. One floor on
+one binary check is one `policy_mismatch`, because Noul defines no
+confidence field. The family claims no calibrated probability of
+correctness. The unit tests of the module drive the cutoff, the boundary
+equality, the review, the floor, and the failure tables, and the Rust
+integration tests decide the assessment samples and reproduce the frozen
+review record of `fixtures/reports/outcomes.json` through the same
+boundary. The run path that applies the family to scheduled executions is
+task T034.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

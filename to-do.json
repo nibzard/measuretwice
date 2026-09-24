@@ -1004,8 +1004,8 @@
       "id": "T027",
       "title": "Implement Jev decision policies in Rust",
       "priority": 2,
-      "status": "todo",
-      "details": "Apply the v0 abstention policy to provider measurements without claiming calibrated correctness probabilities. Sources: MVP_SPEC.md section 6.",
+      "status": "done",
+      "details": "Apply the v0 abstention policy to provider measurements without claiming calibrated correctness probabilities. Sources: MVP_SPEC.md section 6. Done: measuretwice_core::policy owns the probability_mass_v0 family and nothing else. One AppliedPolicy record of the run report is the parameter type everywhere, so no second cutoff shape exists. policy::decide runs one fixed order: the policy fit with its parameter ranges, the semantic assessment contract, one declared review label of one categorical answer, the optional confidence floor, then the two cutoffs with acceptance first. The acceptable and the unacceptable mass come from the accept and review sets of the check and the reported distribution, with scale acceptance expanded over the declared order and every remaining declared answer or level unacceptable. One Noul value derives exact zero-one masses from itself and the accepted answer, and one distribution that another evaluator reports on one binary answer is not read. One categorical or ordered answer without one distribution fails with missing_field at /assessment/distribution, because one selected label, one level, one position, and one ordinal mean are no mass. One confidence floor abstains on Choice and Score answers only: one reported confidence below the floor reviews, one absent confidence reviews too because it cannot support the required floor, and one floor on one binary check is one policy_mismatch because Noul defines no confidence field. Both cutoffs must exceed 0.5 and stay at most one, or the boundary rejects them with invalid_field_type under /applied_policy, and one rule check or one unknown check takes no policy at all. The module claims no calibrated probability of correctness: one provider distribution or confidence stays one measurement input. The unit tests hold the table-driven coverage of cutoff decisions, boundary equality, review labels and levels, floors, unfit policies, and explicit failures, and the integration tests decide the valid samples of fixtures/assessments/samples.json and reproduce the frozen review record of fixtures/reports/outcomes.json through the same boundary. The run path that applies the family inside scheduled executions is task T034.",
       "steps": [
         "Write table-driven tests for acceptance and rejection cutoffs, boundary equality, and review outcomes.",
         "Calculate acceptable and unacceptable mass from Choice distributions, Noul values, and ordered Score distributions.",
@@ -1023,6 +1023,15 @@
         "T006",
         "T010",
         "T026"
+      ],
+      "updated_at": "2026-09-24T05:19:32Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/policy.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "to-do.json"
       ]
     },
     {

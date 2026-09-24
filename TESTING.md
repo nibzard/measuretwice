@@ -236,6 +236,15 @@ its runner rule.
   `measuretwice_core::assessment::validate_assessment`, one definition per
   answer kind, so the semantic rules of the assessment contract stay inside
   the core.
+- The same integration tests decide the valid assessment samples through
+  `measuretwice_core::policy::decide` under one `probability_mass_v0`
+  policy, and reproduce the frozen review record of
+  `fixtures/reports/outcomes.json` through the same boundary. The unit
+  tests of `crates/measuretwice-core/src/policy.rs` hold the table-driven
+  coverage of the family: cutoff decisions, boundary equality, review
+  labels and levels, confidence floors, invalid parameters, unfit
+  policies, and the explicit failures for missing distributions and Score
+  means.
 - The same fixtures are mandatory for the later Python SDK. MVP_SPEC.md
   section 15 states this requirement.
 - A contract change updates the affected fixtures in the same change, as the
