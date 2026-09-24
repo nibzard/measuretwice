@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `load` and the exact-rule run path.
+ * `load` and the run path: exact rules, question checks, and reports.
  *
  * `load` binds one validated definition to one profile and returns one
  * reviewer. The definition is a trusted import, the result of
@@ -18,31 +18,42 @@
  * with one compatibility reason code before any execution. One loaded file
  * cannot install one evaluator.
  *
- * `run` assesses one case through the Rust core only: case validation with
- * input projection, the exact string rules, the run state boundary, and the
- * frozen run report. One enforcement run repeats the compatibility check of
- * the core in enforcement mode, so the qualification clause refuses an
- * unvalidated profile before any case work starts. The semantic run path
- * for question checks, through the registered evaluators, arrives with its
- * own task. Until then, `run` rejects a definition with one question check
- * before any work starts.
+ * `run` assesses one case through the complete path: the core validates the
+ * case and projects each check's authorized inputs, the scheduler of
+ * `scheduler.ts` bounds every attempt inside the effective execution
+ * configuration of the profile, exact rules execute in the Rust core, and
+ * every question check dispatches through its registered evaluator. The
+ * core validates each returned assessment, decides it under the selected
+ * `probability_mass_v0` parameters of the profile, and builds the record
+ * with the assessment, the applied policy, the evaluator versions, the
+ * timing, and the usage. One enforcement run repeats the compatibility
+ * check of the core in enforcement mode first, so the qualification clause
+ * refuses an unvalidated profile before any case work starts. A definition
+ * with one question check and no bound profile refuses the run before any
+ * work starts, because no policy states how its answers decide.
  *
  * The wrapper owns the boundaries that the core does not. File access, the
- * clock, and the run identifiers arrive as load options, so tests and hosts
- * inject their own. The wrapper stores no report, reads no credential, and
- * takes no application action. The host consumes the report and decides.
+ * clock, the run identifiers, and the deadline timer arrive as load or run
+ * options, so tests and hosts inject their own. The wrapper stores no
+ * report, reads no credential, and takes no application action. The host
+ * consumes the report and decides.
  *
  * Failure behavior: every invalid artifact, invalid case, and incompatible
  * binding throws one public {@link ValidationError} with a stable reason
- * code and a field path, before any execution. An unreadable file throws one
- * ordinary `Error` that names the path and keeps the cause, because file
- * access is host territory, not contract validation.
+ * code and a field path, before any execution. One execution failure
+ * becomes one component record: an operational failure records its error
+ * after the bounded retries of the scheduler, and one assessment that the
+ * selected policy cannot decide records one `invalid_assessment` error that
+ * keeps the cause of the core refusal, because one retry returns through
+ * the same answer. An unreadable file throws one ordinary `Error` that
+ * names the path and keeps the cause, because file access is host
+ * territory, not contract validation.
  */
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { DefinedChecks, Definition, ExactRule, JSONValue } from "./define-checks.js";
 import type { EvaluatorRegistry } from "./evaluator.js";
-import { validatedQuestion } from "./evaluator.js";
+import { dispatchAssessment, validatedQuestion } from "./evaluator.js";
 import { ValidationError } from "./error.js";
 import {
   NativeFailure,
@@ -50,16 +61,20 @@ import {
   nativeCheckProfileCompatibility,
   nativeComputeSelfHash,
   nativeCreateRunState,
+  nativeDecideQuestionCheck,
   nativeValidateCase,
   nativeValidateDefinition,
   nativeValidateProfile,
   nativeVerifySelfHash,
-  runAcceptResult,
-  runComplete,
-  runStartAttempt,
   type DefinitionInfo,
   type LiveBindingEntry,
 } from "./native.js";
+import {
+  scheduleRun,
+  type ScheduledAttempt,
+  type ScheduledRecord,
+  type ScheduledResolution,
+} from "./scheduler.js";
 
 // ---------------------------------------------------------------------------
 // Public types of the run path.
@@ -187,6 +202,13 @@ export interface RunCase<TInput> {
 export interface RunOptions {
   /** How the host declares the run. The default is `shadow`. */
   readonly mode?: RunMode;
+  /**
+   * The cancellation signal of the caller. The run cancels when it aborts:
+   * every in-flight adapter receives the abort, queued work records one
+   * skip, and the report freezes with completion status `cancelled`.
+   * Optional.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /** Reads one file as UTF-8 text. The default reads through Node file APIs. */
@@ -208,6 +230,14 @@ export interface LoadOptions {
   readonly now?: () => number;
   /** The identifier source of runs. The default draws one random identifier. */
   readonly nextRunId?: () => string;
+  /**
+   * Arms one wake-up at one epoch-millisecond instant, and returns one
+   * operation that cancels the wake-up. Runs use it for the total deadline
+   * of the effective execution configuration. The default arms one Node
+   * timer for the remaining time of the clock. Controlled-clock tests
+   * inject one timer queue that fires when the clock advances. Optional.
+   */
+  readonly setTimer?: (atMs: number, onWake: () => void) => () => void;
 }
 
 /** The origin of one profile. */
@@ -307,11 +337,16 @@ export interface Reviewer<TInput> {
   /**
    * Assesses one case and returns the frozen run report.
    *
+   * Exact rules execute in the Rust core. Question checks dispatch through
+   * their registered evaluators inside the bounds of the effective
+   * execution configuration of the profile, and the core validates, decides,
+   * and records every answer. The report is reporting-only: it authorizes
+   * no application action.
+   *
    * @throws {ValidationError} when the case breaks the contract, when the
-   * definition holds one question check, because the semantic run path
-   * arrives with its own task, or when enforcement mode meets one profile
-   * without one validated qualification. Every failure happens before
-   * execution.
+   * definition holds one question check and no bound profile states its
+   * decision policy, or when enforcement mode meets one profile without one
+   * validated qualification. Every failure happens before execution.
    */
   run(caseInput: RunCase<TInput>, options?: RunOptions): Promise<RunReport>;
 }
@@ -414,6 +449,17 @@ function deepFreeze(value: unknown): void {
     }
     Object.freeze(value);
   }
+}
+
+/** The greatest length of one sanitized reason message, from the portable contracts. */
+const MESSAGE_LIMIT = 500;
+
+/** Shortens one message to the sanitized reason limit without splitting one pair of surrogates. */
+function shorten(message: string): string {
+  if (message.length <= MESSAGE_LIMIT) {
+    return message;
+  }
+  return Array.from(message).slice(0, MESSAGE_LIMIT).join("");
 }
 
 // ---------------------------------------------------------------------------
@@ -566,6 +612,8 @@ export async function load(
   const files = options.files ?? defaultFiles;
   const now = options.now ?? Date.now;
   const nextRunId = options.nextRunId ?? defaultRunId;
+  const setTimer = options.setTimer;
+  const evaluators = options.evaluators;
 
   let definitionText: string;
   let artifact: Definition | undefined;
@@ -635,25 +683,31 @@ export async function load(
           nativeCheckProfileCompatibility(profileText, definitionText, liveBindings, "enforcement"),
         );
       }
-      // The semantic run path for question checks arrives with its own
-      // task. The gate fires before any case work starts, so no evaluator
-      // runs and no spend occurs.
-      const questionIndex = info.checkKinds.findIndex((entry) => entry.kind !== "rule");
-      if (questionIndex >= 0) {
-        const checkId = info.checkKinds[questionIndex]!.id;
+      // One question check needs one bound profile: its binding names the
+      // registered evaluator and its policy states how the answers decide.
+      // The gate fires before any case work starts, so no evaluator runs
+      // and no spend occurs.
+      const questionIds = info.checkKinds
+        .filter((entry) => entry.kind !== "rule")
+        .map((entry) => entry.id);
+      if ((profile === undefined || profileText === undefined) && questionIds.length > 0) {
         throw new ValidationError(
           "evaluator_mismatch",
-          `The check ${JSON.stringify(checkId)} puts one question to an evaluator. The semantic run path through the registered evaluators arrives with its own task; exact rules run today.`,
-          `/checks/${questionIndex}`,
+          `The check ${JSON.stringify(questionIds[0])} puts one question to an evaluator, and no bound profile states its evaluator and its decision policy. Pass one profile through the profile option of load and register its evaluators.`,
+          "/profile",
         );
       }
-      // Every exact-only definition holds one profile, and the gate above
-      // returned for every other definition.
+      // Every exact-only definition holds its derived profile, and the gate
+      // above returned for every definition that holds one question check.
       const bound = profile as Profile;
-      const boundText = profileText as string;
 
+      // The core validates the case and projects the authorized inputs of
+      // every check before any work starts.
       const caseText = jsonText(caseInput, "");
       const caseInfo = throughCore(() => nativeValidateCase(definitionText, caseText));
+      const projected = new Map(
+        caseInfo.projectedInputs.map((entry) => [entry.checkId, entry.inputs]),
+      );
       const caseReference = JSON.stringify({
         id: caseInfo.id,
         input_hash: caseInfo.inputHash,
@@ -672,19 +726,134 @@ export async function load(
           bound.execution.max_attempts,
         ),
       );
-      const rules = throughCore(() => nativeAssessRuleChecks(definitionText, caseText));
-      for (const rule of rules) {
-        throughCore(() => runStartAttempt(runState, rule.check, caseReference, profileReference));
-        throughCore(() => runAcceptResult(runState, rule.check, rule.record));
-      }
-      throughCore(() => runComplete(runState, terminalTime(now)));
-      const reportText = runState.reportText();
-      if (reportText === null) {
-        throw new Error("measuretwice reached no terminal run state.");
-      }
-      const report: unknown = JSON.parse(reportText);
-      deepFreeze(report);
-      return report as RunReport;
+
+      // The deterministic rule results exist before the scheduler runs:
+      // rules hold no evaluator, so the scheduler bounds only their record
+      // transitions. Question checks dispatch per attempt, below.
+      const ruleRecords = new Map(
+        throughCore(() => nativeAssessRuleChecks(definitionText, caseText)).map((rule) => [
+          rule.check,
+          rule.record,
+        ]),
+      );
+      const bindings = new Map(bound.bindings.map((binding) => [binding.check, binding]));
+      const policies = new Map((bound.policy.checks ?? []).map((entry) => [entry.check, entry]));
+      const submittedAtMs = now();
+
+      /**
+       * Executes one started attempt: one exact rule from the core, or one
+       * question through its registered evaluator, decided by the core.
+       */
+      const execute = async (
+        attempt: ScheduledAttempt,
+      ): Promise<ScheduledResolution> => {
+        const ruleRecord = ruleRecords.get(attempt.check);
+        if (ruleRecord !== undefined) {
+          return { record: JSON.parse(ruleRecord) as ScheduledRecord };
+        }
+        const binding = bindings.get(attempt.check);
+        if (binding === undefined) {
+          throw new Error(
+            `measuretwice found no evaluator binding for the question check ${JSON.stringify(attempt.check)}. The compatibility check of load verified the coverage, so this is one internal inconsistency.`,
+          );
+        }
+        const evaluator = evaluators?.get(binding.evaluator);
+        if (evaluator === undefined) {
+          throw new Error(
+            `measuretwice found no registered evaluator ${JSON.stringify(binding.evaluator)} for the check ${JSON.stringify(attempt.check)}. The compatibility check of load verified the registry, so this is one internal inconsistency.`,
+          );
+        }
+        const policy = policies.get(attempt.check);
+        if (policy === undefined) {
+          throw new Error(
+            `measuretwice found no policy entry for the question check ${JSON.stringify(attempt.check)}. The compatibility check of load verified the policy coverage, so this is one internal inconsistency.`,
+          );
+        }
+        const attemptStartMs = now();
+        const execution = await dispatchAssessment({
+          artifact,
+          checkKinds: info.checkKinds,
+          checkId: attempt.check,
+          projectedInputs: projected.get(attempt.check) ?? {},
+          evaluator,
+          budget: {
+            attempt: attempt.attempt,
+            max_attempts: attempt.max_attempts,
+            deadline_at_ms: attempt.deadline_at_ms,
+          },
+          signal: attempt.signal,
+        });
+        // The operational record of the execution: the bound evaluator
+        // versions with the model version that served the call, the queue
+        // wait and the execution time of this attempt, and the usage that
+        // the adapter reported. One absent measurement stays absent.
+        const measurements = JSON.stringify({
+          evaluator: {
+            id: binding.evaluator,
+            adapter_version: binding.adapter_version,
+            ...(execution.model_resolved !== undefined
+              ? { model_resolved: execution.model_resolved }
+              : {}),
+          },
+          timing: {
+            queued_ms: Math.max(0, attemptStartMs - submittedAtMs),
+            execution_ms:
+              execution.latency_ms ?? Math.max(0, now() - attemptStartMs),
+          },
+          ...(execution.usage !== undefined ? { usage: execution.usage } : {}),
+        });
+        if ("failure" in execution) {
+          return { failure: execution.failure };
+        }
+        const policyText = JSON.stringify({
+          accept_cutoff: policy.accept_cutoff,
+          rejection_cutoff: policy.rejection_cutoff,
+          ...(policy.confidence_floor !== undefined
+            ? { confidence_floor: policy.confidence_floor }
+            : {}),
+        });
+        let decided;
+        try {
+          decided = nativeDecideQuestionCheck(
+            definitionText,
+            attempt.check,
+            jsonText(execution.assessment, "/assessment"),
+            policyText,
+            measurements,
+          );
+        } catch (cause) {
+          if (cause instanceof NativeFailure) {
+            // One assessment that the selected policy cannot decide is one
+            // permanent failure of this check: one retry would return
+            // through the same answer, so the record keeps the operational
+            // code with the cause and the field path of the core refusal.
+            return {
+              failure: {
+                code: "invalid_assessment" as const,
+                message: shorten(
+                  `${cause.code}${cause.fieldPath === "" ? "" : ` (at ${cause.fieldPath})`}: ${cause.message}`,
+                ),
+              },
+            };
+          }
+          throw cause;
+        }
+        return { record: JSON.parse(decided.record) as ScheduledRecord };
+      };
+
+      // The scheduler owns the bounds: the effective execution configuration
+      // validates before any attempt starts, every attempt crosses the core
+      // run boundary, and the terminal report freezes inside the core.
+      return scheduleRun({
+        state: runState,
+        caseReferenceText: caseReference,
+        profileReferenceText: profileReference,
+        execution: bound.execution,
+        execute,
+        now,
+        ...(runOptions.signal !== undefined ? { signal: runOptions.signal } : {}),
+        ...(setTimer !== undefined ? { setTimer } : {}),
+      });
     },
   });
 }

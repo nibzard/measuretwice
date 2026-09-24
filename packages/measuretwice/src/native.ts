@@ -176,6 +176,43 @@ export function nativeCanonicalForm(text: string): string {
   return call(() => binding.canonicalForm(text));
 }
 
+/** One decided question check: its outcome and its complete record text. */
+export interface DecidedQuestion {
+  /** The outcome of the decision: pass, fail, or review. */
+  outcome: "pass" | "fail" | "review";
+  /** The serialized check record of this decision, ready for `acceptResult`. */
+  record: string;
+}
+
+/**
+ * Decides one question check under its selected policy and builds its record.
+ *
+ * The policy text states the applied-policy fields of the check exactly as
+ * the bound profile records them. The measurements text states the evaluator
+ * versions, the timing, and the usage of the execution that produced the
+ * assessment. Every failure throws one native failure with the code and the
+ * field path of the broken rule.
+ */
+export function nativeDecideQuestionCheck(
+  definitionText: string,
+  checkId: string,
+  assessmentText: string,
+  policyText: string,
+  measurementsText: string,
+): DecidedQuestion {
+  // The binding states the outcome as one plain string; the core decides
+  // only the three semantic words, so the narrowing holds by construction.
+  return call((): DecidedQuestion =>
+    binding.decideQuestionCheck(
+      definitionText,
+      checkId,
+      assessmentText,
+      policyText,
+      measurementsText,
+    ) as DecidedQuestion,
+  );
+}
+
 /** The result of validating one profile artifact through the core. */
 export interface ProfileInfo {
   /** Stable profile identifier. */

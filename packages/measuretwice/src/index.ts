@@ -7,9 +7,11 @@
  * one definition to one profile and returns the reviewer whose `run`
  * operation assesses one case and returns the frozen run report. The Rust
  * core validates the complete profile contract, its stored self-hash, and
- * the compatibility of every binding before any execution. The exact
- * rules run in the Rust core today; question checks run through evaluators
- * that the host registers with `registerEvaluators`.
+ * the compatibility of every binding before any execution. Exact rules run
+ * in the Rust core; question checks run through evaluators that the host
+ * registers with `registerEvaluators`, inside the bounds of the effective
+ * execution configuration, and the core validates, decides, and records
+ * every answer.
  * `createExplorationProfile` generates the explicitly unvalidated starter
  * profile from one validated definition and the registered evaluators, so
  * one developer can try semantic checks before any qualification evidence
@@ -19,9 +21,9 @@
  * needs no Jev response shape, `translateJevQuestion`, the versioned
  * translation of one question check into one Jev question, and
  * `createJevEvaluator`, the adapter that normalizes one Jev answer into one
- * typed assessment with its operational record. The semantic
- * run path and the public operations `calibrate`, `evaluate`, and
- * `compare` are specified in MVP_SPEC.md and arrive with their tasks.
+ * typed assessment with its operational record. The public operations
+ * `calibrate`, `evaluate`, and `compare` are specified in MVP_SPEC.md and
+ * arrive with their tasks.
  *
  * This package never exposes provider SDK types or native binding types.
  * Invalid data fails with one {@link ValidationError} before execution.

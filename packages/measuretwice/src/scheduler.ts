@@ -84,8 +84,8 @@
  * that throws resolves as one `evaluator_error` failure, so one broken
  * executor cannot crash one run. One boundary refusal ends the run with
  * one explicit `Error`, because it states one internal inconsistency of
- * the wrapper, never one invalid input of the host. Task T034 wires this
- * module into the semantic run path of `run`.
+ * the wrapper, never one invalid input of the host. `run` routes every
+ * check of every case through this module, exact rules included.
  */
 import {
   NativeFailure,

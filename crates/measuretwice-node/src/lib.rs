@@ -29,7 +29,7 @@ use measuretwice_core::error::{ReasonCode, ValidationError};
 use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
 use measuretwice_core::{
-    assessment, case, definition, hashing, json, profile, report, rule, run_state,
+    assessment, case, definition, hashing, json, policy, profile, report, rule, run_state,
 };
 use serde_json::Value;
 
@@ -255,6 +255,55 @@ pub fn validate_assessment(
 pub fn canonical_form(text: String) -> Result<String, napi::Error> {
     let value = strict(&text)?;
     Ok(hashing::canonical_form(&value))
+}
+
+/// One decided question check: its outcome and its complete record.
+#[napi(object)]
+pub struct DecidedQuestion {
+    /// The outcome of the decision: pass, fail, or review.
+    pub outcome: String,
+    /// The serialized check record of this decision. Pass this text
+    /// unchanged to `acceptResult`.
+    pub record: String,
+}
+
+/// Decides one question check under its selected policy and builds its
+/// record.
+///
+/// The definition text must pass the definition contract. The assessment
+/// text must pass the strict gate and the assessment contract of its check.
+/// The policy text states `{ accept_cutoff, rejection_cutoff,
+/// confidence_floor? }` of the `probability_mass_v0` family, exactly as the
+/// bound profile records it for the check. The measurements text states
+/// `{ evaluator?, timing?, usage? }`. The boundary decides through the core
+/// policy, builds the question record with the assessment, the applied
+/// policy, and the measurements, validates the complete record, and returns
+/// it with its outcome word.
+#[napi]
+pub fn decide_question_check(
+    definition_text: String,
+    check_id: String,
+    assessment_text: String,
+    policy_text: String,
+    measurements_text: String,
+) -> Result<DecidedQuestion, napi::Error> {
+    let validated = lift(definition::validate_definition_str(&definition_text))?;
+    let assessment = strict(&assessment_text)?;
+    let policy_value = strict(&policy_text)?;
+    let policy = lift(report::parse_applied_policy(&policy_value, "/policy"))?;
+    let outcome = lift(policy::decide(&validated, &check_id, &assessment, &policy))?;
+    let measurements_value = strict(&measurements_text)?;
+    let measurements = lift(report::QuestionMeasurements::parse(
+        &measurements_value,
+        "/measurements",
+    ))?;
+    let record =
+        report::CheckRecord::from_question(&check_id, outcome, assessment, policy, measurements);
+    lift(record.validate(""))?;
+    Ok(DecidedQuestion {
+        outcome: outcome.as_str().to_owned(),
+        record: serde_json::to_string(&record).expect("the record serializes"),
+    })
 }
 
 /// The result of validating one profile artifact.

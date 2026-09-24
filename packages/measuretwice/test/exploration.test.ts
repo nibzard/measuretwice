@@ -275,8 +275,12 @@ test("using the profile changes nothing about its qualification", async () => {
   const reviewer = await load(definition, { profile: "/profile.json", evaluators: registry, files });
   expect(reviewer.profile?.content_hash).toBe(profile.content_hash);
 
-  // Shadow use is admitted: the run fails on the pending semantic run path,
-  // never on the profile or its qualification.
+  // Shadow use is admitted: the run executes through the registered
+  // evaluator and returns one report, never one refusal of the profile or
+  // its qualification. The label-only adapter answers one categorical
+  // assessment without one distribution, so the selected probability-mass
+  // policy cannot decide it: the check records one error that keeps the
+  // cause, and the run still completes.
   const caseInput = {
     id: "case-1",
     input: {
@@ -285,10 +289,25 @@ test("using the profile changes nothing about its qualification", async () => {
       proposed_message: "The export worker moves to the US region.",
     },
   };
-  const shadowFailure = await failureOf(() => reviewer.run(caseInput, { mode: "shadow" }));
-  expect(shadowFailure.code).toBe("evaluator_mismatch");
-  expect(shadowFailure.message).toContain("semantic run path");
-  expect(shadowFailure.message).not.toContain("qualification");
+  const shadow = await reviewer.run(caseInput, { mode: "shadow" });
+  expect(shadow.mode).toBe("shadow");
+  expect(shadow.completion.status).toBe("completed");
+  expect(shadow.checks).toHaveLength(1);
+  // The error record keeps the operational code and the cause of the core
+  // refusal. It states no assessment and no applied policy, because none
+  // executed, exactly as the record contract states.
+  expect(shadow.checks[0]).toMatchObject({
+    check: "message-supported",
+    kind: "question",
+    outcome: "error",
+    attempts: 1,
+    reason: { code: "invalid_assessment" },
+  });
+  expect(shadow.checks[0]?.assessment).toBeUndefined();
+  expect(shadow.checks[0]?.applied_policy).toBeUndefined();
+  expect(shadow.checks[0]?.reason?.message).toContain("missing_field");
+  expect(shadow.checks[0]?.reason?.message).toContain("/assessment/distribution");
+  expect(shadow.aggregate.outcome).toBe("error");
 
   // Enforcement is refused on the qualification clause, before any case
   // work: even one invalid case cannot reach validation first.

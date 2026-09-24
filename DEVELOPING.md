@@ -314,8 +314,9 @@ definition binding first. Every bound evaluator reference failed with
 the run state boundary attempt by attempt, and completes with the terminal
 time of the injected clock. The returned report is parsed from the frozen
 core report and deep-frozen again on the TypeScript side. A definition with
-one question check fails `run` with `evaluator_mismatch` before any work,
-and enforcement mode requires one `validated_for_scope` qualification.
+one question check and no bound profile fails `run` with `evaluator_mismatch`
+before any work, and enforcement mode requires one `validated_for_scope`
+qualification.
 
 Decided in T019: the exact-rule vertical slice is verified as one path, not
 as separate per-layer suites. `packages/measuretwice/test/slice.test.ts`
@@ -391,9 +392,8 @@ the wrapper concerns: it freezes the answer, keeps one absent optional
 measurement absent, and maps one thrown or malformed adapter answer to one
 `evaluator_error` operational failure with one message inside the
 sanitized reason limit. It adds no field and validates no contract,
-because the Rust assessment validation arrives with task T026. The
-semantic run path through registered evaluators arrives with task T034,
-so `run` still refuses one question check before any work starts.
+because the Rust assessment validation arrived with task T026. The
+semantic run path through registered evaluators arrived with task T034.
 
 Decided in T023: `packages/measuretwice/src/test-evaluator.ts` owns the
 two shipped test adapters and the separately specified decision rule for
@@ -490,7 +490,7 @@ usage fields. The shared cases live in
 by `packages/measuretwice/test/jev-assessment.test.ts`; the repository
 checks in `tests/repo/fixtures.test.ts` and the Rust integration tests of
 `fixtures/assessments/samples.json` keep the two boundaries honest. The
-semantic run path that schedules these executions is task T034.
+semantic run path that schedules these executions is task T034, below.
 
 Decided in T027: the v0 decision policy is one Rust module and no wrapper
 rule. `measuretwice_core::policy` owns the `probability_mass_v0` family
@@ -516,7 +516,7 @@ equality, the review, the floor, and the failure tables, and the Rust
 integration tests decide the assessment samples and reproduce the frozen
 review record of `fixtures/reports/outcomes.json` through the same
 boundary. The run path that applies the family to scheduled executions is
-task T034.
+task T034, below.
 
 Decided in T028: profile validation and evaluator compatibility are one
 Rust module and one wrapper call. `measuretwice_core::profile` owns the
@@ -604,8 +604,8 @@ cost-based short-circuiting. One thrown execution becomes one
 `evaluator_error` failure, so one broken executor records one error
 instead of crashing the run. One failed attempt with attempts left returns
 to the shared queue and restarts when one slot frees. Task T032 added the
-bounded backoff to that restart. Task T034 wires the module into the
-semantic run path of `run`.
+bounded backoff to that restart, and task T034 wired the module into the
+complete run path of `run`: every run, exact rules included, crosses it.
 
 Decided in T031: the total deadline and the cancellation are wrapper
 state beside the queue, with no core change. One deadline covers queue
@@ -673,7 +673,8 @@ MVP_SPEC.md section 12 requires. `dispatchAssessment` keeps the stable code
 and the field path of one thrown `ValidationError` inside its
 `evaluator_error` failure message, so one deterministic rejection stays
 distinguishable from one transient adapter defect; the run path of T034
-adds the wrapper-level limit validation before any attempt starts. The
+adds the wrapper-level limit validation of the effective execution
+configuration before any attempt starts, through the scheduler gate. The
 adapter implements no batching: one request carries exactly one question,
 keyed by its check, so the different projections of the flagship
 intervention-review definition need separate calls, and one later batch
@@ -689,6 +690,41 @@ registration is host code and the request shape is fixed. The suite
 `packages/measuretwice/test/jev-boundaries.test.ts` pins every rule with
 the flagship definition; [providers/jev/README.md](providers/jev/README.md)
 records the enforcement and the isolation contract.
+
+Decided in T034: the semantic run orchestration is one wrapper path over
+three core boundaries, and no decision rule lives in TypeScript. `run` in
+`packages/measuretwice/src/run.ts` validates the case through the core with
+the input projection, creates the run state with the attempt limit of the
+effective execution configuration, and hands every check to
+`scheduleRun`: exact rules and question checks share the same bounded
+queue, the same total deadline, the same retries, and the same terminal
+report. One question attempt dispatches through `dispatchAssessment` with
+the projected inputs of its `using` list, then crosses one new boundary,
+`decideQuestionCheck`: the core validates the assessment against its
+check, decides it under the `probability_mass_v0` parameters that the
+bound profile records, and builds the complete question record with the
+assessment, the applied policy, the evaluator versions (the binding
+identity plus the model version that served the call), the timing (the
+queue wait plus the adapter latency, or the wrapper-measured duration
+when the adapter reports none), and the usage. `report::CheckRecord::
+from_question` and `report::QuestionMeasurements` compose the record in
+Rust, so the wrapper owns no record shape and no outcome arithmetic. One
+answer that the selected policy cannot decide, such as one label-only
+categorical answer without one distribution, resolves as one permanent
+`invalid_assessment` failure that keeps the code and the field path of
+the core refusal inside its message, because one retry returns through
+the same answer; the error record itself keeps no assessment and no
+policy, exactly as the record contract states. A definition with one
+question check and no bound profile refuses the run with
+`evaluator_mismatch` at `/profile` before any work, because no policy
+states how its answers decide. Runs accept one caller `AbortSignal`
+through `RunOptions.signal`, and `load` accepts one `setTimer` option so
+one controlled clock drives the deadline wake-up. The suite
+`packages/measuretwice/test/semantic-run.test.ts` pins the mixed run
+(exact rule, Choice, Noul, Score) with its records and projected
+requests, the decision table, the retries, the permanent failures, the
+queue-full skip, the deadline, the cancellation, and the frozen terminal
+report.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

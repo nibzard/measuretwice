@@ -560,8 +560,33 @@ test("load rejects one profile that binds one different adapter version", async 
   expect(failure.message).toContain("0.2.0");
 });
 
-test("load binds one profile whose evaluator is registered, and run still refuses the question path", async () => {
-  const evaluator = scriptedEvaluator("jev-choice", "0.1.0", []);
+test("load binds one profile whose evaluator is registered, and run dispatches through it", async () => {
+  const evaluator = scriptedEvaluator("jev-choice", "0.1.0", [
+    {
+      assessment: {
+        kind: "categorical",
+        label: "supported",
+        distribution: [
+          { name: "supported", mass: 0.9 },
+          { name: "incomplete", mass: 0.05 },
+          { name: "contradicted", mass: 0.05 },
+        ],
+      },
+    },
+    { assessment: { kind: "binary", value: false } },
+    {
+      assessment: {
+        kind: "ordered",
+        level: "meaningful",
+        position: 1.5,
+        distribution: [
+          { name: "minor", mass: 0.1 },
+          { name: "meaningful", mass: 0.55 },
+          { name: "serious", mass: 0.35 },
+        ],
+      },
+    },
+  ]);
   const registry = registerEvaluators(evaluator);
   const reviewer = await load(questionChecks, {
     profile: PROFILE_PATH,
@@ -572,10 +597,21 @@ test("load binds one profile whose evaluator is registered, and run still refuse
   expect(reviewer.profile?.id).toBe("typed-evaluator-questions-exploration");
   expect(reviewer.profile?.bindings[0]?.evaluator).toBe("jev-choice");
 
-  // The semantic run path arrives with its own task, so run refuses the
-  // question check before any work starts and no evaluator runs.
-  const failure = await failureOf(() => reviewer.run(QUESTION_CASE));
-  expect(failure.code).toBe("evaluator_mismatch");
-  expect(failure.fieldPath).toBe("/checks/0");
-  expect(evaluator.calls).toEqual([]);
+  // The run dispatches every question check through the registered
+  // evaluator, decides each answer under the recorded policy, and returns
+  // the frozen report.
+  const report = await reviewer.run(QUESTION_CASE);
+  expect(report.completion.status).toBe("completed");
+  expect(report.checks.map((record) => [record.check, record.outcome])).toEqual([
+    ["message-supported", "pass"],
+    ["adds-information", "pass"],
+    ["consequence", "pass"],
+  ]);
+  expect(report.aggregate.outcome).toBe("pass");
+  expect(evaluator.calls.map((request) => request.check)).toEqual([
+    "message-supported",
+    "adds-information",
+    "consequence",
+  ]);
+  expect(evaluator.remaining()).toBe(0);
 });

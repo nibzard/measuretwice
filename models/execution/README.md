@@ -171,6 +171,14 @@ the scheduler suite drives one permanent `invalid_assessment` through the
 wrapper with three attempts configured, so exactly one execution runs.
 The runtime trace `permanent-failure` fixes the shared shape.
 
+Task T034 routed the public `run` operation of
+`packages/measuretwice/src/run.ts` through the same scheduler, so every
+check of every case crosses this mapping, exact rules included. The suite
+`packages/measuretwice/test/semantic-run.test.ts` drives the mixed case
+end to end: the retryable failure, the exhausted attempts, the permanent
+failure, the queue-full skip, the deadline, and the caller cancellation
+all surface as component records of one frozen report.
+
 ## 7. Mapping to the implementation
 
 Rust owns the state validation. The wrapper owns the scheduling. Each

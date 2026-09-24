@@ -1263,7 +1263,7 @@
         "T025",
         "T030"
       ],
-      "updated_at": "2026-09-24T07:58:04Z",
+      "updated_at": "2026-09-24T07:59:11Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -1280,8 +1280,8 @@
       "id": "T034",
       "title": "Complete semantic run orchestration",
       "priority": 2,
-      "status": "todo",
-      "details": "Connect projection, registered evaluators, Rust policies, bounded execution, and reports. Sources: MVP_SPEC.md sections 5-6, 9, 12.",
+      "status": "done",
+      "details": "Connect projection, registered evaluators, Rust policies, bounded execution, and reports. Sources: MVP_SPEC.md sections 5-6, 9, 12. Done: run in packages/measuretwice/src/run.ts owns the complete orchestration and no decision rule. One run validates the case through the core with the per-check input projection, creates the run state with the attempt limit of the effective execution configuration of the bound profile, and hands every check to scheduleRun, so exact rules and question checks share one bounded queue, one total deadline, one retry policy, and one terminal report; the scheduler validates the execution limits before any attempt starts. One question attempt dispatches through dispatchAssessment with the projected inputs of its using list, then crosses one new boundary decideQuestionCheck: the core validates the assessment against its check, decides it under the probability_mass_v0 parameters that the profile records, and builds the complete question record through report::CheckRecord::from_question with report::QuestionMeasurements, so the wrapper owns no record shape and no outcome arithmetic. The record keeps the raw assessment, the applied policy, the evaluator versions (the binding identity plus the model version that served the call), the timing (the queue wait plus the adapter latency, or the wrapper-measured duration when the adapter reports none), and the usage; the run boundary stamps the attempt count above one, and the optional run totals stay absent because the core terminal transitions build the report from the component records. One answer that the selected policy cannot decide, such as one label-only categorical answer without one distribution, resolves as one permanent invalid_assessment failure whose message keeps the code and the field path of the core refusal, because one retry returns through the same answer; the error record itself keeps no assessment and no policy, as the record contract states. One definition with one question check and no bound profile refuses the run with evaluator_mismatch at /profile before any work. Runs take one caller AbortSignal through RunOptions.signal, and load takes one setTimer option, so one controlled clock drives the deadline wake-up. packages/measuretwice/test/semantic-run.test.ts pins the mixed run (one exact rule, Choice, Noul, Score) with the scripted test adapter: the records with their measurements, the projected requests of the differing using lists, the decision table with the review label, the boundary equality, and one confidence floor that abstains while one floor on one binary check refuses the profile, the retry that records its count, retries_exhausted, the permanent invalid assessment, the undecidable answer, the queue-full skip, the deadline, the cancellation, and the frozen terminal report that one late answer cannot change. The native suite covers decideQuestionCheck with its rejections, and the exploration suite shows the label-only shadow run that records the undecidable answer while the qualification stays unchanged.",
       "steps": [
         "Write end-to-end tests mixing exact rules, Choice, Noul, Score, and the test adapter.",
         "Validate definition, profile, input, limits, and effective evaluator versions before execution.",
@@ -1305,6 +1305,24 @@
         "T031",
         "T032",
         "T033"
+      ],
+      "updated_at": "2026-09-24T08:30:00Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "models/execution/README.md",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/src/scheduler.ts",
+        "packages/measuretwice/test/evaluator.test.ts",
+        "packages/measuretwice/test/exploration.test.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/run.test.ts",
+        "packages/measuretwice/test/semantic-run.test.ts",
+        "to-do.json"
       ]
     },
     {

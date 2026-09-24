@@ -23,6 +23,7 @@ import {
   nativeContentHash,
   nativeCreateRunState,
   nativeDatasetHash,
+  nativeDecideQuestionCheck,
   nativeSplitHash,
   nativeValidateCase,
   nativeValidateDefinition,
@@ -349,6 +350,144 @@ test("profile states validate through the profile boundary", () => {
   const failure = failureOf(() => nativeValidateProfile(JSON.stringify(edited)));
   expect(failure.code).toBe("hash_mismatch");
   expect(failure.fieldPath).toBe("/content_hash");
+});
+
+test("question decisions cross the boundary with their complete records", () => {
+  const definitionText = fixtureText("definitions/valid/categorical-question.json");
+  const policy = JSON.stringify({ accept_cutoff: 0.75, rejection_cutoff: 0.65 });
+  const supported = {
+    kind: "categorical",
+    label: "supported",
+    distribution: [
+      { name: "supported", mass: 0.9 },
+      { name: "incomplete", mass: 0.05 },
+      { name: "contradicted", mass: 0.05 },
+    ],
+  };
+  const measurements = JSON.stringify({
+    evaluator: { id: "scripted-test", adapter_version: "0.1.0" },
+    timing: { queued_ms: 0, execution_ms: 12 },
+    usage: { input_tokens: 10 },
+  });
+
+  // One decision returns its outcome word and its complete record, ready
+  // for `acceptResult`.
+  const decided = nativeDecideQuestionCheck(
+    definitionText,
+    "message-supported",
+    JSON.stringify(supported),
+    policy,
+    measurements,
+  );
+  expect(decided.outcome).toBe("pass");
+  expect(JSON.parse(decided.record)).toEqual({
+    check: "message-supported",
+    kind: "question",
+    outcome: "pass",
+    assessment: supported,
+    applied_policy: { accept_cutoff: 0.75, rejection_cutoff: 0.65 },
+    evaluator: { id: "scripted-test", adapter_version: "0.1.0" },
+    timing: { queued_ms: 0, execution_ms: 12 },
+    usage: { input_tokens: 10 },
+  });
+
+  // One declared review label reviews without one distribution.
+  const review = nativeDecideQuestionCheck(
+    definitionText,
+    "message-supported",
+    JSON.stringify({ kind: "categorical", label: "incomplete" }),
+    policy,
+    "{}",
+  );
+  expect(review.outcome).toBe("review");
+  expect(JSON.parse(review.record).assessment).toEqual({
+    kind: "categorical",
+    label: "incomplete",
+  });
+  expect(JSON.parse(review.record).evaluator).toBeUndefined();
+
+  // A binary value derives its masses, and one ordered distribution sums
+  // its acceptable levels.
+  const binary = nativeDecideQuestionCheck(
+    fixtureText("definitions/valid/binary-question.json"),
+    "adds-information",
+    JSON.stringify({ kind: "binary", value: false }),
+    JSON.stringify({ accept_cutoff: 0.9, rejection_cutoff: 0.9 }),
+    "{}",
+  );
+  expect(binary.outcome).toBe("pass");
+  const ordered = nativeDecideQuestionCheck(
+    fixtureText("definitions/valid/ordered-scale.json"),
+    "consequence",
+    JSON.stringify({
+      kind: "ordered",
+      level: "minor",
+      position: 0,
+      distribution: [
+        { name: "minor", mass: 0.8 },
+        { name: "meaningful", mass: 0.1 },
+        { name: "serious", mass: 0.1 },
+      ],
+    }),
+    policy,
+    "{}",
+  );
+  expect(ordered.outcome).toBe("fail");
+
+  // One label-only answer that states no distribution names the missing
+  // measurement, and one measurement set outside its three fields names
+  // its field.
+  const undecidable = failureOf(() =>
+    nativeDecideQuestionCheck(
+      definitionText,
+      "message-supported",
+      JSON.stringify({ kind: "categorical", label: "supported" }),
+      policy,
+      "{}",
+    ),
+  );
+  expect(undecidable.code).toBe("missing_field");
+  expect(undecidable.fieldPath).toBe("/assessment/distribution");
+  const unknownMeasure = failureOf(() =>
+    nativeDecideQuestionCheck(
+      definitionText,
+      "message-supported",
+      JSON.stringify(supported),
+      policy,
+      JSON.stringify({ latency_ms: 4 }),
+    ),
+  );
+  expect(unknownMeasure.code).toBe("unknown_field");
+  expect(unknownMeasure.fieldPath).toBe("/measurements/latency_ms");
+
+  // One rule check takes no policy, one unknown check fits no definition,
+  // and one cutoff at one half breaks the policy bounds.
+  const ruleCheck = failureOf(() =>
+    nativeDecideQuestionCheck(
+      fixtureText("definitions/valid/exact-rules.json"),
+      "notice-hides-secrets",
+      JSON.stringify(supported),
+      policy,
+      "{}",
+    ),
+  );
+  expect(ruleCheck.code).toBe("policy_mismatch");
+  expect(ruleCheck.fieldPath).toBe("/check");
+  const unknownCheck = failureOf(() =>
+    nativeDecideQuestionCheck(definitionText, "unknown-check", JSON.stringify(supported), policy, "{}"),
+  );
+  expect(unknownCheck.code).toBe("policy_mismatch");
+  const badCutoff = failureOf(() =>
+    nativeDecideQuestionCheck(
+      definitionText,
+      "message-supported",
+      JSON.stringify(supported),
+      JSON.stringify({ accept_cutoff: 0.5, rejection_cutoff: 0.65 }),
+      "{}",
+    ),
+  );
+  expect(badCutoff.code).toBe("invalid_field_type");
+  expect(badCutoff.fieldPath).toBe("/policy/accept_cutoff");
 });
 
 test("compatibility pairings answer through the binding with the stated codes", () => {

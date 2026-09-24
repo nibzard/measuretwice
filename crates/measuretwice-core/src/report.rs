@@ -99,6 +99,10 @@ const EVALUATOR_FIELDS: &[&str] = &["id", "adapter_version", "model_resolved"];
 /// Fields of one timing record, from the schema file.
 const TIMING_FIELDS: &[&str] = &["queued_ms", "execution_ms"];
 
+/// Fields of one question measurement set, the assembly of the record fields
+/// that one question execution states beside its assessment.
+const QUESTION_MEASUREMENT_FIELDS: &[&str] = &["evaluator", "timing", "usage"];
+
 /// Fields of one assessment object, from the assessment schema file.
 const ASSESSMENT_FIELDS: &[&str] = &[
     "kind",
@@ -624,6 +628,35 @@ impl CheckRecord {
             attempts: None,
             timing: None,
             usage: None,
+            reason: None,
+        }
+    }
+
+    /// Builds one question record from one decided outcome.
+    ///
+    /// The assessment and the policy are the values that the decision
+    /// boundary of [`crate::policy`] already accepted, and `measurements`
+    /// states the operational records of the execution that produced the
+    /// assessment. The run boundary stamps the attempt count when it accepts
+    /// the record, so the record itself states none.
+    pub fn from_question(
+        check_id: impl Into<String>,
+        outcome: Outcome,
+        assessment: Value,
+        policy: AppliedPolicy,
+        measurements: QuestionMeasurements,
+    ) -> Self {
+        Self {
+            check: check_id.into(),
+            kind: RecordKind::Question,
+            outcome,
+            assessment: Some(assessment),
+            applied_rule: None,
+            applied_policy: Some(policy),
+            evaluator: measurements.evaluator,
+            attempts: None,
+            timing: measurements.timing,
+            usage: measurements.usage,
             reason: None,
         }
     }
@@ -1511,7 +1544,7 @@ fn parse_applied_rule(value: &Value, base: &str) -> Result<AppliedRule, Validati
 }
 
 /// Parses one applied policy record at `base`.
-fn parse_applied_policy(value: &Value, base: &str) -> Result<AppliedPolicy, ValidationError> {
+pub fn parse_applied_policy(value: &Value, base: &str) -> Result<AppliedPolicy, ValidationError> {
     let map = expect_object(value, base)?;
     reject_unknown_fields(map, APPLIED_POLICY_FIELDS, base)?;
     let accept_cutoff = required_cutoff(map, "accept_cutoff", base)?;
@@ -1629,6 +1662,52 @@ fn parse_usage(value: &Value, base: &str) -> Result<Map<String, Value>, Validati
     let map = expect_object(value, base)?;
     check_usage(map, base)?;
     Ok(map.clone())
+}
+
+/// The operational measurements of one question execution.
+///
+/// One wrapper states these beside one validated assessment when it asks the
+/// core to decide the check and build its record. Every field is optional
+/// and stays absent when the execution measured nothing.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct QuestionMeasurements {
+    /// The evaluator versions that served the execution.
+    pub evaluator: Option<EvaluatorVersions>,
+    /// The timing of the execution.
+    pub timing: Option<Timing>,
+    /// The usage amounts that the execution reported.
+    pub usage: Option<Map<String, Value>>,
+}
+
+impl QuestionMeasurements {
+    /// Parses one measurement set at `base`.
+    ///
+    /// The value states `{ evaluator?, timing?, usage? }`. Every present
+    /// field parses through its record contract, and an absent field stays
+    /// absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ValidationError`] when the value holds another field or
+    /// one present field breaks its record contract.
+    pub fn parse(value: &Value, base: &str) -> Result<Self, ValidationError> {
+        let map = expect_object(value, base)?;
+        reject_unknown_fields(map, QUESTION_MEASUREMENT_FIELDS, base)?;
+        Ok(Self {
+            evaluator: match map.get("evaluator") {
+                None => None,
+                Some(value) => Some(parse_evaluator(value, &format!("{base}/evaluator"))?),
+            },
+            timing: match map.get("timing") {
+                None => None,
+                Some(value) => Some(parse_timing(value, &format!("{base}/timing"))?),
+            },
+            usage: match map.get("usage") {
+                None => None,
+                Some(value) => Some(parse_usage(value, &format!("{base}/usage"))?),
+            },
+        })
+    }
 }
 
 /// Checks one usage object: every value is a number.
@@ -2885,6 +2964,107 @@ mod tests {
             CheckRecord::from_rule_result(&passing).outcome,
             Outcome::Pass
         );
+    }
+
+    #[test]
+    fn one_decided_question_becomes_its_record_with_its_measurements() {
+        let assessment = json!({
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+                {"name": "supported", "mass": 0.9},
+                {"name": "incomplete", "mass": 0.05},
+                {"name": "contradicted", "mass": 0.05}
+            ]
+        });
+        let measurements = QuestionMeasurements::parse(
+            &json!({
+                "evaluator": {
+                    "id": "scripted-test",
+                    "adapter_version": "0.1.0",
+                    "model_resolved": "jev-1.13.0"
+                },
+                "timing": {"queued_ms": 5, "execution_ms": 250},
+                "usage": {"input_tokens": 1200, "output_tokens": 40}
+            }),
+            "/measurements",
+        )
+        .expect("the measurements parse");
+        let record = CheckRecord::from_question(
+            "message-supported",
+            Outcome::Pass,
+            assessment,
+            AppliedPolicy {
+                accept_cutoff: 0.75,
+                rejection_cutoff: 0.65,
+                confidence_floor: None,
+            },
+            measurements,
+        );
+        let serialized = serde_json::to_value(&record).expect("the record serializes");
+        assert_eq!(
+            serialized,
+            json!({
+                "check": "message-supported",
+                "kind": "question",
+                "outcome": "pass",
+                "assessment": {
+                    "kind": "categorical",
+                    "label": "supported",
+                    "distribution": [
+                        {"name": "supported", "mass": 0.9},
+                        {"name": "incomplete", "mass": 0.05},
+                        {"name": "contradicted", "mass": 0.05}
+                    ]
+                },
+                "applied_policy": {"accept_cutoff": 0.75, "rejection_cutoff": 0.65},
+                "evaluator": {
+                    "id": "scripted-test",
+                    "adapter_version": "0.1.0",
+                    "model_resolved": "jev-1.13.0"
+                },
+                "timing": {"queued_ms": 5, "execution_ms": 250},
+                "usage": {"input_tokens": 1200, "output_tokens": 40}
+            })
+        );
+        record.validate("").expect("the record validates");
+        assert_eq!(parse_check_record(&serialized, "").expect("parses"), record);
+
+        // One empty measurement set keeps every optional field absent.
+        let empty =
+            QuestionMeasurements::parse(&json!({}), "/measurements").expect("the empty set parses");
+        assert_eq!(empty, QuestionMeasurements::default());
+        let bare = CheckRecord::from_question(
+            "message-supported",
+            Outcome::Review,
+            json!({"kind": "categorical", "label": "incomplete"}),
+            AppliedPolicy {
+                accept_cutoff: 0.75,
+                rejection_cutoff: 0.65,
+                confidence_floor: None,
+            },
+            empty,
+        );
+        assert_eq!(
+            serde_json::to_value(&bare).expect("serializes"),
+            json!({
+                "check": "message-supported",
+                "kind": "question",
+                "outcome": "review",
+                "assessment": {"kind": "categorical", "label": "incomplete"},
+                "applied_policy": {"accept_cutoff": 0.75, "rejection_cutoff": 0.65}
+            })
+        );
+
+        // One measurement set outside its three fields names the field.
+        let error =
+            QuestionMeasurements::parse(&json!({"evaluator": {"id": "x"}}), "/measurements")
+                .expect_err("the broken evaluator was accepted");
+        assert_eq!(error.field_path, "/measurements/evaluator/adapter_version");
+        let error = QuestionMeasurements::parse(&json!({"latency_ms": 4}), "/measurements")
+            .expect_err("the unknown field was accepted");
+        assert_eq!(error.code, ReasonCode::UnknownField);
+        assert_eq!(error.field_path, "/measurements/latency_ms");
     }
 
     #[test]

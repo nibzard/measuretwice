@@ -522,7 +522,7 @@ test("load validates one supplied profile through the core contract", async () =
   expect(unboundFailure.fieldPath).toBe("/profile/bindings");
 });
 
-test("run rejects one question check before any work starts", async () => {
+test("run rejects one question check without one bound profile before any work starts", async () => {
   const reviewer = await load(typedQuestions, {
     now: () => START_MS,
     nextRunId: sequenceIds("run"),
@@ -531,8 +531,9 @@ test("run rejects one question check before any work starts", async () => {
     reviewer.run({ id: "question-case", input: { notice: "One notice." } }),
   );
   expect(failure.code).toBe("evaluator_mismatch");
-  expect(failure.fieldPath).toBe("/checks/0");
+  expect(failure.fieldPath).toBe("/profile");
   expect(failure.message).toContain("notice-question");
+  expect(failure.message).toContain("profile");
 });
 
 test("run validates the case through the core before execution", async () => {
