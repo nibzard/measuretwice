@@ -42,6 +42,15 @@
  * report, reads no credential, and takes no application action. The host
  * consumes the report and decides.
  *
+ * Private-data defaults: one report states no raw case content and no
+ * credential. The case crosses as its identifier and its input hash alone,
+ * every request keeps only the projected inputs of its `using` list, and
+ * sanitized reasons keep the operational cause without one provider echo.
+ * Replay runs through host storage: the host states one reference to its
+ * own stored snapshot with the `snapshot` option, the report records it as
+ * `case.snapshot`, and the wrapper itself persists no input, no report, and
+ * no retention.
+ *
  * Failure behavior: every invalid artifact, invalid case, and incompatible
  * binding throws one public {@link ValidationError} with a stable reason
  * code and a field path, before any execution. One execution failure
@@ -172,7 +181,16 @@ export interface RunReport {
   /** The profile that the run bound. */
   readonly profile: Readonly<{ readonly id: string; readonly content_hash: string }>;
   /** The assessed case. */
-  readonly case: Readonly<{ readonly id: string; readonly input_hash: string }>;
+  readonly case: Readonly<{
+    readonly id: string;
+    readonly input_hash: string;
+    /**
+     * The host-controlled reference to the host-stored snapshot of the case
+     * input, for replay. Present only when the host stated one. The report
+     * holds no raw case content.
+     */
+    readonly snapshot?: string;
+  }>;
   /** The shadow baseline, in shadow mode. */
   readonly baseline?: Readonly<{ readonly outcome: string; readonly revision: string }>;
   /** One record per defined check, in definition order. */
@@ -229,6 +247,15 @@ export interface RunOptions {
    * Optional.
    */
   readonly signal?: AbortSignal;
+  /**
+   * The host-controlled reference to the host-stored snapshot of the case
+   * input, recorded as `case.snapshot` of the report so one replay can find
+   * the content through host storage. The wrapper persists no input and
+   * copies no case content into any report, so replay needs this reference
+   * and the stored report, never a copy inside it. One string of 1 to 256
+   * characters. Optional.
+   */
+  readonly snapshot?: string;
 }
 
 /** Reads one file as UTF-8 text. The default reads through Node file APIs. */
@@ -744,6 +771,7 @@ export async function load(
       const caseReference = JSON.stringify({
         id: caseInfo.id,
         input_hash: caseInfo.inputHash,
+        ...(runOptions.snapshot !== undefined ? { snapshot: runOptions.snapshot } : {}),
       });
       const profileReference = JSON.stringify({
         id: bound.id,

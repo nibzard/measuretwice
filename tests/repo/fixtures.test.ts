@@ -1277,6 +1277,55 @@ test("the aggregate table follows the fixed order and the samples cover every ou
   expect([...completions].sort()).toEqual(["cancelled", "completed", "deadline_exceeded"]);
 });
 
+test("case reference rows state the private-data defaults", () => {
+  const doc = loadJson("reports/outcomes.json") as Record<string, Json | undefined>;
+  const group = doc.case_references as Record<string, Json | undefined>;
+  expect(group).toBeDefined();
+  const valid = asObjects(group.valid);
+  const invalid = asObjects(group.invalid);
+  expect(valid.length).toBeGreaterThanOrEqual(2);
+  expect(invalid.length).toBeGreaterThanOrEqual(4);
+
+  const snapshotSeen = { value: false };
+  for (const row of valid) {
+    const reference = row.reference as Record<string, Json>;
+    expect(reference.id, String(row.note)).toMatch(/^[a-z0-9][a-z0-9._-]*$/);
+    expect(reference.input_hash, String(row.note)).toMatch(HASH_PATTERN);
+    // The identity fields and one optional snapshot reference are the whole
+    // record. No row carries case content or one credential.
+    expect(Object.keys(reference).sort(), String(row.note)).toEqual(
+      "snapshot" in reference ? ["id", "input_hash", "snapshot"] : ["id", "input_hash"],
+    );
+    if ("snapshot" in reference) {
+      snapshotSeen.value = true;
+      expect(typeof reference.snapshot, String(row.note)).toBe("string");
+      const note = String(row.note);
+      const materialized = note.includes("s256")
+        ? "s".repeat(256)
+        : note.includes("x257")
+          ? "x".repeat(257)
+          : (reference.snapshot as string);
+      expect(materialized.length, note).toBeLessThanOrEqual(256);
+      expect(materialized.length, note).toBeGreaterThanOrEqual(1);
+    }
+  }
+  expect(snapshotSeen.value, "no valid row states one snapshot reference").toBe(true);
+
+  for (const row of invalid) {
+    const reference = row.reference as Record<string, Json>;
+    const code = row.reason_code as string;
+    const path = row.field_path as string;
+    expect(REASON_CODES.has(code), `${code} is one registry code`).toBe(true);
+    expect(path.startsWith("/case/"), String(row.note)).toBe(true);
+    // Every stated field is case identity, one snapshot reference, or one
+    // injected private-value field that the contract refuses.
+    expect(["id", "input_hash", "snapshot", "input", "api_key"]).toContain(
+      path.split("/")[2],
+      String(row.note),
+    );
+  }
+});
+
 function profileErrors(profile: Json): Err[] {
   const errors: Err[] = [];
   if (!isObject(profile)) return [{ code: "invalid_field_type", path: "" }];

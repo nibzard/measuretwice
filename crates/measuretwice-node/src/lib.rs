@@ -536,6 +536,9 @@ pub struct RunState {
 /// The definition text and both reference texts must pass the strict JSON
 /// gate. The case reference plus the profile reference fix the run binding:
 /// every accepted attempt repeats both, and a drifted offer is refused.
+/// The case reference may state one optional host snapshot reference, which
+/// the frozen report records for replay; it is provenance, not case
+/// identity, and no raw case content crosses.
 #[napi]
 pub fn create_run_state(
     definition_text: String,

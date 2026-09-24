@@ -40,6 +40,13 @@
 //! inputs, and the report offers no field that could present them as
 //! evaluator-selected support.
 //!
+//! Private data defaults: one report states no raw case content. The
+//! [`CaseReference`] names the case by identifier and input hash alone, and
+//! its optional `snapshot` field names where the host stored its own
+//! snapshot of the input, so one replay finds the content through host
+//! storage instead of a copy inside the report. The report writes no file
+//! and owns no retention; the host persists it.
+//!
 //! The assessment keeps its recorded spelling. This module enforces the
 //! structural assessment contract at the report boundary; the semantic rules
 //! that need the check, such as evidence authorization against the `using`
@@ -837,13 +844,23 @@ impl ProfileReference {
 }
 
 /// Reference to one case by stable identifier and input content hash.
+///
+/// The reference states no case content. One optional `snapshot` names where
+/// the host stored its own snapshot of the input, so one replay can find the
+/// content again without the report copying it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CaseReference {
     /// Stable case identifier.
     pub id: String,
     /// Hash of the canonical case input object.
     pub input_hash: String,
+    /// Host-controlled reference to the host-stored snapshot of the input.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<String>,
 }
+
+/// The greatest length of one host snapshot reference, in characters.
+const SNAPSHOT_LIMIT: usize = 256;
 
 impl CaseReference {
     /// References one validated case by identifier and input hash.
@@ -854,7 +871,13 @@ impl CaseReference {
         Self {
             id: case.id().to_owned(),
             input_hash: hashing::input_hash(case.input()),
+            snapshot: None,
         }
+    }
+
+    /// Returns the host-controlled snapshot reference, when one was stated.
+    pub fn snapshot(&self) -> Option<&str> {
+        self.snapshot.as_deref()
     }
 
     /// Checks this reference against the contract rules.
@@ -862,8 +885,8 @@ impl CaseReference {
     /// # Errors
     ///
     /// Returns a [`ValidationError`] when the identifier breaks the case
-    /// identifier rule or the hash is not 64 lowercase hexadecimal
-    /// characters.
+    /// identifier rule, the hash is not 64 lowercase hexadecimal
+    /// characters, or the snapshot reference breaks its bound.
     pub fn validate(&self, base: &str) -> Result<(), ValidationError> {
         if !crate::case::is_case_id(&self.id) {
             return Err(ValidationError::invalid_field_type(
@@ -876,6 +899,14 @@ impl CaseReference {
                 format!("{base}/input_hash"),
                 "The input hash must hold 64 lowercase hexadecimal characters.",
             ));
+        }
+        if let Some(snapshot) = &self.snapshot {
+            if snapshot.is_empty() || snapshot.chars().count() > SNAPSHOT_LIMIT {
+                return Err(ValidationError::invalid_field_type(
+                    format!("{base}/snapshot"),
+                    "The snapshot reference must hold 1 to 256 characters.",
+                ));
+            }
         }
         Ok(())
     }
@@ -1841,13 +1872,14 @@ pub fn parse_profile_reference(
 /// # Errors
 ///
 /// Returns a [`ValidationError`] when the value is absent, is not an object,
-/// holds an unknown field, or breaks the identifier or hash rules.
+/// holds an unknown field, or breaks the identifier, hash, or snapshot
+/// reference rules.
 pub fn parse_case_reference(
     value: Option<&Value>,
     base: &str,
 ) -> Result<CaseReference, ValidationError> {
     let map = expect_object(value.ok_or_else(|| ValidationError::missing(base))?, base)?;
-    reject_unknown_fields(map, &["id", "input_hash"], base)?;
+    reject_unknown_fields(map, &["id", "input_hash", "snapshot"], base)?;
     let id = match map.get("id") {
         Some(Value::String(text)) if crate::case::is_case_id(text) => text.clone(),
         Some(_) => {
@@ -1868,7 +1900,19 @@ pub fn parse_case_reference(
         }
         None => return Err(ValidationError::missing(format!("{base}/input_hash"))),
     };
-    Ok(CaseReference { id, input_hash })
+    // The optional snapshot reference names host storage. It states no case
+    // content, and no other field of the case may cross into one report.
+    let snapshot = parse_bounded_string(
+        map.get("snapshot"),
+        &format!("{base}/snapshot"),
+        SNAPSHOT_LIMIT,
+        "The snapshot reference",
+    )?;
+    Ok(CaseReference {
+        id,
+        input_hash,
+        snapshot,
+    })
 }
 
 /// Parses one shadow baseline at `base`.
@@ -2279,6 +2323,7 @@ mod tests {
             CaseReference {
                 id: "case-1".to_owned(),
                 input_hash: hash_hex('c'),
+                snapshot: None,
             },
             Completion {
                 status: CompletionStatus::Completed,
@@ -2587,6 +2632,7 @@ mod tests {
             CaseReference {
                 id: "case-1".to_owned(),
                 input_hash: hash_hex('c'),
+                snapshot: None,
             },
             Completion {
                 status: CompletionStatus::Completed,
@@ -2680,6 +2726,7 @@ mod tests {
         let case = CaseReference {
             id: "case-1".to_owned(),
             input_hash: hash_hex('c'),
+            snapshot: None,
         };
         let completion = Completion {
             status: CompletionStatus::Completed,
@@ -2722,6 +2769,7 @@ mod tests {
             CaseReference {
                 id: "Case-1".to_owned(),
                 input_hash: hash_hex('c'),
+                snapshot: None,
             },
             completion,
         )
@@ -2739,6 +2787,7 @@ mod tests {
             CaseReference {
                 id: "case.1_b-x".to_owned(),
                 input_hash: hash_hex('c'),
+                snapshot: None,
             },
             Completion {
                 status: CompletionStatus::Cancelled,
@@ -2748,6 +2797,124 @@ mod tests {
         .check(record(0, Outcome::Error))
         .finish()
         .is_ok());
+    }
+
+    #[test]
+    fn snapshot_references_stay_bounded_and_carry_no_case_content() {
+        let reference = ArtifactReference {
+            name: "message-review".to_owned(),
+            content_hash: hash_hex('a'),
+        };
+        let profile = ProfileReference {
+            id: "message-profile".to_owned(),
+            content_hash: hash_hex('b'),
+        };
+        let completion = Completion {
+            status: CompletionStatus::Completed,
+            completed_at: None,
+        };
+        let case = |snapshot: Option<String>| CaseReference {
+            id: "case-1".to_owned(),
+            input_hash: hash_hex('c'),
+            snapshot,
+        };
+
+        // One host snapshot reference crosses into the stored report, and a
+        // report without one states no snapshot field at all.
+        let with_snapshot = ReportBuilder::new(
+            "run-000001",
+            RunMode::Shadow,
+            reference.clone(),
+            profile.clone(),
+            case(Some("host-store://snapshots/case-1/r7".to_owned())),
+            completion.clone(),
+        )
+        .check(record(0, Outcome::Pass))
+        .finish()
+        .expect("the bounded snapshot reference finishes the report");
+        assert_eq!(
+            with_snapshot.case().snapshot(),
+            Some("host-store://snapshots/case-1/r7")
+        );
+        let serialized = serde_json::to_value(&with_snapshot).expect("the report serializes");
+        assert_eq!(
+            serialized["case"],
+            serde_json::json!({
+                "id": "case-1",
+                "input_hash": hash_hex('c'),
+                "snapshot": "host-store://snapshots/case-1/r7",
+            })
+        );
+        let reparsed = parse_run_report(&serialized).expect("the stored report parses");
+        assert_eq!(reparsed.case(), with_snapshot.case());
+
+        let without_snapshot = ReportBuilder::new(
+            "run-000002",
+            RunMode::Shadow,
+            reference,
+            profile,
+            case(None),
+            completion,
+        )
+        .check(record(0, Outcome::Pass))
+        .finish()
+        .expect("the report without one snapshot finishes");
+        let serialized = serde_json::to_value(&without_snapshot).expect("the report serializes");
+        let stored_case = serialized["case"].as_object().expect("a case object");
+        assert!(stored_case.contains_key("id"));
+        assert!(stored_case.contains_key("input_hash"));
+        assert!(
+            !stored_case.contains_key("snapshot"),
+            "an absent snapshot states no field"
+        );
+
+        // One snapshot reference outside the bound refuses the report. The
+        // bound keeps one inflated reference from carrying case content.
+        for (name, snapshot) in [("empty", String::new()), ("overlong", "x".repeat(257))] {
+            let error = ReportBuilder::new(
+                "run-000003",
+                RunMode::Shadow,
+                ArtifactReference {
+                    name: "message-review".to_owned(),
+                    content_hash: hash_hex('a'),
+                },
+                ProfileReference {
+                    id: "message-profile".to_owned(),
+                    content_hash: hash_hex('b'),
+                },
+                case(Some(snapshot)),
+                Completion {
+                    status: CompletionStatus::Completed,
+                    completed_at: None,
+                },
+            )
+            .check(record(0, Outcome::Pass))
+            .finish()
+            .err()
+            .unwrap_or_else(|| panic!("the {name} snapshot reference was accepted"));
+            assert_eq!(error.code, ReasonCode::InvalidFieldType, "{name}: {error}");
+            assert_eq!(error.field_path, "/case/snapshot", "{name}: {error}");
+        }
+
+        // The parser keeps the same rules at the stored boundary, and no
+        // other case field exists: raw input is not report data.
+        let raw = serde_json::from_str::<Value>(
+            r#"{"id":"case-1","input_hash":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","input":{"note":"private"}}"#,
+        )
+        .expect("the sample parses");
+        let error = parse_case_reference(Some(&raw), "/case")
+            .expect_err("the raw input field was accepted");
+        assert_eq!(error.code, ReasonCode::UnknownField, "{error}");
+        assert_eq!(error.field_path, "/case/input", "{error}");
+
+        let numeric = serde_json::from_str::<Value>(
+            r#"{"id":"case-1","input_hash":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","snapshot":7}"#,
+        )
+        .expect("the sample parses");
+        let error = parse_case_reference(Some(&numeric), "/case")
+            .expect_err("the numeric snapshot reference was accepted");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/case/snapshot", "{error}");
     }
 
     #[test]
@@ -2763,6 +2930,7 @@ mod tests {
         let case = CaseReference {
             id: "case-1".to_owned(),
             input_hash: hash_hex('c'),
+            snapshot: None,
         };
         let completion = Completion {
             status: CompletionStatus::Completed,

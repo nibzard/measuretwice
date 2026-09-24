@@ -94,8 +94,8 @@
       "id": "reports-outcomes",
       "path": "reports/outcomes.json",
       "kind": "table-set",
-      "covers": ["aggregate order", "every check outcome", "error beside fail", "skipped as review", "completion statuses"],
-      "runner": "Build one report for each table row and compare the aggregate outcome. Check each sample record against the run report contract."
+      "covers": ["aggregate order", "every check outcome", "error beside fail", "skipped as review", "completion statuses", "case references with and without one host snapshot reference", "no raw case content and no credential in report data"],
+      "runner": "Build one report for each table row and compare the aggregate outcome. Check each sample record against the run report contract. Parse each valid case reference through the case reference boundary and refuse each invalid one with the stated reason code and field path, materializing the stated size tokens."
     },
     {
       "id": "profiles-states",

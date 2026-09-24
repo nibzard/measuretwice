@@ -983,6 +983,7 @@ mod tests {
             CaseReference {
                 id: "case-1".to_owned(),
                 input_hash: "c".repeat(64),
+                snapshot: None,
             },
             ProfileReference {
                 id: "state-profile".to_owned(),

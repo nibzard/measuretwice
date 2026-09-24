@@ -95,5 +95,85 @@
       "note": "A run past its total deadline keeps its completed components.",
       "completion": {"status": "deadline_exceeded", "completed_at": "2026-09-23T10:00:01.000Z"}
     }
-  ]
+  ],
+  "case_references": {
+    "description": "Case reference samples of the private-data defaults. One reference names one case by identifier and input hash alone. The optional snapshot names host storage for replay. No raw case content and no credential is report data. Size tokens expand as the note of their row states.",
+    "valid": [
+      {
+        "note": "One reference with no snapshot states two fields only.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      },
+      {
+        "note": "One host-controlled snapshot reference crosses beside the identity.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "snapshot": "host-store://snapshots/case-1/r7"
+        }
+      },
+      {
+        "note": "The longest permitted snapshot reference. The token s256 materializes as 256 repetitions of the character s.",
+        "reference": {
+          "id": "case-2",
+          "input_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "snapshot": "s256"
+        }
+      }
+    ],
+    "invalid": [
+      {
+        "note": "Raw case input inside a case reference is unknown report data.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "input": {"note": "private case content"}
+        },
+        "reason_code": "unknown_field",
+        "field_path": "/case/input"
+      },
+      {
+        "note": "One empty snapshot reference states no storage location.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "snapshot": ""
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/case/snapshot"
+      },
+      {
+        "note": "One snapshot reference above the bound could carry case content. The token x257 materializes as 257 repetitions of the character x.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "snapshot": "x257"
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/case/snapshot"
+      },
+      {
+        "note": "One snapshot reference must be one string.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "snapshot": 7
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/case/snapshot"
+      },
+      {
+        "note": "One credential field inside a case reference is unknown report data.",
+        "reference": {
+          "id": "case-1",
+          "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "api_key": "secret-value"
+        },
+        "reason_code": "unknown_field",
+        "field_path": "/case/api_key"
+      }
+    ]
+  }
 }

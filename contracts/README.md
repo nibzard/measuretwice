@@ -199,6 +199,23 @@ In shadow mode, `baseline` records the existing decision and its revision next
 to the new outcome. Baseline agreement is not correctness. A pass never
 authorizes an application action. The host consumes the report and decides.
 
+### Private data defaults
+
+A report states no raw case content and no credential. The `case` block names
+the case by identifier and input hash alone. Assessment measurements stay,
+because they are the record's purpose; case bodies do not enter it.
+
+- Replay works through host storage. The optional `case.snapshot` field holds
+  one host-controlled reference to the host's own stored snapshot of the
+  input. The library writes no snapshot and copies no input into any report.
+- The writer of a report is the host. The library persists no report, keeps no
+  retention, and writes no log. Retention of reports and of sensitive
+  metadata is a host decision.
+- Datasets are explicit local artifacts. Calibration and evaluation read the
+  files the host states; nothing collects case content on its own.
+- Profiles stay free of credentials and private case content. The host keeps
+  its credential mechanism and its evaluator allowlist.
+
 ## Evaluation reports
 
 An evaluation runs labeled cases through the same validated execution path as
@@ -413,6 +430,10 @@ Related contracts published after this freeze:
 - The enforcement selection clause of task T035, published on 24 September
   2026. Adds the reason code `profile_not_selected` and the enforcement
   input of the host-selected profile hash.
+- The private-data defaults of task T036, published on 24 September 2026.
+  Adds the optional run-report field `case.snapshot`, one host-controlled
+  reference for replay, and records that reports hold no raw case content
+  and no credential.
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.

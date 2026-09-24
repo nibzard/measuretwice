@@ -1059,6 +1059,7 @@ fn outcome_rows_build_reports_with_the_stated_aggregates() {
             report::CaseReference {
                 id: "case-1".to_owned(),
                 input_hash: "c".repeat(64),
+                snapshot: None,
             },
             report::Completion {
                 status: report::CompletionStatus::Completed,
@@ -1159,6 +1160,7 @@ fn completion_samples_terminate_immutable_reports() {
             report::CaseReference {
                 id: "case-1".to_owned(),
                 input_hash: "c".repeat(64),
+                snapshot: None,
             },
             report::Completion {
                 status,
@@ -1191,6 +1193,83 @@ fn completion_samples_terminate_immutable_reports() {
     }
     for status in ["completed", "cancelled", "deadline_exceeded"] {
         assert!(statuses.contains(status), "no sample covers {status}");
+    }
+}
+
+#[test]
+fn case_reference_rows_pin_the_private_data_defaults() {
+    let document = fixture_document("reports/outcomes.json");
+    let group = &document["case_references"];
+    let valid = group["valid"].as_array().expect("a valid array");
+    let invalid = group["invalid"].as_array().expect("an invalid array");
+    assert!(valid.len() >= 2, "the fixture group lost valid rows");
+    assert!(invalid.len() >= 4, "the fixture group lost invalid rows");
+
+    let materialize = |snapshot: &Value| -> Value {
+        match snapshot.as_str() {
+            Some("s256") => Value::String("s".repeat(256)),
+            Some("x257") => Value::String("x".repeat(257)),
+            _ => snapshot.clone(),
+        }
+    };
+
+    let mut snapshots_seen = false;
+    for row in valid {
+        let note = row["note"].as_str().expect("a note");
+        let mut reference = row["reference"].clone();
+        if let Some(snapshot) = reference.get("snapshot").cloned() {
+            reference["snapshot"] = materialize(&snapshot);
+            snapshots_seen = true;
+        }
+        // The row parses through the same boundary that reads one offered
+        // attempt binding, and it round-trips through one stored report.
+        let parsed = report::parse_case_reference(Some(&reference), "/case")
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let built = report::ReportBuilder::new(
+            "conformance-000003",
+            report::RunMode::Shadow,
+            report::ArtifactReference {
+                name: "message-review".to_owned(),
+                content_hash: "a".repeat(64),
+            },
+            report::ProfileReference {
+                id: "message-profile".to_owned(),
+                content_hash: "b".repeat(64),
+            },
+            parsed,
+            report::Completion {
+                status: report::CompletionStatus::Completed,
+                completed_at: None,
+            },
+        )
+        .check(outcome_record(0, report::Outcome::Pass))
+        .finish()
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let serialized = serde_json::to_value(&built).expect("the report serializes");
+        assert_eq!(serialized["case"], reference, "{note}");
+        let reparsed =
+            report::parse_run_report(&serialized).unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(
+            serde_json::to_value(reparsed.case()).unwrap(),
+            reference,
+            "{note}"
+        );
+    }
+    assert!(snapshots_seen, "no valid row states one snapshot");
+
+    for row in invalid {
+        let note = row["note"].as_str().expect("a note");
+        let mut reference = row["reference"].clone();
+        if let Some(snapshot) = reference.get("snapshot").cloned() {
+            reference["snapshot"] = materialize(&snapshot);
+        }
+        let code = row["reason_code"].as_str().expect("a reason code");
+        let path = row["field_path"].as_str().expect("a field path");
+        let error = report::parse_case_reference(Some(&reference), "/case")
+            .err()
+            .unwrap_or_else(|| panic!("{note}: the reference was accepted"));
+        assert_eq!(error.code.as_str(), code, "{note}: {error}");
+        assert_eq!(error.field_path, path, "{note}: {error}");
     }
 }
 

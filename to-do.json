@@ -1349,15 +1349,16 @@
         "T028",
         "T034"
       ],
-      "updated_at": "2026-09-24T08:54:09Z",
+      "updated_at": "2026-09-24T09:00:04Z",
       "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
         "contracts/README.md",
         "crates/measuretwice-core/src/error.rs",
         "crates/measuretwice-core/src/hashing.rs",
         "crates/measuretwice-core/src/profile.rs",
         "crates/measuretwice-core/tests/contract_fixtures.rs",
         "crates/measuretwice-node/src/lib.rs",
-        "DEVELOPING.md",
         "fixtures/README.md",
         "fixtures/profiles/states.json",
         "models/qualification/README.md",
@@ -1366,7 +1367,6 @@
         "packages/measuretwice/test/native.test.ts",
         "packages/measuretwice/test/profile-selection.test.ts",
         "packages/measuretwice/test/run.test.ts",
-        "TESTING.md",
         "tests/repo/fixtures.test.ts",
         "to-do.json"
       ]
@@ -1375,8 +1375,8 @@
       "id": "T036",
       "title": "Apply private-data defaults and sanitized diagnostics",
       "priority": 2,
-      "status": "todo",
-      "details": "Default reports and logs must exclude credentials and raw case content. Sources: MVP_SPEC.md sections 8-9, 12; AGENTS.md section 10.",
+      "status": "done",
+      "details": "Default reports and logs exclude credentials and raw case content. Sources: MVP_SPEC.md sections 8-9, 12; AGENTS.md section 10. Done: the private-data defaults are contract rules plus canaries, not one sanitizing filter. The additive contract change adds the optional run-report field case.snapshot, one host-controlled reference of 1 to 256 characters that names where the host stored its own snapshot of the case input, so one replay finds the content through host storage; measuretwice_core::report::CaseReference owns the field, its bound, and its parse rule (unknown fields still refuse, so raw input and api_key inside one case reference reject with unknown_field), and run states it through the new snapshot option of RunOptions, which the core validates at /case/snapshot before any evaluator runs. The report keeps naming the case by identifier and input hash alone, the wrapper reads no file and writes no report while one run executes (its FileAccess stays read-only), and retention stays with the host; the contracts README records the complete defaults: no raw case content, host-storage replay, host-persisted reports, explicit local dataset artifacts, and credentials outside profiles. packages/measuretwice/test/privacy.test.ts drives credential and private-content canaries through the public run path: the serialized report, the validation failures, and the generated profiles hold none of them; the required measurements (raw assessment with evidence references, applied policy, evaluator versions, timing, usage) and the executed rule stay; one hostile provider error that quotes case content and credentials in its message, body, and headers crosses through the Jev adapter sanitized to its class, status, and request identifier, and the record keeps its operational cause; operational failures keep code and cause (invalid_assessment, retries_exhausted with the attempt count) after sensitive content stays out; and one stored profile that carries one api_key or one raw case body fails load with unknown_field through one valid self-hash. fixtures/reports/outcomes.json grew the case_references group (three valid rows with and without one snapshot, five invalid rows: raw input, credential field, empty, overlong, and mistyped snapshot), the manifest and the fixture README record it, the Rust integration tests run every row through parse_case_reference and one built report, the report unit tests hold the bounds at the builder boundary, and tests/repo/fixtures.test.ts checks the group data. DEVELOPING.md and TESTING.md record the decision and the suites.",
       "steps": [
         "Add canary tests for credentials, sensitive inputs, provider error echoes, and diagnostic paths.",
         "Retain required assessment measurements without copying raw case bodies into reports.",
@@ -1394,6 +1394,24 @@
         "T014",
         "T028",
         "T034"
+      ],
+      "updated_at": "2026-09-24T09:22:41Z",
+      "files": [
+        "contracts/README.md",
+        "contracts/v0/run-report.schema.json",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-core/src/run_state.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "DEVELOPING.md",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/reports/outcomes.json",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/privacy.test.ts",
+        "TESTING.md",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
       ]
     },
     {

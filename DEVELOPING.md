@@ -743,6 +743,29 @@ report.
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 
+Decided in T036: the private-data defaults are contract rules plus canaries,
+not one sanitizing filter. One report states no raw case content and no
+credential, because the `case` block of `contracts/v0/run-report.schema.json`
+names identifier and input hash alone; assessment measurements stay, because
+they are the record's purpose. Replay runs through host storage: the
+additive, optional field `case.snapshot` holds one host-controlled reference
+of 1 to 256 characters that `run` states through the `snapshot` option, the
+Rust core validates it at the case-reference boundary (`/case/snapshot`), and
+the wrapper itself persists no input, no report, and no retention. The file
+access of `load` stays read-only, so the host owns every stored byte. The
+Jev adapter keeps its constructed sanitization (class, status, request
+identifier) and the wrapper keeps its field-path errors, so failures stay
+useful after sensitive content stays out; one host adapter owns its own
+failure text, because the wrapper cannot know which of its strings are
+private. The suite
+`packages/measuretwice/test/privacy.test.ts` drives credential and
+private-content canaries through `run`: the serialized report, the
+validation failures, and the generated profiles hold none, the measurements
+and the sanitized causes stay, one stored profile with one `api_key` or one
+case body fails `load`, and the case-reference rows of
+`fixtures/reports/outcomes.json` pin the same rules for the later Python
+wrapper.
+
 ## Generated files
 
 `git` ignores the generated output: `target/`, `node_modules/`, `dist/`,
