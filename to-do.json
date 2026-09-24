@@ -1107,7 +1107,7 @@
         "T027",
         "T028"
       ],
-      "updated_at": "2026-09-24T06:27:43Z",
+      "updated_at": "2026-09-24T06:29:08Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -1124,7 +1124,7 @@
       "id": "T030",
       "title": "Implement bounded scheduling and saturation records",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "The TypeScript wrapper owns queues and concurrency. Saturated work returns explicit skipped records. Sources: MVP_SPEC.md sections 5, 9, 12.",
       "steps": [
         "Write deterministic tests for active work limits, pending work limits, and simultaneous submissions.",
@@ -1144,6 +1144,14 @@
         "T015",
         "T022",
         "T023"
+      ],
+      "updated_at": "2026-09-24T06:48:53Z",
+      "files": [
+        "packages/measuretwice/src/scheduler.ts",
+        "packages/measuretwice/test/scheduler.test.ts",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "to-do.json"
       ]
     },
     {

@@ -586,6 +586,33 @@ is frozen and rewritten by nothing, and the calibration API (task T050)
 replaces the starter numbers with measured parameters as one new profile
 with its own hash.
 
+Decided in T030: bounded scheduling is one wrapper module and no core
+change. `packages/measuretwice/src/scheduler.ts` owns `scheduleRun`,
+which drives one run state that its caller created with the run binding.
+The scheduler discharges the wrapper rows of the model record: it admits
+submitted checks in definition order while active slots remain, queues
+them while pending slots remain, and records one `queue_full` skip
+through the core boundary when both limits are spent. Fresh work and
+retrying work share one first-in-first-out queue, and only never-started
+work counts against `max_pending`, because one retry of started work is
+no new work. Every event crosses the Rust boundary: each attempt start
+offers the run binding again, each resolution crosses as one component
+record or one operational failure, and the completion states the terminal
+time of the injected clock. The scheduler attempts every check of the
+definition regardless of sibling outcomes, so no semantic result triggers
+cost-based short-circuiting. One thrown execution becomes one
+`evaluator_error` failure, so one broken executor records one error
+instead of crashing the run. One failed attempt with attempts left returns
+to the shared queue and restarts when one slot frees, with no delay: the
+backoff arrives with task T032, and the total deadline and the
+cancellation with task T031, so this module runs no timer. The terminal
+path releases the wrapper resources: the queue drops, the cancellation
+signal aborts, and one late resolution is dropped instead of stated, so
+the frozen report stays frozen. The suite replays the five shared runtime
+traces that need no deadline, no cancellation, and no adversarial result
+through the scheduler, beside its own bound and saturation tests. Task
+T034 wires the module into the semantic run path of `run`.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 
