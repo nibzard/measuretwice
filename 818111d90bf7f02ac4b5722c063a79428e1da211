@@ -1,0 +1,6 @@
+# Context
+
+## Background
+Task T070 plus the task-log updates for the whole batch
+(T038-T062, T070). tests/repo/docs.test.ts now includes README.md
+and examples/ in its markdown coverage.
