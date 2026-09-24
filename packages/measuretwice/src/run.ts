@@ -51,6 +51,23 @@
  * `case.snapshot`, and the wrapper itself persists no input, no report, and
  * no retention.
  *
+ * Shadow integration: one shadow run records the new outcome beside the
+ * existing decision of the host, and the existing decision path stays
+ * untouched. The host states its decision and the revision of its path
+ * through the `baseline` option, the report records both under `baseline`
+ * exactly as stated, and no library code reads the baseline, compares it
+ * with the new outcome, or acts on either. One shadow failure, review,
+ * skip, or error is one record of the report, never one change to the host
+ * decision. Agreement with the baseline is one more observation, not one
+ * correctness claim, so the report holds no field that combines the two
+ * outcomes. `run` is one awaited call: it holds its caller until the run
+ * reaches one terminal state, its added latency is bounded by the total
+ * deadline of the profile, and every check record states its queue wait and
+ * its execution time. The library starts no detached job and owns no
+ * background scheduler, so nonblocking shadow work runs through one queue
+ * that the host owns: the host stores the case and its baseline, one worker
+ * of the host awaits `run`, and the host persists the returned report.
+ *
  * Failure behavior: every invalid artifact, invalid case, and incompatible
  * binding throws one public {@link ValidationError} with a stable reason
  * code and a field path, before any execution. One execution failure
@@ -191,8 +208,12 @@ export interface RunReport {
      */
     readonly snapshot?: string;
   }>;
-  /** The shadow baseline, in shadow mode. */
-  readonly baseline?: Readonly<{ readonly outcome: string; readonly revision: string }>;
+  /**
+   * The shadow baseline, in shadow mode. The existing decision of the host
+   * and the revision of its decision path, recorded beside the new outcome.
+   * Agreement with the baseline is not correctness.
+   */
+  readonly baseline?: ShadowBaseline;
   /** One record per defined check, in definition order. */
   readonly checks: readonly RunCheckRecord[];
   /** The derived aggregate outcome. */
@@ -220,10 +241,38 @@ export interface RunCase<TInput> {
   readonly input: TInput;
 }
 
+/**
+ * The shadow baseline of one run: the existing decision of the host.
+ *
+ * The host states what its own decision path already decided and which
+ * revision of that path made the decision. The run records both beside the
+ * new outcome, and the two facts stay separate: agreement with the baseline
+ * is not correctness, because the baseline is one more measurement, not one
+ * reference answer. The library computes no agreement, states no accuracy,
+ * and takes no action on the baseline. The host owns the meaning of its own
+ * decision vocabulary, so the outcome stays one free string.
+ */
+export interface ShadowBaseline {
+  /** The existing decision of the host decision path, 1 to 64 characters. */
+  readonly outcome: string;
+  /** The revision of the existing decision path, 1 to 128 characters. */
+  readonly revision: string;
+}
+
 /** The options of one run. */
 export interface RunOptions {
   /** How the host declares the run. The default is `shadow`. */
   readonly mode?: RunMode;
+  /**
+   * The existing decision that the host decision path already made, recorded
+   * beside the new outcome as `baseline` of the report. Shadow mode alone
+   * accepts one: an enforcement run refuses the option with
+   * `invalid_field_type` at `/baseline`, because it holds no existing
+   * decision to record. The core validates the shape and the bounds before
+   * any work starts, and one run without the option states no field.
+   * Agreement with the baseline is not correctness. Optional.
+   */
+  readonly baseline?: ShadowBaseline;
   /**
    * The reviewed profile content hash that the host selected for
    * enforcement, through its own code or configuration review. Enforcement
@@ -463,12 +512,19 @@ export interface Reviewer<TInput> {
    * and records every answer. The report is reporting-only: it authorizes
    * no application action, whatever its mode and outcome.
    *
+   * One shadow run changes no existing decision. The host states its
+   * existing decision through {@link RunOptions.baseline}, and the report
+   * records it beside the new outcome. The call is awaited: it returns when
+   * the run reaches one terminal state, and its added latency stays inside
+   * the total deadline of the profile.
+   *
    * @throws {ValidationError} when the case breaks the contract, when the
    * definition holds one question check and no bound profile states its
-   * decision policy, or when enforcement mode meets one profile that the
+   * decision policy, when enforcement mode meets one profile that the
    * compatibility gate refuses: one scope it does not declare, one
    * qualification below `validated_for_scope`, or one content hash that the
-   * host did not select through {@link RunOptions.selectedProfileHash}.
+   * host did not select through {@link RunOptions.selectedProfileHash}, or
+   * when one baseline reaches an enforcement run or breaks its bounds.
    * Every failure happens before execution.
    */
   run(caseInput: RunCase<TInput>, options?: RunOptions): Promise<RunReport>;
@@ -850,6 +906,14 @@ export async function load(
         id: bound.id,
         content_hash: bound.content_hash,
       });
+      // The shadow baseline crosses as data through the same boundary. The
+      // core owns its contract, so one malformed baseline, one out-of-bounds
+      // field, and one baseline in enforcement mode all refuse here, before
+      // any evaluator runs and before any spend occurs.
+      const baselineText =
+        runOptions.baseline === undefined
+          ? null
+          : jsonText(runOptions.baseline, "/baseline");
       const runState = throughCore(() =>
         nativeCreateRunState(
           definitionText,
@@ -858,6 +922,7 @@ export async function load(
           nextRunId(),
           mode,
           bound.execution.max_attempts,
+          baselineText,
         ),
       );
 

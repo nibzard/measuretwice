@@ -1273,6 +1273,89 @@ fn case_reference_rows_pin_the_private_data_defaults() {
     }
 }
 
+#[test]
+fn baseline_rows_pin_the_shadow_baseline_contract() {
+    let document = fixture_document("reports/outcomes.json");
+    let group = &document["baselines"];
+    let valid = group["valid"].as_array().expect("a valid array");
+    let invalid = group["invalid"].as_array().expect("an invalid array");
+    assert!(valid.len() >= 3, "the fixture group lost valid rows");
+    assert!(invalid.len() >= 5, "the fixture group lost invalid rows");
+
+    // The size tokens of the notes materialize before the row crosses.
+    let materialize = |baseline: &Value| -> Value {
+        let mut value = baseline.clone();
+        for (field, token, text) in [
+            ("outcome", "o64", "o".repeat(64)),
+            ("outcome", "o65", "o".repeat(65)),
+            ("revision", "r128", "r".repeat(128)),
+            ("revision", "r129", "r".repeat(129)),
+        ] {
+            if value.get(field).and_then(Value::as_str) == Some(token) {
+                value[field] = Value::String(text);
+            }
+        }
+        value
+    };
+
+    for row in valid {
+        let note = row["note"].as_str().expect("a note");
+        let stated = materialize(&row["baseline"]);
+        let baseline = report::parse_baseline(&stated, "/baseline")
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        // The baseline crosses one shadow report beside the new outcome, and
+        // the stored report parses again with the same two separate facts.
+        let built = report::ReportBuilder::new(
+            "conformance-000004",
+            report::RunMode::Shadow,
+            report::ArtifactReference {
+                name: "message-review".to_owned(),
+                content_hash: "a".repeat(64),
+            },
+            report::ProfileReference {
+                id: "message-profile".to_owned(),
+                content_hash: "b".repeat(64),
+            },
+            report::CaseReference {
+                id: "case-1".to_owned(),
+                input_hash: "c".repeat(64),
+                snapshot: None,
+            },
+            report::Completion {
+                status: report::CompletionStatus::Completed,
+                completed_at: None,
+            },
+        )
+        .baseline(baseline)
+        .check(outcome_record(0, report::Outcome::Pass))
+        .finish()
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+        // The new outcome stays the aggregate of the component records. The
+        // baseline agrees or disagrees on its own, and no field states which.
+        assert_eq!(built.aggregate(), report::AggregateOutcome::Pass, "{note}");
+        let serialized = serde_json::to_value(&built).expect("the report serializes");
+        assert_eq!(serialized["baseline"], stated, "{note}");
+        let reparsed =
+            report::parse_run_report(&serialized).unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(
+            serde_json::to_value(reparsed.baseline()).unwrap(),
+            stated,
+            "{note}"
+        );
+    }
+
+    for row in invalid {
+        let note = row["note"].as_str().expect("a note");
+        let code = row["reason_code"].as_str().expect("a reason code");
+        let path = row["field_path"].as_str().expect("a field path");
+        let error = report::parse_baseline(&materialize(&row["baseline"]), "/baseline")
+            .err()
+            .unwrap_or_else(|| panic!("{note}: the baseline was accepted"));
+        assert_eq!(error.code.as_str(), code, "{note}: {error}");
+        assert_eq!(error.field_path, path, "{note}: {error}");
+    }
+}
+
 /// One fixed profile binding for the trace replays. The traces state no
 /// profile, so every replay runs under one reference profile.
 fn trace_profile() -> report::ProfileReference {
@@ -1355,6 +1438,7 @@ fn runtime_traces_replay_through_the_run_state_boundary() {
             profile.clone(),
             note,
             report::RunMode::Shadow,
+            None,
             RunLimits {
                 max_attempts: config["max_attempts"].as_u64().expect("an attempt limit") as u32,
             },

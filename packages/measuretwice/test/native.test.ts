@@ -701,6 +701,7 @@ test("runtime traces replay through the boundary", () => {
       note,
       "shadow",
       trace.config.max_attempts,
+      null,
     );
     expect(run.phase, note).toBe("running");
 
@@ -839,6 +840,7 @@ test("run state refuses drifted, late, and malformed events", () => {
     "boundary-run",
     "shadow",
     2,
+    null,
   );
   expect(run.checkIds()).toEqual([
     "summary-length",
@@ -952,16 +954,16 @@ test("run creation validates its mode, limits, and references", () => {
   const caseReference = JSON.stringify({ id: caseInfo.id, input_hash: caseInfo.inputHash });
 
   expect(failureOf(() =>
-    nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "r", "fast", 1),
+    nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "r", "fast", 1, null),
   ).code).toBe("invalid_field_type");
   const attempts = failureOf(() =>
-    nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "r", "shadow", 0),
+    nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "r", "shadow", 0, null),
   );
   expect(attempts.code).toBe("invalid_field_type");
   expect(attempts.fieldPath).toBe("/max_attempts");
   expect(
     failureOf(() =>
-      nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "r", "shadow", 1.5),
+      nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "r", "shadow", 1.5, null),
     ).code,
   ).toBe("invalid_field_type");
   const unknownField = failureOf(() =>
@@ -972,6 +974,7 @@ test("run creation validates its mode, limits, and references", () => {
       "r",
       "shadow",
       1,
+      null,
     ),
   );
   expect(unknownField.code).toBe("unknown_field");
@@ -984,13 +987,106 @@ test("run creation validates its mode, limits, and references", () => {
       "r",
       "shadow",
       1,
+      null,
     ),
   );
   expect(badHash.code).toBe("invalid_field_type");
   expect(badHash.fieldPath).toBe("/case/input_hash");
   expect(failureOf(() =>
-    nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "", "shadow", 1),
+    nativeCreateRunState(definitionText, caseReference, TRACE_PROFILE, "", "shadow", 1, null),
   ).fieldPath).toBe("/run_id");
+});
+
+test("run creation records one shadow baseline and refuses one enforcement baseline", () => {
+  const definitionText = fixtureText("definitions/valid/exact-rules.json");
+  const caseText = JSON.stringify({
+    id: "baseline-case",
+    input: { summary: "The delivery limit is 900 characters", notice: "One notice." },
+  });
+  const caseInfo = nativeValidateCase(definitionText, caseText);
+  const caseReference = JSON.stringify({ id: caseInfo.id, input_hash: caseInfo.inputHash });
+  const baseline = JSON.stringify({ outcome: "send", revision: "policy-2026-03" });
+
+  // The baseline crosses as data, and the terminal report records it beside
+  // the new outcome of the run.
+  const run = nativeCreateRunState(
+    definitionText,
+    caseReference,
+    TRACE_PROFILE,
+    "baseline-run",
+    "shadow",
+    1,
+    baseline,
+  );
+  for (const check of run.checkIds()) {
+    runSkipQueueFull(run, check);
+  }
+  runComplete(run, null);
+  const report = JSON.parse(run.reportText() ?? "{}");
+  expect(report.mode).toBe("shadow");
+  expect(report.baseline).toEqual({ outcome: "send", revision: "policy-2026-03" });
+  // The new outcome comes from the component records alone.
+  expect(report.aggregate.outcome).toBe("review");
+
+  // One run without one baseline states no field.
+  const plain = nativeCreateRunState(
+    definitionText,
+    caseReference,
+    TRACE_PROFILE,
+    "plain-run",
+    "shadow",
+    1,
+    null,
+  );
+  for (const check of plain.checkIds()) {
+    runSkipQueueFull(plain, check);
+  }
+  runComplete(plain, null);
+  expect("baseline" in JSON.parse(plain.reportText() ?? "{}")).toBe(false);
+
+  // An enforcement run states no existing decision, so the baseline refuses
+  // at creation, before any work starts.
+  const enforced = failureOf(() =>
+    nativeCreateRunState(
+      definitionText,
+      caseReference,
+      TRACE_PROFILE,
+      "enforced-run",
+      "enforcement",
+      1,
+      baseline,
+    ),
+  );
+  expect(enforced.code).toBe("invalid_field_type");
+  expect(enforced.fieldPath).toBe("/baseline");
+  expect(enforced.message).toContain("shadow-mode data");
+
+  // The baseline follows the run report contract at the boundary.
+  const rows: readonly { baseline: string; code: string; path: string }[] = [
+    { baseline: JSON.stringify({ outcome: "send" }), code: "missing_field", path: "/baseline/revision" },
+    { baseline: JSON.stringify({ outcome: "", revision: "r" }), code: "invalid_field_type", path: "/baseline/outcome" },
+    {
+      baseline: JSON.stringify({ outcome: "send", revision: "r", agrees: true }),
+      code: "unknown_field",
+      path: "/baseline/agrees",
+    },
+    { baseline: JSON.stringify("send"), code: "invalid_field_type", path: "/baseline" },
+  ];
+  for (const row of rows) {
+    const failure = failureOf(() =>
+      nativeCreateRunState(
+        definitionText,
+        caseReference,
+        TRACE_PROFILE,
+        "rejected-run",
+        "shadow",
+        1,
+        row.baseline,
+      ),
+    );
+    expect(failure.code, row.baseline).toBe(row.code);
+    expect(failure.fieldPath, row.baseline).toBe(row.path);
+  }
 });
 
 test("numbers and strings keep their behavior across the boundary", () => {

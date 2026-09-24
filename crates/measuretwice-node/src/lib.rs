@@ -539,6 +539,12 @@ pub struct RunState {
 /// The case reference may state one optional host snapshot reference, which
 /// the frozen report records for replay; it is provenance, not case
 /// identity, and no raw case content crosses.
+///
+/// The optional baseline text states one shadow baseline: the existing
+/// decision of the host recorded beside the new outcome. The parser of the
+/// run report contract owns its rules, and the state boundary refuses one
+/// baseline in enforcement mode or outside its bounds before any attempt
+/// starts.
 #[napi]
 pub fn create_run_state(
     definition_text: String,
@@ -547,6 +553,7 @@ pub fn create_run_state(
     run_id: String,
     mode: String,
     max_attempts: f64,
+    baseline_text: Option<String>,
 ) -> Result<RunState, napi::Error> {
     let validated = lift(definition::validate_definition_str(&definition_text))?;
     let case_reference = case_reference(&case_reference_text)?;
@@ -568,6 +575,13 @@ pub fn create_run_state(
             "The attempt limit must be a whole number from 1 to 4294967295.",
         )));
     }
+    let baseline = match &baseline_text {
+        None => None,
+        Some(text) => {
+            let value = strict(text)?;
+            Some(lift(report::parse_baseline(&value, "/baseline"))?)
+        }
+    };
     let limits = run_state::RunLimits {
         max_attempts: max_attempts as u32,
     };
@@ -577,6 +591,7 @@ pub fn create_run_state(
         profile_reference,
         run_id,
         mode,
+        baseline,
         limits,
     ))?;
     Ok(RunState { inner })

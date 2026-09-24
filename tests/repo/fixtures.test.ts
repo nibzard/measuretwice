@@ -1277,6 +1277,56 @@ test("the aggregate table follows the fixed order and the samples cover every ou
   expect([...completions].sort()).toEqual(["cancelled", "completed", "deadline_exceeded"]);
 });
 
+test("baseline rows state the shadow baseline rules", () => {
+  const doc = loadJson("reports/outcomes.json") as Record<string, Json | undefined>;
+  const group = doc.baselines as Record<string, Json | undefined>;
+  expect(group).toBeDefined();
+  const valid = asObjects(group.valid);
+  const invalid = asObjects(group.invalid);
+  expect(valid.length).toBeGreaterThanOrEqual(3);
+  expect(invalid.length).toBeGreaterThanOrEqual(5);
+
+  const materialized = (row: Record<string, Json>): Record<string, Json> => {
+    const baseline = row.baseline as Record<string, Json>;
+    const note = String(row.note);
+    const copy: Record<string, Json> = { ...baseline };
+    if (note.includes("o64")) copy.outcome = "o".repeat(64);
+    if (note.includes("o65")) copy.outcome = "o".repeat(65);
+    if (note.includes("r128")) copy.revision = "r".repeat(128);
+    if (note.includes("r129")) copy.revision = "r".repeat(129);
+    return copy;
+  };
+
+  for (const row of valid) {
+    const baseline = materialized(row);
+    // Two bounded string fields are the whole record. The host keeps its own
+    // decision vocabulary, and no row adds one derived field.
+    expect(Object.keys(baseline).sort(), String(row.note)).toEqual(["outcome", "revision"]);
+    expect(String(baseline.outcome).length, String(row.note)).toBeGreaterThanOrEqual(1);
+    expect(String(baseline.outcome).length, String(row.note)).toBeLessThanOrEqual(64);
+    expect(String(baseline.revision).length, String(row.note)).toBeGreaterThanOrEqual(1);
+    expect(String(baseline.revision).length, String(row.note)).toBeLessThanOrEqual(128);
+  }
+
+  const forbiddenFields = new Set<string>();
+  for (const row of invalid) {
+    const baseline = row.baseline as Record<string, Json>;
+    const code = row.reason_code as string;
+    const path = row.field_path as string;
+    expect(REASON_CODES.has(code), `${code} is one registry code`).toBe(true);
+    expect(path.startsWith("/baseline"), String(row.note)).toBe(true);
+    const extra = Object.keys(baseline).find(
+      (key) => key !== "outcome" && key !== "revision" && path === `/baseline/${key}`,
+    );
+    if (extra !== undefined) {
+      forbiddenFields.add(extra);
+    }
+  }
+  // The injected fields that the contract refuses name one agreement claim or
+  // one authorization, never one identity field.
+  expect([...forbiddenFields].sort()).toEqual(["agrees", "authorized"]);
+});
+
 test("case reference rows state the private-data defaults", () => {
   const doc = loadJson("reports/outcomes.json") as Record<string, Json | undefined>;
   const group = doc.case_references as Record<string, Json | undefined>;

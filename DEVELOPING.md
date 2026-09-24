@@ -809,6 +809,81 @@ formats, the canary rule, every rejection, the exploration profile
 without measured numbers, and the shared insufficient-evidence
 calibration profile.
 
+Decided in T038: one shadow run records the new outcome beside the
+existing decision, and the existing decision path stays untouched. The
+host states what its own path decided through the `baseline` option of
+`run` (`{ outcome, revision }`), the Rust core validates it at run
+creation through the same parser that owns the run report contract, and
+every terminal report records it under `baseline` exactly as stated,
+beside the aggregate that the component records produced. Three rules
+keep the two facts separate. First, the baseline is shadow-mode data: an
+enforcement run holds no existing decision, so one offered baseline
+fails with `invalid_field_type` at `/baseline` before any work starts,
+exactly as one baseline outside its bounds does. Second, the baseline
+keeps the vocabulary of the host decision path, because the library
+cannot know what one host decision means, so `outcome` stays one free
+bounded string and `revision` names the decision path. Third, the report
+computes no agreement, states no accuracy, and holds no field that
+combines the two outcomes: baseline agreement is one more observation,
+never one correctness claim, so the host compares the two recorded
+values itself when it reviews disagreements. `measuretwice_core::
+report::Baseline::validate_for_mode` owns the rules for both the
+builder and the parse path, `measuretwice_core::run_state::RunState`
+carries the baseline beside the run binding and stamps it into the
+frozen report at the terminal event, and `createRunState` gained the
+optional baseline text, so the later Python wrapper reuses the same
+boundary. The suite `packages/measuretwice/test/shadow.test.ts` drives
+one host decision path through the public `run`: one pass, one fail, one
+review, one operational error, one queue-full skip, and one cancellation
+each leave the existing decision, its revision, and the host actions
+untouched; the same case under two baselines measures identically; the
+malformed baselines refuse before any scripted evaluator runs; and the
+enforcement refusal fires under one selected, qualified, exact profile.
+`fixtures/reports/outcomes.json` grew the `baselines` group (four valid
+rows with the two bound limits, eight invalid rows: two missing fields,
+two unknown report data fields, one empty, two overlong, one mistyped),
+and the Rust integration suite and `tests/repo/fixtures.test.ts` run
+every row.
+
+The host integration follows three rules of the same decision. First,
+`run` is one awaited call: it holds its caller until the run reaches one
+terminal state, so one shadow call inside one request path adds the
+complete run duration to that request. The added latency is observable
+(`timing.queued_ms` and `timing.execution_ms` per check record) and
+bounded above by `execution.deadline_ms` of the profile, because the
+total deadline ends the run with one explicit `deadline_exceeded`
+report; the shadow suite pins both. Second, the library starts no
+detached job, owns no background scheduler, and leaves no armed wake-up
+behind one resolved call, so nonblocking shadow work runs through one
+durable queue that the host already owns: the host enqueues the case
+with its baseline and its decision revision, one queue worker of the
+host loads the reviewer once and awaits `run`, and the host persists the
+returned report next to the queued decision. The wrapper holds nothing
+between two awaited calls, so one host worker owns the complete
+lifecycle. Third, delivery, permissions, storage, and every other
+application action stay outside the library: the public surface exports
+no such operation, the file access of `load` stays read-only, and the
+report holds no field that could carry one authorization.
+
+One host worker that keeps the shadow call off the request path:
+
+```ts
+// Host code. The queue, the storage, and the delivery stay host territory.
+const reviewer = await load(intervention, {
+  profile: ".measuretwice/profiles/intervention.json",
+  evaluators,
+});
+
+async function shadowWorker(job: QueueJob): Promise<void> {
+  // The request path already decided and enqueued its decision.
+  const report = await reviewer.run(
+    { id: job.caseId, input: job.caseInput },
+    { mode: "shadow", baseline: { outcome: job.decision, revision: job.decisionRevision } },
+  );
+  await storeReport(job.caseId, report); // Host storage.
+}
+```
+
 ## Generated files
 
 `git` ignores the generated output: `target/`, `node_modules/`, `dist/`,

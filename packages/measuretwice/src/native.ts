@@ -308,7 +308,14 @@ export function nativeSplitHash(recordsText: string): string {
   return call(() => binding.splitHash(recordsText));
 }
 
-/** Starts one run of one case through the core state boundary. */
+/**
+ * Starts one run of one case through the core state boundary.
+ *
+ * The optional baseline text states one shadow baseline: the existing
+ * decision of the host and the revision of its decision path. The core
+ * validates it against the run report contract and refuses one baseline that
+ * reaches an enforcement run or breaks its bounds, before any work starts.
+ */
 export function nativeCreateRunState(
   definitionText: string,
   caseReferenceText: string,
@@ -316,6 +323,7 @@ export function nativeCreateRunState(
   runId: string,
   mode: string,
   maxAttempts: number,
+  baselineText: string | null,
 ): RunState {
   return call(() =>
     binding.createRunState(
@@ -325,6 +333,7 @@ export function nativeCreateRunState(
       runId,
       mode,
       maxAttempts,
+      baselineText,
     ),
   );
 }

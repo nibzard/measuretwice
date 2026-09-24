@@ -57,7 +57,7 @@
 use crate::definition::ValidatedDefinition;
 use crate::error::{ReasonCode, ValidationError};
 use crate::report::{
-    ArtifactReference, CaseReference, CheckRecord, Completion, CompletionStatus, Outcome,
+    ArtifactReference, Baseline, CaseReference, CheckRecord, Completion, CompletionStatus, Outcome,
     ProfileReference, RecordKind, ReportBuilder, RunMode, RunReport, SanitizedReason,
 };
 use crate::rule::AppliedRule;
@@ -208,6 +208,9 @@ struct CheckSlot {
 ///
 /// 1. Construct with [`RunState::new`] at submit. The run binding, the case
 ///    reference plus the profile reference, is fixed here and never changes.
+///    The shadow baseline of the run is fixed here too. It is report data,
+///    recorded beside the new outcome at the terminal event, and no
+///    transition reads it.
 /// 2. The wrapper starts attempts with [`RunState::start_attempt`], offering
 ///    the binding of the attempt. The boundary refuses a drifted offer.
 /// 3. The wrapper resolves each attempt with [`RunState::accept_result`],
@@ -237,6 +240,8 @@ pub struct RunState {
     profile: ProfileReference,
     /// The case binding of the run.
     case: CaseReference,
+    /// The shadow baseline of the run, present when the host stated one.
+    baseline: Option<Baseline>,
     /// The effective execution limits.
     limits: RunLimits,
     /// The frozen report, present after the terminal transition.
@@ -248,19 +253,26 @@ impl RunState {
     ///
     /// The check set comes from the definition, so the run cannot lose or
     /// invent a check. The run binding is the `case` reference plus the
-    /// `profile` reference, and every accepted attempt repeats it.
+    /// `profile` reference, and every accepted attempt repeats it. The
+    /// optional `baseline` records the existing decision of the host beside
+    /// the new outcome. It is shadow-mode data, and the boundary validates it
+    /// here, so one broken baseline refuses the run before any attempt
+    /// starts.
     ///
     /// # Errors
     ///
     /// Returns a [`ValidationError`] when the run identifier breaks its
-    /// bound, when the attempt limit is zero, or when a reference breaks its
-    /// contract rule.
+    /// bound, when the attempt limit is zero, when a reference breaks its
+    /// contract rule, or when the baseline reaches the run in enforcement
+    /// mode or outside its bounds.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         definition: &ValidatedDefinition,
         case: CaseReference,
         profile: ProfileReference,
         run_id: impl Into<String>,
         mode: RunMode,
+        baseline: Option<Baseline>,
         limits: RunLimits,
     ) -> Result<Self, ValidationError> {
         limits.validate()?;
@@ -273,6 +285,7 @@ impl RunState {
         }
         case.validate("/case")?;
         profile.validate("/profile")?;
+        Baseline::validate_for_mode(mode, baseline.as_ref())?;
 
         let mut slots = Vec::new();
         for (check, kind) in definition
@@ -305,6 +318,7 @@ impl RunState {
             definition: ArtifactReference::for_definition(definition),
             profile,
             case,
+            baseline,
             limits,
             report: None,
         })
@@ -325,6 +339,15 @@ impl RunState {
     /// this identity and this content hash.
     pub fn binding_profile(&self) -> &ProfileReference {
         &self.profile
+    }
+
+    /// Returns the shadow baseline of the run, when the host stated one.
+    ///
+    /// The baseline records the existing decision beside the new outcome. No
+    /// transition reads it, and it changes no record, so the run outcome and
+    /// the baseline stay two separate facts of one report.
+    pub fn baseline(&self) -> Option<&Baseline> {
+        self.baseline.as_ref()
     }
 
     /// Returns the effective execution limits of the run.
@@ -809,6 +832,12 @@ impl RunState {
             self.case.clone(),
             completion,
         );
+        if let Some(baseline) = &self.baseline {
+            // The existing decision of the host crosses the report exactly as
+            // the host stated it. The new outcome sits in the aggregate and
+            // the component records, so the two facts never merge.
+            builder = builder.baseline(baseline.clone());
+        }
         for record in &records {
             builder = builder.check(record.clone());
         }
@@ -908,6 +937,7 @@ mod tests {
     use super::*;
     use crate::definition;
     use crate::error::ReasonCode;
+    use crate::report;
     use serde_json::json;
 
     /// One validated definition with one rule check and one question check,
@@ -1001,6 +1031,22 @@ mod tests {
             profile,
             "state-000001",
             RunMode::Shadow,
+            None,
+            RunLimits { max_attempts },
+        )
+        .expect("the run state constructs")
+    }
+
+    /// One running shadow state that records one existing decision.
+    fn shadow_state(max_attempts: u32, baseline: report::Baseline) -> RunState {
+        let (case, profile) = binding();
+        RunState::new(
+            &definition(),
+            case,
+            profile,
+            "state-000001",
+            RunMode::Shadow,
+            Some(baseline),
             RunLimits { max_attempts },
         )
         .expect("the run state constructs")
@@ -1618,6 +1664,7 @@ mod tests {
             profile.clone(),
             "",
             RunMode::Shadow,
+            None,
             RunLimits { max_attempts: 1 },
         )
         .expect_err("the empty run identifier was accepted");
@@ -1629,6 +1676,7 @@ mod tests {
             profile.clone(),
             "state-000001",
             RunMode::Shadow,
+            None,
             RunLimits { max_attempts: 0 },
         )
         .expect_err("the zero attempt limit was accepted");
@@ -1642,10 +1690,157 @@ mod tests {
             profile,
             "state-000001",
             RunMode::Shadow,
+            None,
             RunLimits { max_attempts: 1 },
         )
         .expect_err("the broken case reference was accepted");
         assert_eq!(error.field_path, "/case/input_hash", "{error}");
+    }
+
+    #[test]
+    fn one_baseline_reaches_every_terminal_report_unchanged() {
+        let (case, profile) = binding();
+        let baseline = report::Baseline {
+            outcome: "send".to_owned(),
+            revision: "policy-2026-03".to_owned(),
+        };
+
+        // The completed run records the baseline beside the new outcome, and
+        // the two facts stay separate fields of one report.
+        let mut run = shadow_state(1, baseline.clone());
+        assert_eq!(run.baseline(), Some(&baseline));
+        run.start_attempt("summary-length", &case, &profile)
+            .expect("the rule attempt starts");
+        run.accept_result("summary-length", rule_record(Outcome::Pass))
+            .expect("the rule result is accepted");
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the question attempt starts");
+        run.accept_result("notice-question", question_record(Outcome::Fail))
+            .expect("the question result is accepted");
+        run.complete(None).expect("the run completes");
+        let report = run.report().expect("the terminal report exists");
+        assert_eq!(
+            report.baseline(),
+            Some(&report::Baseline {
+                outcome: "send".to_owned(),
+                revision: "policy-2026-03".to_owned(),
+            })
+        );
+        // The new outcome stays the aggregate of the component records. The
+        // baseline changes no record and no aggregate.
+        assert_eq!(report.aggregate(), crate::report::AggregateOutcome::Fail);
+        assert_eq!(report.checks()[1].outcome, Outcome::Fail);
+
+        // The cancelled and deadline reports carry the same baseline beside
+        // their own terminal records.
+        let mut cancelled = shadow_state(1, baseline.clone());
+        cancelled
+            .start_attempt("notice-question", &case, &profile)
+            .expect("the attempt starts");
+        cancelled.cancel(None).expect("the run cancels");
+        let cancelled_report = cancelled.report().expect("the terminal report exists");
+        assert_eq!(cancelled_report.baseline(), Some(&baseline));
+        assert_eq!(
+            cancelled_report.checks()[1].outcome,
+            Outcome::Error,
+            "the shadow baseline kept one error out of the decision path"
+        );
+
+        let mut deadline = shadow_state(1, baseline.clone());
+        deadline
+            .start_attempt("notice-question", &case, &profile)
+            .expect("the attempt starts");
+        deadline.deadline(None).expect("the deadline ends the run");
+        assert_eq!(
+            deadline
+                .report()
+                .expect("the terminal report exists")
+                .baseline(),
+            Some(&baseline)
+        );
+
+        // One run without one baseline states no field.
+        let mut plain = state(1);
+        plain
+            .start_attempt("notice-question", &case, &profile)
+            .expect("the attempt starts");
+        plain.cancel(None).expect("the run cancels");
+        assert_eq!(
+            plain
+                .report()
+                .expect("the terminal report exists")
+                .baseline(),
+            None
+        );
+    }
+
+    #[test]
+    fn one_baseline_is_refused_before_any_attempt_starts() {
+        let definition = definition();
+        let (case, profile) = binding();
+
+        // The baseline is shadow-mode data. An enforcement run decides through
+        // its report, so it states no existing decision.
+        let error = RunState::new(
+            &definition,
+            case.clone(),
+            profile.clone(),
+            "state-000001",
+            RunMode::Enforcement,
+            Some(report::Baseline {
+                outcome: "send".to_owned(),
+                revision: "policy-2026-03".to_owned(),
+            }),
+            RunLimits { max_attempts: 1 },
+        )
+        .expect_err("the enforcement baseline was accepted");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/baseline", "{error}");
+
+        // The bounds refuse at construction, before any work starts.
+        for (baseline, path) in [
+            (
+                report::Baseline {
+                    outcome: String::new(),
+                    revision: "policy-2026-03".to_owned(),
+                },
+                "/baseline/outcome",
+            ),
+            (
+                report::Baseline {
+                    outcome: "o".repeat(65),
+                    revision: "policy-2026-03".to_owned(),
+                },
+                "/baseline/outcome",
+            ),
+            (
+                report::Baseline {
+                    outcome: "send".to_owned(),
+                    revision: String::new(),
+                },
+                "/baseline/revision",
+            ),
+            (
+                report::Baseline {
+                    outcome: "send".to_owned(),
+                    revision: "r".repeat(129),
+                },
+                "/baseline/revision",
+            ),
+        ] {
+            let error = RunState::new(
+                &definition,
+                case.clone(),
+                profile.clone(),
+                "state-000001",
+                RunMode::Shadow,
+                Some(baseline),
+                RunLimits { max_attempts: 1 },
+            )
+            .expect_err("the broken baseline was accepted");
+            assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+            assert_eq!(error.field_path, path, "{error}");
+        }
     }
 
     #[test]

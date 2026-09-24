@@ -175,5 +175,112 @@
         "field_path": "/case/api_key"
       }
     ]
+  },
+  "baselines": {
+    "description": "Shadow baseline samples. One baseline records the existing decision of the host and the revision of its decision path beside the new outcome of the run. Agreement with the baseline is not correctness, so no field combines the two outcomes, and the vocabulary of the outcome belongs to the host. One baseline is shadow-mode data: an enforcement report holds none. Size tokens expand as the note of their row states.",
+    "valid": [
+      {
+        "note": "One baseline states the existing decision and the revision of its path.",
+        "baseline": {
+          "outcome": "send",
+          "revision": "policy-2026-03"
+        }
+      },
+      {
+        "note": "One silent baseline keeps the vocabulary of the host decision path. The library records the decision and reads no meaning into it.",
+        "baseline": {
+          "outcome": "silent",
+          "revision": "heuristic-v4"
+        }
+      },
+      {
+        "note": "The longest permitted outcome. The token o64 materializes as 64 repetitions of the character o.",
+        "baseline": {
+          "outcome": "o64",
+          "revision": "policy-2026-03"
+        }
+      },
+      {
+        "note": "The longest permitted revision. The token r128 materializes as 128 repetitions of the character r.",
+        "baseline": {
+          "outcome": "send",
+          "revision": "r128"
+        }
+      }
+    ],
+    "invalid": [
+      {
+        "note": "One baseline without an outcome states no existing decision.",
+        "baseline": {
+          "revision": "policy-2026-03"
+        },
+        "reason_code": "missing_field",
+        "field_path": "/baseline/outcome"
+      },
+      {
+        "note": "One baseline without a revision names no decision path.",
+        "baseline": {
+          "outcome": "send"
+        },
+        "reason_code": "missing_field",
+        "field_path": "/baseline/revision"
+      },
+      {
+        "note": "One agreement or correctness field is unknown report data. The report never combines the baseline with the new outcome.",
+        "baseline": {
+          "outcome": "send",
+          "revision": "policy-2026-03",
+          "agrees": true
+        },
+        "reason_code": "unknown_field",
+        "field_path": "/baseline/agrees"
+      },
+      {
+        "note": "One authorization field is unknown report data. A report authorizes no application action.",
+        "baseline": {
+          "outcome": "send",
+          "revision": "policy-2026-03",
+          "authorized": true
+        },
+        "reason_code": "unknown_field",
+        "field_path": "/baseline/authorized"
+      },
+      {
+        "note": "One empty outcome states no existing decision.",
+        "baseline": {
+          "outcome": "",
+          "revision": "policy-2026-03"
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/baseline/outcome"
+      },
+      {
+        "note": "One outcome above the bound could carry decision content. The token o65 materializes as 65 repetitions of the character o.",
+        "baseline": {
+          "outcome": "o65",
+          "revision": "policy-2026-03"
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/baseline/outcome"
+      },
+      {
+        "note": "One revision above the bound is refused. The token r129 materializes as 129 repetitions of the character r.",
+        "baseline": {
+          "outcome": "send",
+          "revision": "r129"
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/baseline/revision"
+      },
+      {
+        "note": "The existing decision must be one string.",
+        "baseline": {
+          "outcome": 7,
+          "revision": "policy-2026-03"
+        },
+        "reason_code": "invalid_field_type",
+        "field_path": "/baseline/outcome"
+      }
+    ]
   }
 }

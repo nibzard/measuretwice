@@ -102,6 +102,7 @@ function prepare(
     runId,
     "shadow",
     config.max_attempts,
+    null,
   );
   const ruleRecords = new Map(
     nativeAssessRuleChecks(definitionText, caseText).map((result) => [

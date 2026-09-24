@@ -196,8 +196,13 @@ sanitized reason for error and skipped outcomes. Default explanations come from
 check criteria and the executed policy, not from an invented evaluator rationale.
 
 In shadow mode, `baseline` records the existing decision and its revision next
-to the new outcome. Baseline agreement is not correctness. A pass never
-authorizes an application action. The host consumes the report and decides.
+to the new outcome. Baseline agreement is not correctness. The baseline keeps
+the vocabulary of the host decision path, the report computes no agreement, and
+no field combines the two outcomes. A baseline is shadow-mode data: an
+enforcement run states none, and one offered at run creation fails with
+`invalid_field_type` at `/baseline` before any work starts, as one baseline
+outside its bounds does. A pass never authorizes an application action. The
+host consumes the report and decides.
 
 ### Private data defaults
 

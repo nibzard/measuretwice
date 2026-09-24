@@ -25,7 +25,9 @@
  * `renderRunReport`, `renderRunReportMarkdown`, `renderProfileSummary`, and
  * `renderProfileSummaryMarkdown` turn one frozen report or one profile
  * artifact into terminal text or Markdown, with one summary view and one
- * detailed view. The public operations
+ * detailed view. One shadow run states the existing decision of the host
+ * through the `baseline` option of `run`, and the report records it beside
+ * the new outcome without merging the two facts. The public operations
  * `calibrate`, `evaluate`, and `compare` are specified in MVP_SPEC.md and
  * arrive with their tasks.
  *
@@ -145,6 +147,7 @@ export type {
   RunOptions,
   RunReport,
   SanitizedReason,
+  ShadowBaseline,
 } from "./run.js";
 export {
   renderProfileSummary,

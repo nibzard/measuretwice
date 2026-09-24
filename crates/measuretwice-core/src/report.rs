@@ -764,6 +764,62 @@ pub struct Baseline {
     pub revision: String,
 }
 
+impl Baseline {
+    /// Checks this baseline against its contract bounds.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ValidationError`] with `invalid_field_type` when the
+    /// outcome holds no character or more than 64, or the revision holds no
+    /// character or more than 128.
+    pub fn validate(&self, base: &str) -> Result<(), ValidationError> {
+        if self.outcome.is_empty() || self.outcome.chars().count() > 64 {
+            return Err(ValidationError::invalid_field_type(
+                format!("{base}/outcome"),
+                "The baseline outcome must hold 1 to 64 characters.",
+            ));
+        }
+        if self.revision.is_empty() || self.revision.chars().count() > 128 {
+            return Err(ValidationError::invalid_field_type(
+                format!("{base}/revision"),
+                "The baseline revision must hold 1 to 128 characters.",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Checks one baseline against the run mode that received it, then
+    /// against its bounds.
+    ///
+    /// A baseline is shadow-mode data: it records the existing decision of
+    /// the host beside the new outcome of the run. An enforcement run decides
+    /// through its report, so it holds no existing decision to record, and
+    /// the refusal keeps one field from carrying two different meanings.
+    /// Validation happens here, so a run refuses one broken baseline before
+    /// any attempt starts.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ValidationError`] with `invalid_field_type` at
+    /// `/baseline` when the mode is enforcement, and one through
+    /// [`Baseline::validate`] when the baseline breaks its bounds.
+    pub fn validate_for_mode(
+        mode: RunMode,
+        baseline: Option<&Baseline>,
+    ) -> Result<(), ValidationError> {
+        let Some(baseline) = baseline else {
+            return Ok(());
+        };
+        if mode == RunMode::Enforcement {
+            return Err(ValidationError::invalid_field_type(
+                "/baseline",
+                "A baseline is shadow-mode data. An enforcement run states no existing decision beside its outcome.",
+            ));
+        }
+        baseline.validate("/baseline")
+    }
+}
+
 /// Reference to one artifact by stable name and canonical content hash.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ArtifactReference {
@@ -1112,20 +1168,7 @@ impl RunReport {
         definition.validate("/definition")?;
         profile.validate("/profile")?;
         case.validate("/case")?;
-        if let Some(baseline) = &baseline {
-            if baseline.outcome.is_empty() || baseline.outcome.chars().count() > 64 {
-                return Err(ValidationError::invalid_field_type(
-                    "/baseline/outcome",
-                    "The baseline outcome must hold 1 to 64 characters.",
-                ));
-            }
-            if baseline.revision.is_empty() || baseline.revision.chars().count() > 128 {
-                return Err(ValidationError::invalid_field_type(
-                    "/baseline/revision",
-                    "The baseline revision must hold 1 to 128 characters.",
-                ));
-            }
-        }
+        Baseline::validate_for_mode(mode, baseline.as_ref())?;
         if checks.is_empty() {
             return Err(ValidationError::new(
                 ReasonCode::EmptyCheckSet,
@@ -1916,7 +1959,15 @@ pub fn parse_case_reference(
 }
 
 /// Parses one shadow baseline at `base`.
-fn parse_baseline(value: &Value, base: &str) -> Result<Baseline, ValidationError> {
+///
+/// The boundary of a run reads one offered baseline through this parser, so
+/// the run report contract owns every rule: two string fields inside their
+/// bounds, and no other field.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the value breaks the baseline contract.
+pub fn parse_baseline(value: &Value, base: &str) -> Result<Baseline, ValidationError> {
     let map = expect_object(value, base)?;
     reject_unknown_fields(map, &["outcome", "revision"], base)?;
     let outcome = parse_bounded_string(
@@ -2598,6 +2649,51 @@ mod tests {
         );
         assert_eq!(serialized["aggregate"]["outcome"], "pass");
         assert!(serialized["aggregate"].get("explanation").is_none());
+    }
+
+    #[test]
+    fn a_baseline_records_the_existing_decision_without_merging_it() {
+        let report = builder(&[Outcome::Pass])
+            .baseline(Baseline {
+                outcome: "reject".to_owned(),
+                revision: "heuristic-v4".to_owned(),
+            })
+            .finish()
+            .expect("the report finishes");
+        // The two outcomes stay two fields. The new outcome comes from the
+        // component records, the existing decision from the host, and the
+        // report states no agreement, no accuracy, and no correctness.
+        assert_eq!(report.aggregate(), AggregateOutcome::Pass);
+        assert_eq!(
+            report.baseline(),
+            Some(&Baseline {
+                outcome: "reject".to_owned(),
+                revision: "heuristic-v4".to_owned(),
+            })
+        );
+        let serialized = serde_json::to_value(&report).expect("the report serializes");
+        for forbidden in ["agrees", "agreement", "accuracy", "correct", "correctness"] {
+            assert!(
+                serialized["baseline"].get(forbidden).is_none(),
+                "the baseline states {forbidden}"
+            );
+        }
+
+        // One baseline that reaches an enforcement report is refused at the
+        // assembly boundary, so one stored report cannot blur the two modes.
+        let enforced = builder(&[Outcome::Pass])
+            .baseline(Baseline {
+                outcome: "reject".to_owned(),
+                revision: "heuristic-v4".to_owned(),
+            })
+            .finish()
+            .expect("the report finishes");
+        assert_eq!(enforced.mode(), RunMode::Shadow);
+        let mut stored = serde_json::to_value(&enforced).expect("the report serializes");
+        stored["mode"] = json!("enforcement");
+        let error = parse_run_report(&stored).expect_err("the enforcement baseline was accepted");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/baseline", "{error}");
     }
 
     #[test]
