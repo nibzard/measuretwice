@@ -1,0 +1,16 @@
+# Context
+
+## Background
+Batch commit of tasks T041-T043 and T045-T048, split out of one
+large working-tree snapshot by layer (Rust core first, then the
+TypeScript package, examples, and docs). The bulk of T049
+(qualification module, fixture, manifest rows) also landed here;
+its finishing tail is in 2945a4a.
+
+## Why This Way
+One task per commit was not possible: shared files (DEVELOPING.md,
+TESTING.md, contract fixtures) were modified by nearly every task,
+so a per-task split could not be recovered from the tree.
+
+## Verification
+cargo test --workspace green (293 lib, 37 integration tests).
