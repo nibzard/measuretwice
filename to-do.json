@@ -458,7 +458,7 @@
         "T006",
         "T009"
       ],
-      "updated_at": "2026-09-24T00:30:24Z",
+      "updated_at": "2026-09-24T00:31:22Z",
       "files": [
         "Cargo.toml",
         "DEVELOPING.md",
@@ -473,7 +473,7 @@
       "id": "T013",
       "title": "Implement the exact string rules",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Implement maxLength, includes, and excludes on one string input. Exact rules need no statistical calibration. Sources: MVP_SPEC.md sections 4-5.",
       "steps": [
         "Write boundary tests for each rule using the specified Unicode length and matching semantics.",
@@ -491,6 +491,16 @@
         "T003",
         "T010",
         "T011"
+      ],
+      "updated_at": "2026-09-24T00:40:46Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/definition.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/rule.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "to-do.json"
       ]
     },
     {

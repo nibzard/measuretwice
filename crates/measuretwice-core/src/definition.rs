@@ -47,10 +47,6 @@ const CHECK_FIELDS: &[&str] = &[
     "id", "name", "using", "question", "answers", "scale", "accept", "review", "rule",
 ];
 
-/// Highest safe integer, 2^53 minus 1. The hashing contract fixes this bound
-/// for a `maxLength` parameter.
-const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
-
 /// The one documented uncertainty behavior in v0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -894,6 +890,8 @@ fn as_label_selection(
 }
 
 /// Parses the `rule` field: exactly one rule keyword with a valid parameter.
+/// The parameter itself passes through [`rule::parse_rule_parameter`], the
+/// one authority for rule parameter validity.
 fn parse_rule(value: Option<&Value>, base: &str) -> Result<Option<Rule>, ValidationError> {
     let path = format!("{base}/rule");
     let Some(Value::Object(map)) = value else {
@@ -912,49 +910,7 @@ fn parse_rule(value: Option<&Value>, base: &str) -> Result<Option<Rule>, Validat
         ));
     }
     let (keyword, parameter) = map.iter().next().expect("one property");
-    match keyword.as_str() {
-        "maxLength" => match parameter {
-            Value::Number(number) if number.is_u64() => {
-                let bound = number.as_u64().expect("checked");
-                if bound <= MAX_SAFE_INTEGER {
-                    Ok(Some(Rule::MaxLength { max_length: bound }))
-                } else {
-                    Err(ValidationError::invalid_field_type(
-                        format!("{path}/maxLength"),
-                        "The maxLength bound must stay at 2^53 minus 1 or below.",
-                    ))
-                }
-            }
-            _ => Err(ValidationError::invalid_field_type(
-                format!("{path}/maxLength"),
-                "The maxLength bound must be a nonnegative integer.",
-            )),
-        },
-        "includes" => Ok(Some(Rule::Includes {
-            includes: rule_text(parameter, &format!("{path}/includes"))?,
-        })),
-        "excludes" => Ok(Some(Rule::Excludes {
-            excludes: rule_text(parameter, &format!("{path}/excludes"))?,
-        })),
-        other => Err(ValidationError::invalid_field_type(
-            path,
-            format!(
-                "The rule keyword {} is outside the contract. State maxLength, includes, or excludes.",
-                fragment(other)
-            ),
-        )),
-    }
-}
-
-/// Reads one nonempty rule parameter of at most 1000 characters.
-fn rule_text(value: &Value, path: &str) -> Result<String, ValidationError> {
-    match value {
-        Value::String(text) if !text.is_empty() && text.chars().count() <= 1000 => Ok(text.clone()),
-        _ => Err(ValidationError::invalid_field_type(
-            path,
-            "The rule parameter must hold 1 to 1000 characters.",
-        )),
-    }
+    crate::rule::parse_rule_parameter(keyword, parameter, &path).map(Some)
 }
 
 /// Reads one required-or-optional bounded string field.
@@ -1012,6 +968,7 @@ fn is_label(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rule::MAX_SAFE_INTEGER;
     use serde_json::json;
 
     fn minimal_definition() -> Value {

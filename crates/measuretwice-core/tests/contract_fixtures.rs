@@ -13,7 +13,7 @@ use measuretwice_core::definition::{CheckKind, WhenUncertain};
 use measuretwice_core::error::ReasonCode;
 use measuretwice_core::hashing::{self, Domain};
 use measuretwice_core::testing::SplitMix64;
-use measuretwice_core::{case, definition, json};
+use measuretwice_core::{case, definition, json, rule};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
@@ -408,6 +408,93 @@ fn hashing_canonical_fixtures_match_forms_and_digests() {
     ] {
         assert!(domains.contains(tag), "no fixture record covers {tag}");
     }
+}
+
+#[test]
+fn string_rule_records_match_their_outcomes_and_lengths() {
+    let document = fixture_document("hashing/string-rules.json");
+    let records = document["string_rules"].as_array().expect("a record array");
+    assert!(records.len() >= 20, "the fixture group lost records");
+
+    let mut keywords: BTreeSet<&str> = BTreeSet::new();
+    for record in records {
+        let note = record["note"].as_str().expect("a note");
+        let keyword = record["rule"].as_str().expect("a keyword");
+        keywords.insert(keyword);
+        let rule = rule::parse_rule_parameter(keyword, &record["parameter"], "/rule")
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let outcome = rule::assess_rule(&rule, &record["input"])
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(
+            outcome.as_str(),
+            record["outcome"].as_str().expect("an outcome"),
+            "{note}"
+        );
+        // A maxLength record also pins the code point count of its input.
+        if let Some(length) = record.get("length") {
+            let Value::String(text) = &record["input"] else {
+                panic!("{note}: the rule input is not a string");
+            };
+            assert_eq!(
+                rule::code_point_length(text),
+                length.as_u64().expect("a length"),
+                "{note}"
+            );
+        }
+    }
+    for keyword in ["maxLength", "includes", "excludes"] {
+        assert!(keywords.contains(keyword), "no record covers {keyword}");
+    }
+}
+
+#[test]
+fn the_exact_rules_definition_assesses_through_its_projections() {
+    let text = fs::read_to_string(fixture("definitions/valid/exact-rules.json")).unwrap();
+    let validated = definition::validate_definition_str(&text).expect("the fixture validates");
+    assert!(validated.is_exact_only(), "the fixture holds rules only");
+
+    let case_text = serde_json::to_string(&serde_json::json!({
+        "id": "case-1",
+        "input": {
+            "summary": "The delivery limit for this summary is eighty characters.",
+            "notice": "One public notice."
+        }
+    }))
+    .expect("the case serializes");
+    let case = case::validate_case_str(&case_text, &validated).expect("the case validates");
+    let results = rule::assess_rule_checks(&case).expect("the rule checks assess");
+    assert_eq!(results.len(), 3);
+
+    // The applied rules match the first two check-record samples of the
+    // outcomes group, which name the same checks in the same order.
+    let outcomes = fixture_document("reports/outcomes.json");
+    let samples = outcomes["check_records"]
+        .as_array()
+        .expect("a record array");
+    for (result, sample) in results.iter().zip(samples.iter().take(2)) {
+        let record = &sample["record"];
+        let serialized = serde_json::to_value(result).expect("the result serializes");
+        assert_eq!(serialized["check"], record["check"], "{result:?}");
+        assert_eq!(serialized["kind"], record["kind"], "{result:?}");
+        assert_eq!(
+            serialized["applied_rule"], record["applied_rule"],
+            "{result:?}"
+        );
+    }
+
+    // With this case, every rule passes and names its executed input.
+    let serialized: Vec<Value> = results
+        .iter()
+        .map(|result| serde_json::to_value(result).expect("the result serializes"))
+        .collect();
+    assert_eq!(serialized[0]["outcome"], "pass");
+    assert_eq!(serialized[1]["outcome"], "pass");
+    assert_eq!(serialized[2]["outcome"], "pass");
+    assert_eq!(serialized[2]["applied_rule"]["input"], "notice");
+    assert!(serialized[2]["reason"]
+        .as_str()
+        .expect("a reason")
+        .contains("excluded"));
 }
 
 #[test]

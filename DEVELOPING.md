@@ -138,6 +138,18 @@ canonical forms and hashes. A differential check against Node
 The fixtures in `fixtures/hashing` and the worked examples in
 `contracts/v0/hashing.md` pin every digest.
 
+Decided in T013: `measuretwice_core::rule` implements the exact string
+rules of `contracts/v0/hashing.md` alone. It owns the one length measure,
+Unicode code points, and the one matching relation, containment of a code
+point sequence. `parse_rule_parameter` is the single authority for rule
+parameter validity, and the definition parser in
+`measuretwice_core::definition` calls it, so an authored rule and a directly
+constructed rule pass one gate. Assessment takes a validated projection,
+records the executed rule as the `applied_rule` shape of the run report
+contract, and explains the outcome with a sanitized reason. A rule produces
+`pass` or `fail` and needs no evaluator, no confidence value, and no
+calibration evidence.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

@@ -91,10 +91,10 @@ its runner rule.
   groups that the core owns so far: the valid definition artifacts with
   their check kinds, every definition rejection record, the input
   validation records through the complete case path, the hashing rejection
-  records, the canonical hash fixtures across every domain, the
-  serialization round trips, the TypeBox pair hashes, and the profile
-  self-hash verification. Each validation task adds its own groups when its
-  boundary lands.
+  records, the canonical hash fixtures across every domain, the exact
+  string rule records through the Rust rules, the serialization round
+  trips, the TypeBox pair hashes, and the profile self-hash verification.
+  Each validation task adds its own groups when its boundary lands.
 - Every wrapper runs every group through the Rust core. A wrapper never
   recomputes a rule, a canonical form, or a hash.
 - The same fixtures are mandatory for the later Python SDK. MVP_SPEC.md

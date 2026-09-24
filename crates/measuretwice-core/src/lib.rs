@@ -37,6 +37,8 @@ pub mod hashing;
 pub mod input_schema;
 /// The strict JSON gate for external artifact text.
 pub mod json;
+/// The exact string rules: maxLength, includes, and excludes.
+pub mod rule;
 /// Deterministic test utilities. See the module documentation for the rules.
 pub mod testing;
 
