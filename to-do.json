@@ -1439,15 +1439,15 @@
         "T034",
         "T036"
       ],
-      "updated_at": "2026-09-24T09:42:36Z",
+      "updated_at": "2026-09-24T09:45:50Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
-        "packages/measuretwice/src/render.ts",
         "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/render.ts",
         "packages/measuretwice/src/run.ts",
-        "packages/measuretwice/test/render.test.ts",
         "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/render.test.ts",
         "tests/repo/fixtures.test.ts",
         "to-do.json"
       ]
@@ -1456,7 +1456,7 @@
       "id": "T038",
       "title": "Add shadow reports and host integration behavior",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Record candidate outcomes alongside existing decisions without changing application behavior. Sources: MVP_SPEC.md sections 5, 9-10, 12.",
       "steps": [
         "Accept and record baseline outcome and revision separately from the new report outcome.",
@@ -1475,13 +1475,32 @@
         "T008",
         "T035",
         "T036"
+      ],
+      "updated_at": "2026-09-24T10:41:32Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-core/src/run_state.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "fixtures/README.md",
+        "fixtures/reports/outcomes.json",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/scheduler.test.ts",
+        "packages/measuretwice/test/shadow.test.ts",
+        "tests/repo/fixtures.test.ts"
       ]
     },
     {
       "id": "T039",
       "title": "Load versioned JSONL cases and dataset metadata",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Implement bounded dataset loading with stable case identities and explicit metadata. Sources: MVP_SPEC.md sections 7, 10-11; .measuretwice/README.md.",
       "steps": [
         "Write fixtures for valid records, malformed lines, duplicate IDs, oversized records, and invalid inputs.",
@@ -1501,13 +1520,32 @@
         "T009",
         "T011",
         "T021"
+      ],
+      "updated_at": "2026-09-24T11:07:00Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/dataset.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "fixtures/README.md",
+        "fixtures/datasets/loading.json",
+        "fixtures/manifest.json",
+        "packages/measuretwice/src/dataset.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/dataset.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts"
       ]
     },
     {
       "id": "T040",
       "title": "Validate label provenance and reference meanings",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Keep human judgments distinct from model suggestions and preserve ambiguous reference cases. Sources: MVP_SPEC.md sections 7, 10, 13; .measuretwice/README.md.",
       "steps": [
         "Write tests for human-reviewed labels, agent proposals, missing labels, and conflicting outcome labels.",
@@ -1525,13 +1563,29 @@
       "depends_on": [
         "T010",
         "T039"
+      ],
+      "updated_at": "2026-09-24T11:29:59Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/dataset.rs",
+        "crates/measuretwice-core/src/policy.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "fixtures/README.md",
+        "fixtures/datasets/labels.json",
+        "fixtures/manifest.json",
+        "packages/measuretwice/src/dataset.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/test/dataset-labels.test.ts"
       ]
     },
     {
       "id": "T041",
       "title": "Implement grouped splits and dataset identities",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Separate fitting data from independent validation data and retain sampling assumptions. Sources: MVP_SPEC.md sections 7-8, 10; AGENTS.md section 9.",
       "steps": [
         "Write tests for duplicated cases, group overlap, changed inputs, and deterministic split reproduction.",
@@ -1550,13 +1604,32 @@
         "T012",
         "T039",
         "T040"
+      ],
+      "updated_at": "2026-09-24T12:02:34Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/dataset.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/splits.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "fixtures/README.md",
+        "fixtures/datasets/splits.json",
+        "fixtures/manifest.json",
+        "packages/measuretwice/src/dataset.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/dataset-splits.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts"
       ]
     },
     {
       "id": "T042",
       "title": "Implement evaluation metrics in Rust",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Calculate explicit counts and denominators for individual checks and the complete check set. Sources: MVP_SPEC.md section 10; AGENTS.md section 9.",
       "steps": [
         "Write independent fixtures for confusion matrices, review rate, automatic coverage, and label coverage.",
@@ -1575,13 +1648,25 @@
         "T006",
         "T014",
         "T040"
+      ],
+      "updated_at": "2026-09-24T12:27:25Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/metrics.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/metrics/evaluation.json"
       ]
     },
     {
       "id": "T043",
       "title": "Implement uncertainty intervals with reference fixtures",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Use tested statistical routines with explicit methods, confidence levels, and sampling assumptions. Sources: MVP_SPEC.md sections 7-8, 15.",
       "steps": [
         "Select and document interval methods for the declared error metrics and sampling strategy.",
@@ -1601,13 +1686,32 @@
         "T006",
         "T041",
         "T042"
+      ],
+      "updated_at": "2026-09-24T17:32:09Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/intervals.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/metrics.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/metrics/intervals.json",
+        "packages/measuretwice/src/evaluate.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/evaluate.test.ts",
+        "packages/measuretwice/test/native.test.ts"
       ]
     },
     {
       "id": "T044",
       "title": "Implement the evaluate API",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Run bounded evaluations without changing profile qualification or host selection. Sources: MVP_SPEC.md sections 7, 10-11.",
       "steps": [
         "Write end-to-end tests for partial labels, slices, provider errors, skipped cases, and cancelled evaluations.",
@@ -1629,13 +1733,27 @@
         "T040",
         "T041",
         "T042"
+      ],
+      "updated_at": "2026-09-24T12:53:32Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/metrics.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "packages/measuretwice/src/dataset.ts",
+        "packages/measuretwice/src/evaluate.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/evaluate.test.ts",
+        "packages/measuretwice/test/native.test.ts"
       ]
     },
     {
       "id": "T045",
       "title": "Export shadow cases for human review",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Export disagreements and a reproducible sample of agreements with sampling provenance. Sources: MVP_SPEC.md section 10.",
       "steps": [
         "Write tests for deterministic sampling, missing baselines, baseline passes, and silent baseline decisions.",
@@ -1655,13 +1773,29 @@
         "T039",
         "T040",
         "T041"
+      ],
+      "updated_at": "2026-09-24T13:23:46Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/dataset.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/review.ts",
+        "crates/measuretwice-node/src/lib.rs",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/review.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/review.test.ts"
       ]
     },
     {
       "id": "T046",
       "title": "Compare profiles on matching cases",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Expose quality, coverage, latency, and available cost tradeoffs with actual changed cases. Sources: MVP_SPEC.md sections 8, 10-11.",
       "steps": [
         "Write comparison tests for matching IDs, changed input hashes, missing cases, errors, and skips.",
@@ -1681,13 +1815,29 @@
         "T037",
         "T038",
         "T044"
+      ],
+      "updated_at": "2026-09-24T13:57:24Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/comparison.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/metrics.rs",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "packages/measuretwice/src/compare.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/compare.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/native.test.ts"
       ]
     },
     {
       "id": "T047",
       "title": "Validate versioned calibration plans",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "A plan declares owner-selected goals rather than universal default error tolerances. Sources: MVP_SPEC.md sections 7-8, 11.",
       "steps": [
         "Write invalid-plan tests before implementing Rust validation.",
@@ -1709,13 +1859,27 @@
         "T041",
         "T042",
         "T043"
+      ],
+      "updated_at": "2026-09-24T18:07:28Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/metrics.rs",
+        "crates/measuretwice-core/src/plan.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/plans/validation.json",
+        "tests/repo/fixtures.test.ts"
       ]
     },
     {
       "id": "T048",
       "title": "Fit bounded decision policies in Rust",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Search only the permitted candidate family using development data. Sources: MVP_SPEC.md sections 6-8.",
       "steps": [
         "Write fixtures with known feasible candidates, ties, conflicting goals, and no feasible candidate.",
@@ -1735,13 +1899,26 @@
         "T042",
         "T043",
         "T047"
+      ],
+      "updated_at": "2026-09-24T18:37:55Z",
+      "files": [
+        "TESTING.md",
+        "crates/measuretwice-core/src/dataset.rs",
+        "crates/measuretwice-core/src/fitting.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/metrics.rs",
+        "crates/measuretwice-core/src/plan.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "fixtures/README.md",
+        "fixtures/fitting/search.json",
+        "fixtures/manifest.json"
       ]
     },
     {
       "id": "T049",
       "title": "Qualify frozen candidates on independent data",
       "priority": 3,
-      "status": "todo",
+      "status": "doing",
       "details": "Compute qualification for the declared scope after candidate selection is frozen. Sources: MVP_SPEC.md sections 7-8; AGENTS.md sections 7, 9.",
       "steps": [
         "Write tests for all qualification states, small samples, empty slices, unsupported sampling, and unmet goals.",
@@ -1763,7 +1940,8 @@
         "T044",
         "T047",
         "T048"
-      ]
+      ],
+      "updated_at": "2026-09-24T18:39:18Z"
     },
     {
       "id": "T050",
@@ -1881,7 +2059,7 @@
       "id": "T054",
       "title": "Implement CLI parsing and JSON file handling",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "The CLI consumes explicit JSON data files and the .measuretwice convention. Sources: MVP_SPEC.md section 11; .measuretwice/README.md.",
       "steps": [
         "Define command parsing, help text, output formats, exit behavior, and explicit file paths.",
@@ -1901,13 +2079,23 @@
         "T021",
         "T036",
         "T039"
+      ],
+      "updated_at": "2026-09-24T14:21:43Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/src/cli-files.ts",
+        "packages/measuretwice/src/cli.ts",
+        "packages/measuretwice/test/cli-files.test.ts",
+        "packages/measuretwice/test/cli.test.ts"
       ]
     },
     {
       "id": "T055",
       "title": "Add validate, run, and inspect commands",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Expose the first CLI workflow with readable summaries and numerical detail on request. Sources: MVP_SPEC.md section 11; mvp-guide.html.",
       "steps": [
         "Implement validate for exported JSON definitions without provider calls.",
@@ -1927,6 +2115,15 @@
         "T037",
         "T038",
         "T054"
+      ],
+      "updated_at": "2026-09-24T14:46:41Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/src/cli-files.ts",
+        "packages/measuretwice/src/cli.ts",
+        "packages/measuretwice/test/cli.test.ts"
       ]
     },
     {
@@ -1986,7 +2183,7 @@
       "id": "T058",
       "title": "Ship the minimal memory support example",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Start public teaching examples with a proposed memory and its supplied original evidence. Sources: MVP_SPEC.md sections 1, 11, 13-14.",
       "steps": [
         "Add a TypeScript and TypeBox definition for whether a proposed memory is supported.",
@@ -2007,13 +2204,28 @@
         "T029",
         "T034",
         "T038"
+      ],
+      "updated_at": "2026-09-24T15:09:03Z",
+      "files": [
+        ".gitignore",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "examples/memory-support/README.md",
+        "examples/memory-support/cases/memory-support.jsonl",
+        "examples/memory-support/cases/memory-support.metadata.json",
+        "examples/memory-support/checks/memory-support.ts",
+        "examples/memory-support/host.ts",
+        "examples/memory-support/tsconfig.json",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/test/example-memory-support.test.ts",
+        "tests/repo/docs.test.ts"
       ]
     },
     {
       "id": "T059",
       "title": "Ship the full intervention review example",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Implement the flagship conflict, support, novelty, and consequence checks without provider details in their definitions. Sources: MVP_SPEC.md sections 4, 9, 13; mvp-guide.html.",
       "steps": [
         "Add the complete TypeBox definition and an optional trusted JSON export script.",
@@ -2035,13 +2247,29 @@
         "T033",
         "T037",
         "T058"
+      ],
+      "updated_at": "2026-09-24T15:32:02Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "examples/intervention-review/README.md",
+        "examples/intervention-review/cases/intervention-review.jsonl",
+        "examples/intervention-review/cases/intervention-review.metadata.json",
+        "examples/intervention-review/checks/intervention.ts",
+        "examples/intervention-review/definitions/intervention-review.json",
+        "examples/intervention-review/export-definition.ts",
+        "examples/intervention-review/host.ts",
+        "examples/intervention-review/tsconfig.json",
+        "examples/memory-support/README.md",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/test/example-intervention-review.test.ts"
       ]
     },
     {
       "id": "T060",
       "title": "Make the existing development checks executable",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Integrate the current draft definitions and 18 synthetic cases without changing their label provenance. Sources: .measuretwice/README.md; MVP_SPEC.md section 13.",
       "steps": [
         "Compile the two existing TypeScript definitions against the implemented public package.",
@@ -2062,13 +2290,33 @@
         "T039",
         "T040",
         "T055"
+      ],
+      "updated_at": "2026-09-24T15:51:53Z",
+      "files": [
+        ".gitignore",
+        ".measuretwice/README.md",
+        ".measuretwice/cases/claim-evidence.jsonl",
+        ".measuretwice/cases/claim-evidence.metadata.json",
+        ".measuretwice/cases/example-contract.jsonl",
+        ".measuretwice/cases/example-contract.metadata.json",
+        ".measuretwice/checks/claim-evidence.ts",
+        ".measuretwice/checks/example-contract.ts",
+        ".measuretwice/definitions/claim-evidence.json",
+        ".measuretwice/definitions/example-contract.json",
+        ".measuretwice/export-definitions.ts",
+        ".measuretwice/jev-shadow.ts",
+        ".measuretwice/tsconfig.json",
+        ".measuretwice/validate.ts",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/test/development-checks.test.ts"
       ]
     },
     {
       "id": "T061",
       "title": "Build the Cassandra shadow adapter example",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Demonstrate application integration without adding Cassandra dependencies to the library. Sources: MVP_SPEC.md sections 1, 5, 10, 13.",
       "steps": [
         "Map original sources, bounded recent context, and candidate text into memory and intervention cases.",
@@ -2088,13 +2336,26 @@
         "T044",
         "T058",
         "T059"
+      ],
+      "updated_at": "2026-09-24T16:20:10Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "examples/cassandra-shadow/README.md",
+        "examples/cassandra-shadow/adapter.ts",
+        "examples/cassandra-shadow/cassandra.ts",
+        "examples/cassandra-shadow/host.ts",
+        "examples/cassandra-shadow/records.ts",
+        "examples/cassandra-shadow/tsconfig.json",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/test/example-cassandra-shadow.test.ts"
       ]
     },
     {
       "id": "T062",
       "title": "Create the public synthetic challenge dataset",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Build shareable challenge cases without private Discord content or reliability claims. Sources: MVP_SPEC.md section 13; .measuretwice/README.md.",
       "steps": [
         "Cover decisions versus suggestions, negation, attribution, intentional changes, and delayed corrections.",
@@ -2114,6 +2375,18 @@
         "T040",
         "T041",
         "T059"
+      ],
+      "updated_at": "2026-09-24T16:45:27Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "examples/intervention-challenge/README.md",
+        "examples/intervention-challenge/cases/intervention-challenge.jsonl",
+        "examples/intervention-challenge/cases/intervention-challenge.metadata.json",
+        "examples/intervention-challenge/tsconfig.json",
+        "examples/intervention-challenge/validate.ts",
+        "examples/intervention-review/README.md",
+        "packages/measuretwice/test/example-intervention-challenge.test.ts"
       ]
     },
     {
@@ -2308,7 +2581,7 @@
       "id": "T070",
       "title": "Write the first-run README and setup guide",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "details": "Give a new developer a short working path to an exploration shadow report. Sources: MVP_SPEC.md sections 2, 11, 15; AGENTS.md section 8.",
       "steps": [
         "Explain measuretwice using checks, cases, and reports before introducing numerical policy details.",
@@ -2327,6 +2600,12 @@
         "T021",
         "T055",
         "T058"
+      ],
+      "updated_at": "2026-09-24T16:54:28Z",
+      "files": [
+        "README.md",
+        "packages/measuretwice/README.md",
+        "tests/repo/docs.test.ts"
       ]
     },
     {

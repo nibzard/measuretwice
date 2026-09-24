@@ -19,7 +19,8 @@ records the test suites and the verification commands. The task list is
 | `providers` | Verified provider contracts and synthetic response fixtures for the evaluator adapters. Jev lives in `providers/jev/`. |
 | `models` | TLA+ formal models with their records. See [models/README.md](models/README.md). |
 | `scripts` | Standalone build and verification scripts, such as the exact-rule smoke check and the package assembly. |
-| `.measuretwice` | Development checks for this repository. |
+| `.measuretwice` | Development checks for this repository: two definitions, two datasets on the frozen contract, their JSON exports, and the offline validation and opt-in Jev shadow runners. |
+| `examples` | Public teaching examples. `examples/memory-support` holds the minimal memory support workflow, `examples/intervention-review` holds the full intervention review workflow, `examples/intervention-challenge` holds the public synthetic challenge set of that definition, and `examples/cassandra-shadow` holds the application integration with the queue, the storage, and the unchanged decision paths of one host. |
 | `tests/repo` | Repository checks for schemas, examples, links, and names. |
 | `tests/live` | Opt-in live evaluations. Empty until task T065. |
 
@@ -948,6 +949,414 @@ like the records. `fixtures/datasets/labels.json` pins the shared group,
 `crates/measuretwice-core/tests/contract_fixtures.rs` runs it through the
 core, and `packages/measuretwice/test/dataset-labels.test.ts` answers the
 same group through the public boundary.
+
+Decided in T041: `measuretwice_core::splits` owns the grouped splits and
+the dataset identities. `dataset_splits` assigns every record to the split
+of its group, so one group never spans two splits, and computes the dataset
+content hash plus every split content hash through the shared hashing
+boundary over the records exactly as the loader read them. The loader
+therefore keeps the raw record objects beside the parsed records, because
+an omitted `group` and a stated one hash differently; a host that hashes
+its records with `datasetHash` gets the digest the identity verifies. One
+stored hash that differs fails with `hash_mismatch`, so one changed input
+cannot hide inside one revision, and reordering the record file changes no
+hash, so one split reproduces deterministically. The metadata parser
+rejects one group that two splits declare with `duplicate_id`, and the
+identity reports the group assignments together with the groups that no
+split covers, because an unassigned group is neither fitting nor
+validation data and one revision must assign it.
+`PopulationStatement` maps the dataset kind to the claims it supports: one
+targeted synthetic challenge set and one development fixture state no
+prevalence and support no qualification claim, whatever their size.
+`split_overlap` and `require_separated` detect and refuse fitting and
+validation overlap, across two datasets too, because a shared group name
+breaks the declared grouping strategy and a shared case identifier is one
+duplicated case that supplied both kinds of evidence. `validation_evidence`
+classifies one validation split against the holdouts the host states,
+because the core holds no clock and no storage: one reused holdout is
+development data however it is renamed, since the content hash decides, and
+one new qualification claim then needs fresh validation evidence.
+`parse_split_identity` is the boundary contract of one split identity, the
+words of one dataset selection of a calibration plan. The Node binding
+returns the identity and the split identities inside `validateDataset` and
+exposes `splitOverlap`, `requireSeparatedSplits`, and `validationEvidence`;
+the public `Dataset` carries `identity` and `splits`, and
+`detectSplitOverlap`, `requireSeparatedSplits`, and
+`classifyValidationEvidence` keep the decision in Rust.
+`fixtures/datasets/splits.json` pins the shared group with computed hashes.
+
+Decided in T042: `measuretwice_core::metrics` owns the evaluation
+measurement. `evaluate_metrics` takes one validated dataset and the
+evaluated cases, and returns one metric set per check plus the
+`all_checks` set, one set row per slice tag, and the operational totals.
+The reference of one case resolves through `reference_outcome`: the stated
+expected outcome wins, otherwise the acceptance meaning of the answer, the
+level, or the review marker applies, read from the same answer sets the
+`probability_mass_v0` policy reads; `overall_reference_outcome` takes the
+stated overall outcome or aggregates the check references. The six rates of
+`common.schema.json` each carry their numerator and their denominator, and
+one zero denominator keeps the value absent, because unavailable is one
+valid result. The three error rates count labeled cases alone; the review
+rate, the automatic coverage, and the label coverage count every evaluated
+case; one case that errored or was skipped stays in the denominator of
+every rate whose population holds it, so an operational failure never
+improves a rate. One review rate counts one predicted skip beside one
+predicted review, because one skip needs one human decision and the
+aggregate already folds one skip into review. The false acceptance rate
+and the error among accepted cases share one numerator and state different
+denominators, and the contracts README records both. Every result carries
+the standing statement that no metric set of one evaluation states
+independence between checks. `CaseOutcome::from_report` reads one
+evaluated case out of one immutable run report, attempts, elapsed time, and
+usage included. One outcome that names no dataset record or no check of
+the definition, one repeated case identifier, one omitted check, one
+negative elapsed time, and one negative usage amount fail with their field
+paths under `/cases/<index>`, and one evaluation with no case fails with
+`insufficient_evidence`. `fixtures/metrics/evaluation.json` pins the group
+against expectations from one independent implementation of the metric
+definitions; the evaluate API of task T044 assembles the report contract
+from these sets.
+
+Decided in T043: `measuretwice_core::intervals` owns the uncertainty half of
+the measurement. The method is the Wilson score interval of one binomial
+proportion, named `wilson_score` in the profile contract, at the three
+confidence levels the plan contract declares, with their correctly rounded
+standard normal quantiles stated in the source. One interval counts draws, not
+cases alone: `independent_cases` declares that every case of one denominator
+is one independent draw, and the core compares that declaration with the
+groups of the dataset, so one group that holds two cases of the same
+denominator leaves that metric `unsupported_sampling` instead of one bound
+computed from an assumption the data breaks; `grouped_cases` makes the group
+the draw and bounds the share of groups with at least one counted event,
+beside the case counts of the rate. Evidence comes before arithmetic: one
+metric without one denominator and one denominator below the declared minimum
+of draws state `insufficient_evidence` with their counts, and zero observed
+errors still bound one risk above zero, which is the point of the method. The
+counts come from `metrics::rate_of`, the one function the metric sets and the
+group folds read, so one interval and its stated rate can never disagree
+about a denominator. Every row keeps the method, the level, the sampling
+model, the counts, the draws, and either the bounds or the reason no bound
+computes; the report carries the complete method statement, which one
+evaluation report cites in its `method` field and one profile records in
+`statistical_method`. One unsupported level, one count outside its shape, one
+numerator above its denominator, and one sampling word outside the two models
+reject with their field paths. `fixtures/metrics/intervals.json` pins the
+bounds against values one implementation of the documented formula outside
+the core computed. The Node binding exposes `parseIntervalRequest` and
+`uncertaintyIntervals`; the evaluate API takes one optional `intervals`
+request, checks it before one dataset is read and before one case runs, and
+carries the rows beside the artifact.
+
+
+owns the bounded evaluation. The host states one metadata path, one JSONL
+records path, and one declared purpose of `exploration`, `fitting`, or
+`independent_validation`. `loadDataset` was split into `readDatasetTexts`
+and `datasetOf`, so one evaluation reads the dataset once and validates it
+against the definition of the reviewer itself, which is the definition that
+assesses the cases. Every record then runs through `reviewer.run` as one
+shadow run, one case at one time in record order, so the effective
+execution configuration of the profile bounds every case and the total work
+stays bounded by the case count. The shadow admission of the run path
+accepts every qualification status, one aborted `signal` cancels the case
+in flight and stops the loop, and the records that never ran stay counted
+under `unevaluated_records` instead of silently missing. The Node binding
+`evaluateDataset` rebuilds every run report through the run report
+contract, reads each evaluated case out of it through
+`CaseOutcome::from_report`, and measures it through the new
+`metrics::evaluate`, which returns the metric sets of `evaluate_metrics`
+plus one `CaseReference` per case: the resolved reference of every defined
+check and its match, read through the same `reference_outcome` the rates
+read. The public value holds the contract artifact under `report`, whose
+keys are exactly the properties of
+`contracts/v0/evaluation-report.schema.json`, and keeps the per-case run
+reports under `runs`, because the artifact holds no raw case content and
+the actual evaluator versions, the per-check timing, the usage, and the
+sanitized reasons live in the run reports. `operational` collects one
+sanitized reason per predicted error over all attempts, the attempt count,
+and the summed usage; `population` and `limitations` keep the population
+statement, the prevalence and qualification limits, the standing
+no-independence statement, the unevaluated records, and the fitting limit
+beside the artifact. One evaluation with no case refuses with
+`insufficient_evidence` at `/cases`, because the report contract holds no
+empty evaluation. No evaluation changes one qualification and no host
+selection: the reviewer keeps its frozen artifact, the artifact states the
+identity alone, and one enforced run after one evaluation still passes
+through the complete gate.
+
+Decided in T045: the shadow review export is one Rust module and two public
+operations. `measuretwice_core::review` owns the selection and the label
+validation. The host owns the meaning of its own decision vocabulary, so it
+states one meaning for every baseline outcome word through the
+`baselineMeanings` option of `exportShadowReviews`: `pass`, `fail`,
+`review`, or `silent`, where `silent` names one absent decision. The core
+classifies every stored report through one fixed rule order: one candidate
+aggregate of `error` exports as `candidate_error`, whatever its baseline
+states; one report without one baseline exports as `missing_baseline`; one
+stated meaning that differs from the candidate aggregate exports as
+`disagreement`, with one silent meaning matching one pass aggregate alone;
+every other report is one agreement. Agreements enter through one
+reproducible sample alone: every agreement is ranked by the SHA-256 of the
+seed, the case identifier, and the input hash, and the first ranks up to
+the stated size are selected, so baseline passes and silent baseline cases
+stay auditable and not only suspicious cases reach one reviewer. The
+records keep report order and the provenance travels inside the result:
+the seed, the algorithm word `sha256_rank`, the sizes, the inclusion rule
+sentence of every reason, and the stated meanings. Every record states the
+case identifier, the input hash, the run identifier, the host snapshot
+reference when the run stated one, the recorded baseline with its meaning,
+the candidate outcomes, and its selection reason. The export holds no raw
+case content, one baseline word with no stated meaning refuses with
+`unknown_field` instead of one silent drop, one enforcement report and one
+report of another definition or profile refuse before any selection, and
+the batch must hold one report per case identifier. The public value adds
+`jsonl`, the records as one JSON Lines text for the review tool of the
+host, and the summary counts every classification and the selected
+composition by reason and by baseline meaning. `validateReviewLabels`
+closes the loop: one returned line states one `{ case_id, expected, label }`
+object, the dataset label rules and the meaning checks of `loadDataset`
+run unchanged over it through `dataset::validate_record_labels`, the
+provenance counts keep human judgments apart from model proposals, and the
+validation reads no baseline, because baseline agreement is not
+correctness. The case content stays with the host: the host joins the
+validated labels with its own stored inputs when it authors one dataset.
+The Node binding `exportShadowReviews` rebuilds every report through the
+run report contract and `validateReviewLabels` crosses the definition, the
+exported case identifiers, and the complete return; the field paths
+`/reports/<index>` and `/labels/<line>` state the position of every
+refusal. The suite `packages/measuretwice/test/review.test.ts` drives one
+nine-case batch through the public boundary with the scripted evaluator,
+and the native suite runs both bindings through the run state boundary.
+
+Decided in T046: `measuretwice_core::comparison` owns the comparison of
+two evaluation reports on matching cases, and `compare` in
+`packages/measuretwice/src/compare.ts` is its public operation.
+`parse_evaluation_report` rebuilds one stored evaluation report artifact
+through its contract before any number computes: the strict field set, the
+identifier and hash rules, the fold of every stored aggregate from its
+component outcomes, one uniform check set across every case, one metric
+set per check plus the `all_checks` set, the stored counts against the
+case outcomes, the rate arithmetic with one numerator inside its
+denominator, the three whole-population denominators against the case
+count, and the label coverage of one check against its labeled cases, so
+one edited copy fails with its field path under `/baseline` or
+`/candidate`. `compare_reports` matches the cases: one case matches only
+when its identifier and its input hash agree, one changed input hash
+never matches and appears under `changed_input_cases`, one case that one
+report omits appears under `missing_in_candidate` or
+`missing_in_baseline`, and one matched case with one error or one skip
+component outcome on either side appears under `errored_cases` or
+`skipped_cases`, because one error and one skip decided nothing. Every
+matched case with one changed component outcome appears under `changed`
+with its changed checks and both aggregate outcomes. The metric rows read
+the stored rates, so the public value keeps the numerator and the
+denominator of both sides beside every value, and the artifact states the
+two values alone. The evidence class follows the declared purposes: both
+reports must state `independent_validation` for one comparison that
+counts as independent validation evidence, and one fitting evaluation
+makes the whole comparison one fitting comparison that supports no
+validation claim. The cost tradeoff computes per side only when that
+report recorded usage and every recorded key carries one declared cost;
+one uncovered key leaves the cost absent and one limitation names the
+keys, and latency and usage appear only when one report recorded them.
+Two reports that bind different definitions refuse with
+`definition_mismatch`, two reports that share no case refuse with
+`insufficient_evidence` at `/matching`, and the standing limits state the
+denominator rule and that changed inputs alone are detectable: new
+measurements are required when the evaluator, the resolved model, the
+translation, or the preprocessing changed. The comparison holds no raw
+case content, changes no qualification, and selects no profile. The Node
+binding `compareEvaluations` crosses the two artifacts, the two
+stored-report references, and the optional costs, and the suites
+`packages/measuretwice/test/compare.test.ts` and the native suite pin
+the matching rule, the tradeoffs, the evidence classes, and every
+refusal.
+
+Decided in T047: `measuretwice_core::plan` owns the versioned calibration
+plan contract and nothing else. `validate_plan` walks the schema file and
+the cross-field rules of the contracts README with the stable reason codes
+and field paths: every required owner statement (population, sampling
+assumptions, confidence level, constraints with metric, comparison, limit,
+and basis, objective, minimum samples, important slices with their own
+minimums, the bounded grid, the evaluator configuration, and the fitting
+and validation selections), the cutoff bounds above 0.5 and at most 1 with
+no repeated value, and the stored self-hash, verified last so one field
+defect names its own field. The plan vocabulary stays closed where a typo
+would silently weaken a goal: minimum sample counts key by one of the five
+published denominator names, one plan that constrains one error metric
+states the minimum of that denominator, one metric appears in one
+constraint alone, the objective pairs with its improving direction, and
+one `at_least` limit takes the observed value alone. `MetricName::
+denominator` in `measuretwice_core::metrics` is the one mapping, so the
+metric definitions and the plan goals cannot drift apart. The plan also
+fixes the enumeration order of its candidate family, which the fitting
+task searches: accept outer, rejection inner, floor innermost with no
+floor first, so array order alone states the tie-break rule. Three binding
+checks compare one validated plan with the loaded world before any data is
+read: `check_plan_definition` (one exact-only definition takes no plan,
+one foreign definition hash fails `definition_mismatch`),
+`check_plan_datasets` (each selection names the offered dataset, revision,
+split, and declared purpose, one stored split hash equals the computed
+digest, and `splits::require_separated` refuses one shared group or one
+shared case), and `check_plan_evaluator` (the registered evaluator and its
+adapter version, `evaluator_mismatch` otherwise). One plan without one
+stored digest still states its computed identity, which the calibration
+output records. The module measures nothing and qualifies nothing;
+fitting, frozen validation, and the candidate profile belong to the later
+tasks, and the Node binding crosses this boundary with the calibrate API.
+`fixtures/plans/validation.json` pins the group, with every digest, the
+split hashes, and the candidate order stated by one implementation of the
+hashing and enumeration rules outside the core.
+
+Decided in T049: `measuretwice_core::qualification` owns the frozen
+validation of one selected candidate and nothing else. `qualify_candidate`
+takes one validated plan, one validated dataset, one immutable fitting
+report, one validation request, and the stored assessments of the
+validation split. The freeze runs first and refuses before one validation
+case is read: the plan binds the loaded definition, the fitting report
+binds the plan by identifier and computed content hash, the definition by
+name and hash, the fitting split by dataset, revision, split, and computed
+digest, and the selected candidate sits inside the permitted grid at its
+recorded position. One plan edited after the search, one fit of another
+plan, one patched identity, one candidate outside the family, and one
+search with no feasible candidate each fail with their own code and path,
+so validation feedback cannot retune the candidate. The validation split
+comes through the plan's own validation selection, must carry the
+validation purpose, and must share no group and no case with the fitting
+split, and one assessment that names any other case fails with its path.
+The replay then decides every validation case once under the frozen policy
+through the same `policy::decide` one run reads, folds the outcomes
+through the shared metric boundary, and computes the intervals through the
+shared interval boundary under the declared sampling model and confidence
+level, so one rate, one bound, and one denominator can never disagree. The
+request states one draw at least, because the plan states its own evidence
+floors per denominator and the module reads them per goal, per slice, and
+for the complete validation. Evidence comes before arithmetic:
+`splits::validation_evidence` classifies the validation split first, so a
+reused holdout, a dataset that states no representative sample, and an
+empty split are development data; every goal needs its denominator, the
+plan minimum of that denominator, and one sampling model the validation
+groups support; and the plan minimums and every important-slice floor gate
+the validation as a whole, including one slice the validation holds no
+case of. Each miss states `insufficient_evidence` with a calculated reason
+that cites its counts, and one measured goal that fails its limit states
+`criteria_not_met` with the value and the limit. `validated_for_scope`
+records `measured_evidence`. `unvalidated` is the status of one
+exploration profile; the frozen validation never sets it, exactly as the
+checked qualification model records, and the module's tests pin the three
+computed statuses. The result returns the candidate it received with its
+applied policy, the complete identities of the plan, the definition, the
+evaluator configuration, and both splits, the goal rows, the sample
+requirements, the slice rows with their own statements, the metric sets,
+the interval rows, and the standing candidate statement: the validation
+selects nothing, changes no parameter, and owns no profile state, so the
+host keeps the review and the selection. The plan and fitting boundaries
+share one split locator and one case preparation through `fitting`, and
+the qualification status serializes through `profile::Qualification`, the
+one type that holds the four contract words.
+`fixtures/qualification/validation.json` pins the group, with the statuses,
+the reason codes, the goal rows, and every refusal stated by the Rust
+boundary.
+
+Decided in T054: the CLI is one entry module and one file module.
+`packages/measuretwice/src/cli.ts` owns the surface and nothing else.
+`parseCliArguments` maps one command line into one typed invocation of the
+six commands that MVP_SPEC.md section 11 specifies, with per-command option
+tables, enum validation, required options (`--case` for run, `--plan` for
+calibrate, `--cases` for evaluate), and positional arity. `runCli` returns
+the exit code: 0 for one completed command, 1 for one failure of files,
+artifacts, or data, and 2 for one usage error. Command results print to
+stdout and diagnostics print to stderr, so machine-readable output stays
+separate from diagnostics. With `--format json`, one failure prints one
+JSON error object on stderr that holds the tool name, the stable reason
+code, the message, and the field path; the text mode prints one line with
+the code. The entry executes only when Node runs the module as the program,
+compared through one resolved real path, so one import stays free of side
+effects and one installed bin symlink works. T055 implements the
+`validate`, `run`, and `inspect` handlers; the `calibrate`, `evaluate`,
+and `compare` commands report `not_implemented` with exit code 1 after one
+accepted parse, and the help text states that limit.
+
+`packages/measuretwice/src/cli-files.ts` owns the bounded validated reads.
+`resolveCliPath` maps one bare identifier into the `.measuretwice` folder of
+its kind, keeps one explicit path as stated, and refuses one explicit
+`.yaml` or `.ts` path with the registry code `unsupported_format` before
+any read. Every reader bounds its file twice, through the stated size
+before the read and through the UTF-8 byte count after it, at the published
+limit of one record line, 8,388,608 bytes: one oversized file fails with
+`oversized_input`, and nothing is truncated. Definitions, profiles, and
+cases cross the same Rust validators the library uses, so one executable
+field or one credential field fails with `unknown_field`, one edited
+profile fails with `hash_mismatch`, and one malformed artifact keeps the
+reason code and the field path of the core. One profile reader that
+receives one evaluator registry rejects every unregistered reference with
+`evaluator_mismatch`, because one loaded file installs no evaluator. The
+plan and report readers gate the frozen structure alone, one JSON object,
+`schema_version` 1, and every required top-level field, until their
+complete contracts arrive with their validation tasks. The CLI defines no
+credential option and reads no credential variable; the canaries of the
+suites pin that rule. The suites
+`packages/measuretwice/test/cli.test.ts` and
+`packages/measuretwice/test/cli-files.test.ts` pin the parsing table, the
+exit codes, the stream separation, both diagnostic formats, and every
+reader rule.
+
+Decided in T055: the CLI implements `validate`, `run`, and `inspect` in
+the entry module, so the CLI stays one entry module and one file module.
+Every command reads its artifacts through the bounded readers, prints its
+result on stdout, and keeps diagnostics on stderr. `validate` states the
+meaning that the Rust core established for one exported definition: the
+content hash, the input names, and one row per check with the resolved
+kind, the executed rule, or the expanded scale acceptance, and it calls no
+evaluator and no provider. `inspect` renders one profile through
+`renderProfileSummary`, where `--detail detailed` selects the detailed
+view and `--format json` prints the stored artifact. `run` reads the
+definition, the case, and the optional profile, then crosses the same
+`load` and `run` boundary as the library through one in-memory file access
+that serves the texts the bounded readers already hold, so no unbounded
+read happens and no file is read twice. The run renders its report through
+`renderRunReport`, prints the report artifact under `--format json`, and
+writes it with `--out`, where one failed write fails with the CLI code
+`unwritable_output` and no result on stdout. One completed run exits with
+code 0, whatever outcome its report states, because one report outcome is
+no command failure.
+
+The CLI registers no evaluator adapter, because one loaded file installs
+no evaluator and the CLI executes no host code. A definition with one
+question check therefore refuses `run` with `evaluator_mismatch` before
+any work starts, and the CLI adds its boundary sentence to that failure
+and to the `profile_not_selected` refusal of `--mode enforcement`, which
+needs one host-selected profile hash that the CLI states on no option.
+Both notes keep the stable code and the field path of the core. The run
+command then reaches the pass and fail aggregates through exact rules and
+the review aggregate through one queue-full skip of the structural exact
+profile; the error aggregate needs one evaluator execution, which the CLI
+refuses by design, and the renderer suite covers that view. The `run`
+invocation gained the `--out` field that the T054 option table already
+accepted. The package README documents the trusted application script
+that serializes the result of `defineChecks` into
+`.measuretwice/definitions/`, because the CLI loads no TypeScript source.
+
+Decided in T060: the development checks of `.measuretwice` are executable
+repository artifacts, not prose. Both draft definitions compile against
+the implemented package through `.measuretwice/tsconfig.json`, the trusted
+script `export-definitions.ts` writes the committed JSON exports, and the
+runner `validate.ts` validates both datasets through the Rust core with
+no evaluator. The case records moved onto the frozen dataset contract:
+`author_type: "model"` replaces `coding_agent`, `reviewed: false` replaces
+the unreviewed status, and every reason and origin stays as the agent
+proposed it, so the loader counts 18 model-proposed references without one
+human review. One dataset metadata file per records file declares the
+`development_fixture` kind and one fitting split, so the fixtures state no
+independent validation data. The runner `jev-shadow.ts` runs the pinned
+Jev experiments: it refuses one run without explicit consent, refuses one
+model alias, generates one unvalidated exploration profile, strips every
+reference label through `runCase`, and stores every report beside the
+dataset. The suite `packages/measuretwice/test/development-checks.test.ts`
+builds the folder and pins those rules offline, with one injected call
+boundary that drives the pinned path without one provider call. The local
+instructions of `.measuretwice/README.md` state the limits: the fixtures
+are development data, they are no independent validation set, and they
+enforce nothing.
 
 ## Generated files
 

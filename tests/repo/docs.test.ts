@@ -18,8 +18,8 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-const ROOT_DOCUMENTS = ["AGENTS.md", "DEVELOPING.md", "MVP_SPEC.md", "TESTING.md"];
-const INCLUDED_DIRECTORIES = ["contracts", ".measuretwice", "fixtures", "models", "providers"];
+const ROOT_DOCUMENTS = ["README.md", "AGENTS.md", "DEVELOPING.md", "MVP_SPEC.md", "TESTING.md"];
+const INCLUDED_DIRECTORIES = ["contracts", ".measuretwice", "examples", "fixtures", "models", "providers"];
 const EXCLUDED_DIRECTORIES = new Set(["research", "node_modules", "target", "dist", ".git"]);
 
 function markdownFiles(): string[] {
