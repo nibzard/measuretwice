@@ -1,0 +1,40 @@
+# Design: Render reports and profile summaries (T037)
+
+## Problem
+Run reports and profiles are frozen JSON. Hosts and the future CLI
+need readable terminal and Markdown views that stay honest about what
+was measured, what was generated, and what authorizes nothing.
+
+## Approach
+One pure module, packages/measuretwice/src/render.ts, with two detail
+levels per view. Summaries lead with check meaning, outcomes, the
+aggregate, and the next action; details add rules, measurements,
+identities, versions, counts, evidence references, and limitations.
+
+## Key Trade-offs
+- Explanations are generated at render time, not stored in the report.
+  The frozen report shape of T034 stays untouched, and the text stays
+  reproducible from recorded data alone.
+- The renderer recomputes the decisive masses for display, but states
+  one cutoff sentence only when the recorded masses support the
+  recorded outcome. A record outside the decision table renders with
+  the general sentence of its outcome, so the view never claims
+  arithmetic the record does not support.
+- The public Profile type gained the optional evidence and performance
+  fields of contracts/v0/profile.schema.json. The fields were always in
+  the artifact; the type now states them so profile detail can cite
+  datasets, counts, and intervals without a cast.
+- No performance number renders in one summary view, per the rule that
+  no illustrative number may pose as a measured result.
+
+## Gotchas
+- The definition must hash to the hash the report names, or the render
+  fails with definition_mismatch: check names are the definition's, so
+  a wrong definition would misstate the meaning.
+- The commit also repairs the pre-existing typecheck failure from T036
+  in tests/repo/fixtures.test.ts (toContain does not take a message
+  argument in the Vitest 5 typings; the note moved into expect).
+
+## Related
+- MVP_SPEC.md sections 8-11; mvp-guide.html report example
+- CLI wiring of these renderers arrives with T055
