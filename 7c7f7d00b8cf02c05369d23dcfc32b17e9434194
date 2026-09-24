@@ -1,0 +1,46 @@
+# Design: Shadow baselines and host integration (T038)
+
+## Problem
+MVP_SPEC.md sections 5 and 9-10 require one shadow run to record the
+new outcome beside the existing decision, without touching the
+existing decision path. The report contract held a baseline field that
+no wrapper could state, and nothing pinned the host integration
+boundary: the latency of the awaited call, nonblocking work, and the
+application actions that stay outside the library.
+
+## Approach
+The host states its decision through the baseline option of run
+({ outcome, revision }). The Rust core validates it at run creation
+through parse_baseline, the same parser that owns the stored report
+contract, and every terminal report records it beside the aggregate.
+Baseline::validate_for_mode owns the mode rule and the bounds for the
+builder and the parse path alike, so both wrappers get one authority.
+
+## Key Trade-offs
+- A baseline is refused in enforcement mode instead of ignored. One
+  field that means "the decision that already happened" has no meaning
+  in one run that exists to produce the decision, and silence would
+  let one stored report blur the two modes.
+- The library computes no agreement. The baseline keeps the host's own
+  decision vocabulary (one free bounded string), because only the host
+  knows what its decision words mean, so any agreement classification
+  the library invented would be an accuracy claim the report cannot
+  support. The host compares the two recorded values itself.
+- Baseline validation sits in RunState::new, not only in report
+  assembly. Assembly runs at the terminal event, so a bounds check
+  there would fail one run after it spent its attempts.
+- Latency is documented as observable and bounded, not summed into one
+  new totals field: per-check timing plus the total deadline already
+  state what one awaited call adds, and filling totals is run-report
+  work outside this task.
+- Nonblocking work stays a host pattern. The library arms no timer
+  that outlives one resolved call and exports no queue or scheduler
+  operation, so one host-owned durable queue worker owns the complete
+  lifecycle. A detached library job would hide the boundary that
+  MVP_SPEC.md section 10 draws.
+
+## References
+- MVP_SPEC.md sections 5, 9-10, 12; contracts/README.md "Run reports".
+- Fixtures: fixtures/reports/outcomes.json baselines group.
+- Suites: packages/measuretwice/test/shadow.test.ts, the native
+  boundary suite, and tests/repo/fixtures.test.ts.
