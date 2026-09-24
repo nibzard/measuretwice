@@ -370,7 +370,7 @@
       "id": "T010",
       "title": "Validate portable definitions and input schemas",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Enforce check meaning independently of evaluator behavior. Sources: MVP_SPEC.md section 4; AGENTS.md section 4.",
       "steps": [
         "Test duplicate IDs, empty check sets, missing names, and invalid or empty using lists.",
@@ -388,6 +388,16 @@
       "depends_on": [
         "T009",
         "T002"
+      ],
+      "updated_at": "2026-09-24T00:00:33Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/definition.rs",
+        "crates/measuretwice-core/src/input_schema.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "to-do.json"
       ]
     },
     {

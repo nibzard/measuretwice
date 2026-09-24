@@ -29,6 +29,8 @@ pub mod artifact;
 pub mod definition;
 /// Stable typed validation errors.
 pub mod error;
+/// The supported input schema subset of a definition.
+pub mod input_schema;
 /// The strict JSON gate for external artifact text.
 pub mod json;
 /// Deterministic test utilities. See the module documentation for the rules.

@@ -19,13 +19,15 @@
 //!
 //! The parser does not judge meaning. The cross-field invariants of the
 //! contracts README, such as unique check identifiers, known labels, closed
-//! scales, and the supported input schema subset, belong to the definition
-//! validation that runs after this parser. For the same reason, a definition
-//! with an empty check list parses, and the semantic layer rejects it with
-//! `empty_check_set`.
+//! scales, and the supported input schema subset, belong to
+//! [`validate_definition`], which runs after this parser and returns a
+//! [`ValidatedDefinition`] with the kind of every check established. For the
+//! same reason, a definition with an empty check list parses, and validation
+//! rejects it with `empty_check_set`.
 
 use crate::artifact;
 use crate::error::{fragment, ReasonCode, ValidationError};
+use crate::input_schema;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 use serde_json::{Map, Value};
@@ -257,6 +259,362 @@ pub fn parse_definition(value: &Value) -> Result<Definition, ValidationError> {
         inputs,
         checks,
     })
+}
+
+/// The semantic shape of one check, from its authored fields.
+///
+/// The kinds match the assessment kinds of the contracts: a rule is exact,
+/// named answers give `categorical` or `binary`, and a scale gives `ordered`.
+/// A question is binary only when its answer keys are exactly `yes` and `no`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckKind {
+    /// One deterministic rule on one string input.
+    Rule,
+    /// Named answers other than the exact `yes` and `no` pair.
+    Categorical,
+    /// Named answers with exactly the keys `yes` and `no`.
+    Binary,
+    /// An ordered scale of named levels.
+    Ordered,
+}
+
+/// One definition with its check meaning established.
+///
+/// The value states that the definition passed the parser and holds no
+/// contract violation: unique identifiers, declared inputs, known and disjoint
+/// label selections, closed scales, and an input schema inside the supported
+/// subset. The authored artifact stays unchanged inside it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValidatedDefinition {
+    /// The parsed artifact, kept as authored.
+    definition: Definition,
+    /// The typed root input schema.
+    input_schema: input_schema::Schema,
+    /// The kind of each check, in check order.
+    kinds: Vec<CheckKind>,
+}
+
+impl ValidatedDefinition {
+    /// Returns the parsed artifact, unchanged.
+    pub fn as_definition(&self) -> &Definition {
+        &self.definition
+    }
+
+    /// Returns the typed root input schema.
+    pub fn input_schema(&self) -> &input_schema::Schema {
+        &self.input_schema
+    }
+
+    /// Returns the effective uncertainty behavior. An omitted `when_uncertain`
+    /// means `review`, the one documented default of the contracts.
+    pub fn effective_when_uncertain(&self) -> WhenUncertain {
+        self.definition
+            .when_uncertain
+            .unwrap_or(WhenUncertain::Review)
+    }
+
+    /// Returns the kind of every check, in check order.
+    pub fn check_kinds(&self) -> &[CheckKind] {
+        &self.kinds
+    }
+
+    /// Returns the kind of the check with the stated identifier.
+    pub fn check_kind(&self, id: &str) -> Option<CheckKind> {
+        self.definition
+            .checks
+            .iter()
+            .position(|check| check.id == id)
+            .map(|index| self.kinds[index])
+    }
+
+    /// Returns true when every check is an exact rule. Such a definition has
+    /// no stochastic evaluator, as the contracts README records.
+    pub fn is_exact_only(&self) -> bool {
+        self.kinds.iter().all(|kind| *kind == CheckKind::Rule)
+    }
+}
+
+impl Serialize for ValidatedDefinition {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // The validated value serializes to the artifact it came from. The
+        // derived kinds are meaning, not artifact fields.
+        self.definition.serialize(serializer)
+    }
+}
+
+/// Validates one parsed definition against the cross-field invariants of the
+/// contracts README.
+///
+/// The invariants cover check identity, the declared inputs, label
+/// selections, scales, the shape of each check, and the supported input schema
+/// subset. Check meaning is established here, before any evaluator exists.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the definition breaks one invariant.
+pub fn validate_definition(
+    definition: &Definition,
+) -> Result<ValidatedDefinition, ValidationError> {
+    if definition.checks.is_empty() {
+        return Err(ValidationError::new(
+            ReasonCode::EmptyCheckSet,
+            "/checks",
+            "The definition declares no checks.",
+        ));
+    }
+    let input_schema = input_schema::validate_root(&definition.inputs, "/inputs")?;
+
+    // Identity comes first, so a repeated identifier is reported even when
+    // the repeated check has other faults.
+    let mut seen: Vec<&str> = Vec::with_capacity(definition.checks.len());
+    for (index, check) in definition.checks.iter().enumerate() {
+        if seen.contains(&check.id.as_str()) {
+            return Err(ValidationError::new(
+                ReasonCode::DuplicateId,
+                format!("/checks/{index}/id"),
+                format!(
+                    "The check identifier {} repeats an earlier check.",
+                    fragment(&check.id)
+                ),
+            ));
+        }
+        seen.push(&check.id);
+    }
+
+    let mut kinds = Vec::with_capacity(definition.checks.len());
+    for (index, check) in definition.checks.iter().enumerate() {
+        kinds.push(validate_check(check, index, &input_schema)?);
+    }
+    Ok(ValidatedDefinition {
+        definition: definition.clone(),
+        input_schema,
+        kinds,
+    })
+}
+
+/// Validates the meaning of one check and returns its kind.
+fn validate_check(
+    check: &Check,
+    index: usize,
+    input_schema: &input_schema::Schema,
+) -> Result<CheckKind, ValidationError> {
+    let base = format!("/checks/{index}");
+
+    // A check states exactly one of question or rule. A rule states no
+    // question fields at all.
+    match (check.question.is_some(), check.rule.is_some()) {
+        (true, true) => {
+            return Err(ValidationError::invalid_field_type(
+                &base,
+                "A check states exactly one of question or rule.",
+            ));
+        }
+        (false, false) => {
+            return Err(ValidationError::missing(format!("{base}/question")));
+        }
+        _ => {}
+    }
+    if check.rule.is_some()
+        && (check.answers.is_some()
+            || check.scale.is_some()
+            || check.accept.is_some()
+            || check.review.is_some())
+    {
+        return Err(ValidationError::invalid_field_type(
+            &base,
+            "A rule check states no answers, scale, accept, or review.",
+        ));
+    }
+
+    // Every using entry names a declared input.
+    let declared = input_schema.properties().expect("the root is an object");
+    for name in &check.using {
+        if !declared.contains_key(name) {
+            return Err(ValidationError::new(
+                ReasonCode::UnknownInputName,
+                format!("{base}/using"),
+                format!(
+                    "The using entry {} names no declared input.",
+                    fragment(name)
+                ),
+            ));
+        }
+    }
+
+    if check.rule.is_some() {
+        if check.using.len() != 1 {
+            return Err(ValidationError::invalid_field_type(
+                format!("{base}/using"),
+                "A rule check reads exactly one input.",
+            ));
+        }
+        let only = &check.using[0];
+        if !matches!(
+            declared.get(only),
+            Some(input_schema::Schema::String { .. })
+        ) {
+            return Err(ValidationError::invalid_field_type(
+                format!("{base}/using"),
+                "A rule check reads one string input.",
+            ));
+        }
+        return Ok(CheckKind::Rule);
+    }
+
+    // A question states named answers or an ordered scale, never both.
+    match (check.answers.as_ref(), check.scale.as_ref()) {
+        (Some(_), Some(_)) => {
+            return Err(ValidationError::invalid_field_type(
+                &base,
+                "A question states named answers or an ordered scale, never both.",
+            ));
+        }
+        (None, None) => {
+            return Err(ValidationError::missing(format!("{base}/answers")));
+        }
+        _ => {}
+    }
+
+    if let Some(answers) = check.answers.as_ref() {
+        let accepted = match &check.accept {
+            Some(Accept::AtLeast { .. }) => {
+                return Err(ValidationError::invalid_field_type(
+                    format!("{base}/accept"),
+                    "An answers check accepts labels. State at_least on a scale check only.",
+                ));
+            }
+            Some(Accept::Labels(selection)) => {
+                let labels = selected_labels(selection);
+                for label in &labels {
+                    if !answers.contains_key(*label) {
+                        return Err(unknown_label(&format!("{base}/accept"), label));
+                    }
+                }
+                labels
+            }
+            None => Vec::new(),
+        };
+        if let Some(selection) = &check.review {
+            for label in selected_labels(selection) {
+                if !answers.contains_key(label) {
+                    return Err(unknown_label(&format!("{base}/review"), label));
+                }
+                if accepted.contains(&label) {
+                    return Err(ValidationError::new(
+                        ReasonCode::AcceptReviewOverlap,
+                        format!("{base}/review"),
+                        format!("The review label {} is also accepted.", fragment(label)),
+                    ));
+                }
+            }
+        }
+        // Exactly the keys yes and no declare a binary question.
+        let binary =
+            answers.len() == 2 && answers.contains_key("yes") && answers.contains_key("no");
+        return Ok(if binary {
+            CheckKind::Binary
+        } else {
+            CheckKind::Categorical
+        });
+    }
+
+    let Some(scale) = check.scale.as_ref() else {
+        unreachable!("a question with no answers holds a scale");
+    };
+    if scale.len() < 2 {
+        return Err(ValidationError::new(
+            ReasonCode::InvalidScale,
+            format!("{base}/scale"),
+            "A scale declares two levels at least.",
+        ));
+    }
+    let mut levels: Vec<&str> = Vec::with_capacity(scale.len());
+    for level in scale {
+        if levels.contains(&level.name.as_str()) {
+            return Err(ValidationError::new(
+                ReasonCode::InvalidScale,
+                format!("{base}/scale"),
+                format!(
+                    "The scale repeats the level name {}.",
+                    fragment(&level.name)
+                ),
+            ));
+        }
+        levels.push(&level.name);
+    }
+    // A scale accepts at_least and every higher level. A review level below
+    // at_least stays valid; a review level inside the accepted range overlaps.
+    let accepted_from = match &check.accept {
+        Some(Accept::Labels(_)) => {
+            return Err(ValidationError::invalid_field_type(
+                format!("{base}/accept"),
+                "A scale check accepts at_least only.",
+            ));
+        }
+        Some(Accept::AtLeast { at_least }) => {
+            match levels.iter().position(|name| *name == at_least) {
+                Some(position) => position,
+                None => return Err(unknown_label(&format!("{base}/accept/at_least"), at_least)),
+            }
+        }
+        None => levels.len(),
+    };
+    if let Some(selection) = &check.review {
+        for label in selected_labels(selection) {
+            let Some(position) = levels.iter().position(|name| *name == label) else {
+                return Err(unknown_label(&format!("{base}/review"), label));
+            };
+            if position >= accepted_from {
+                return Err(ValidationError::new(
+                    ReasonCode::AcceptReviewOverlap,
+                    format!("{base}/review"),
+                    format!("The review label {} is also accepted.", fragment(label)),
+                ));
+            }
+        }
+    }
+    Ok(CheckKind::Ordered)
+}
+
+/// Returns the labels of one selection, in written order.
+fn selected_labels(selection: &LabelSelection) -> Vec<&str> {
+    match selection {
+        LabelSelection::One(label) => vec![label.as_str()],
+        LabelSelection::Many(labels) => labels.iter().map(String::as_str).collect(),
+    }
+}
+
+/// Builds an `unknown_label` failure for one selection path.
+fn unknown_label(path: &str, label: &str) -> ValidationError {
+    ValidationError::new(
+        ReasonCode::UnknownLabel,
+        path,
+        format!(
+            "The label {} is not an answer or a level of this check.",
+            fragment(label)
+        ),
+    )
+}
+
+/// Parses and validates one definition from strict JSON text.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the text fails the strict JSON gate, the
+/// definition contract, or one cross-field invariant.
+pub fn validate_definition_str(text: &str) -> Result<ValidatedDefinition, ValidationError> {
+    parse_definition_str(text).and_then(|parsed| validate_definition(&parsed))
+}
+
+/// Parses and validates one definition from strict JSON bytes.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the bytes fail the UTF-8 check, the
+/// strict JSON gate, the definition contract, or one cross-field invariant.
+pub fn validate_definition_bytes(bytes: &[u8]) -> Result<ValidatedDefinition, ValidationError> {
+    parse_definition_bytes(bytes).and_then(|parsed| validate_definition(&parsed))
 }
 
 /// Parses one check at `/checks/{index}`.
@@ -673,7 +1031,7 @@ fn is_artifact_id(value: &str) -> bool {
 /// Checks the input name rule of `common.schema.json`: a letter or an
 /// underscore first, then letters, digits, or underscores, 64 characters at
 /// most.
-fn is_input_name(value: &str) -> bool {
+pub(crate) fn is_input_name(value: &str) -> bool {
     let mut characters = value.chars();
     matches!(characters.next(), Some(first) if first.is_ascii_alphabetic() || first == '_')
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
@@ -983,5 +1341,338 @@ mod tests {
         assert_eq!(error.code, ReasonCode::InvalidJson);
         let error = parse_definition_bytes(&[0xc3, 0x28]).expect_err("not UTF-8");
         assert_eq!(error.code, ReasonCode::InvalidJson);
+    }
+
+    // Semantic validation tests. The parser above checks structure; the
+    // validator checks check meaning, as the contracts README states.
+
+    /// One categorical question. The accept and review labels follow the
+    /// stated answers, so the helper fits every answer set.
+    fn question_definition(answers: Value) -> Value {
+        let keys: Vec<&String> = answers.as_object().expect("an object").keys().collect();
+        let accepted = keys.last().expect("answers");
+        let reviewed = keys[0];
+        json!({
+            "schema_version": 1,
+            "name": "message-supported",
+            "inputs": {
+                "type": "object",
+                "properties": {"proposed_message": {"type": "string"}},
+                "required": ["proposed_message"],
+                "additionalProperties": false
+            },
+            "checks": [{
+                "id": "message-supported",
+                "name": "Our message accurately describes the evidence",
+                "using": ["proposed_message"],
+                "question": "Does every claim follow from the evidence?",
+                "answers": answers,
+                "accept": accepted,
+                "review": reviewed
+            }]
+        })
+    }
+
+    /// Parses and validates one definition value.
+    fn validate(value: &Value) -> Result<ValidatedDefinition, ValidationError> {
+        parse_definition(value).and_then(|parsed| validate_definition(&parsed))
+    }
+
+    #[test]
+    fn validation_reports_kinds_and_the_uncertainty_default() {
+        let validated = validate(&minimal_definition()).expect("the rule definition validates");
+        assert_eq!(validated.check_kinds(), [CheckKind::Rule]);
+        assert_eq!(
+            validated.effective_when_uncertain(),
+            WhenUncertain::Review,
+            "an omitted when_uncertain defaults to review"
+        );
+        assert!(validated.is_exact_only(), "one rule check is exact only");
+
+        let answers = json!({
+            "supported": "All claims are supported.",
+            "contradicted": "A claim conflicts.",
+            "incomplete": "Support is missing."
+        });
+        let validated = validate(&question_definition(answers)).expect("validates");
+        assert_eq!(validated.check_kinds(), [CheckKind::Categorical]);
+        assert!(!validated.is_exact_only());
+        assert_eq!(
+            validated.check_kind("message-supported"),
+            Some(CheckKind::Categorical)
+        );
+        assert_eq!(validated.check_kind("unknown-check"), None);
+    }
+
+    #[test]
+    fn a_binary_question_needs_exactly_yes_and_no() {
+        let binary = json!({
+            "yes": "A participant recognizes the concern.",
+            "no": "No supplied message recognizes the concern."
+        });
+        let validated = validate(&question_definition(binary.clone())).expect("validates");
+        assert_eq!(validated.check_kinds(), [CheckKind::Binary]);
+
+        // A third answer turns the question categorical.
+        let mut three = binary;
+        three["unclear"] = json!("The evidence is unclear.");
+        let validated = validate(&question_definition(three)).expect("validates");
+        assert_eq!(validated.check_kinds(), [CheckKind::Categorical]);
+
+        // Other label pairs stay categorical.
+        let translated = json!({
+            "oui": "The concern is recognized.",
+            "non": "The concern is not recognized."
+        });
+        let validated = validate(&question_definition(translated)).expect("validates");
+        assert_eq!(validated.check_kinds(), [CheckKind::Categorical]);
+    }
+
+    #[test]
+    fn duplicate_identifiers_fail_at_the_later_check() {
+        let mut value = minimal_definition();
+        let repeat = value["checks"][0].clone();
+        value["checks"]
+            .as_array_mut()
+            .expect("an array")
+            .push(repeat);
+        value["checks"][1]["name"] = json!("The summary fits again");
+        let error = validate(&value).expect_err("duplicate identifiers");
+        assert_eq!(error.code, ReasonCode::DuplicateId, "{error}");
+        assert_eq!(error.field_path, "/checks/1/id");
+    }
+
+    #[test]
+    fn an_empty_check_set_fails_validation() {
+        let mut value = minimal_definition();
+        value["checks"] = json!([]);
+        let error = validate(&value).expect_err("empty check set");
+        assert_eq!(error.code, ReasonCode::EmptyCheckSet, "{error}");
+        assert_eq!(error.field_path, "/checks");
+    }
+
+    #[test]
+    fn a_check_states_exactly_one_question_or_rule() {
+        // A question beside a rule.
+        let mut value = minimal_definition();
+        value["checks"][0]["question"] = json!("Is the summary fit?");
+        value["checks"][0]["answers"] = json!({"yes": "Fit.", "no": "Not fit."});
+        value["checks"][0]["accept"] = json!("yes");
+        let error = validate(&value).expect_err("question beside rule");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0");
+
+        // A rule beside an accept selection.
+        let mut value = minimal_definition();
+        value["checks"][0]["accept"] = json!("yes");
+        let error = validate(&value).expect_err("rule beside accept");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0");
+
+        // Neither a question nor a rule.
+        let mut value = minimal_definition();
+        value["checks"][0]
+            .as_object_mut()
+            .expect("an object")
+            .remove("rule");
+        let error = validate(&value).expect_err("no question and no rule");
+        assert_eq!(error.code, ReasonCode::MissingField, "{error}");
+        assert_eq!(error.field_path, "/checks/0/question");
+    }
+
+    #[test]
+    fn a_question_states_one_answer_map_or_scale() {
+        // Both.
+        let mut value = question_definition(json!({
+            "supported": "All claims are supported.",
+            "incomplete": "Support is missing."
+        }));
+        value["checks"][0]["scale"] = json!([
+            {"minor": "No consequence."},
+            {"serious": "A conflict with a commitment."}
+        ]);
+        let error = validate(&value).expect_err("answers beside scale");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0");
+
+        // Neither.
+        let mut value = question_definition(json!({
+            "supported": "All claims are supported.",
+            "incomplete": "Support is missing."
+        }));
+        value["checks"][0]
+            .as_object_mut()
+            .expect("an object")
+            .remove("answers");
+        let error = validate(&value).expect_err("no answers and no scale");
+        assert_eq!(error.code, ReasonCode::MissingField, "{error}");
+        assert_eq!(error.field_path, "/checks/0/answers");
+    }
+
+    #[test]
+    fn selections_name_declared_labels_only() {
+        let answers = json!({
+            "supported": "All claims are supported.",
+            "incomplete": "Support is missing."
+        });
+
+        let mut value = question_definition(answers.clone());
+        value["checks"][0]["accept"] = json!("excellent");
+        let error = validate(&value).expect_err("unknown accept label");
+        assert_eq!(error.code, ReasonCode::UnknownLabel, "{error}");
+        assert_eq!(error.field_path, "/checks/0/accept");
+
+        let mut value = question_definition(answers);
+        value["checks"][0]["review"] = json!("missing");
+        let error = validate(&value).expect_err("unknown review label");
+        assert_eq!(error.code, ReasonCode::UnknownLabel, "{error}");
+        assert_eq!(error.field_path, "/checks/0/review");
+    }
+
+    #[test]
+    fn accept_and_review_selections_stay_disjoint() {
+        let mut value = question_definition(json!({
+            "supported": "All claims are supported.",
+            "contradicted": "A claim conflicts.",
+            "incomplete": "Support is missing."
+        }));
+        value["checks"][0]["accept"] = json!(["supported", "contradicted"]);
+        value["checks"][0]["review"] = json!("contradicted");
+        let error = validate(&value).expect_err("overlap");
+        assert_eq!(error.code, ReasonCode::AcceptReviewOverlap, "{error}");
+        assert_eq!(error.field_path, "/checks/0/review");
+    }
+
+    /// One ordered-scale check.
+    fn scale_definition() -> Value {
+        json!({
+            "schema_version": 1,
+            "name": "consequence-level",
+            "inputs": {
+                "type": "object",
+                "properties": {"conversation": {"type": "string"}},
+                "required": ["conversation"],
+                "additionalProperties": false
+            },
+            "checks": [{
+                "id": "consequence",
+                "name": "The concern warrants an interruption",
+                "using": ["conversation"],
+                "question": "What consequence does this concern have?",
+                "scale": [
+                    {"minor": "No identified operational consequence."},
+                    {"meaningful": "A coordination problem causing rework."},
+                    {"serious": "A conflict with an explicit commitment."}
+                ],
+                "accept": {"at_least": "meaningful"}
+            }]
+        })
+    }
+
+    #[test]
+    fn scales_hold_two_unique_levels_at_least() {
+        let mut value = scale_definition();
+        value["checks"][0]["scale"] = json!([{"minor": "Only one level."}]);
+        let error = validate(&value).expect_err("one level");
+        assert_eq!(error.code, ReasonCode::InvalidScale, "{error}");
+        assert_eq!(error.field_path, "/checks/0/scale");
+
+        let mut value = scale_definition();
+        value["checks"][0]["scale"] = json!([
+            {"minor": "No identified operational consequence."},
+            {"minor": "A repeated level name."}
+        ]);
+        let error = validate(&value).expect_err("repeated level");
+        assert_eq!(error.code, ReasonCode::InvalidScale, "{error}");
+        assert_eq!(error.field_path, "/checks/0/scale");
+    }
+
+    #[test]
+    fn scale_acceptance_uses_at_least_on_a_declared_level() {
+        let mut value = scale_definition();
+        value["checks"][0]["accept"] = json!({"at_least": "critical"});
+        let error = validate(&value).expect_err("unknown level");
+        assert_eq!(error.code, ReasonCode::UnknownLabel, "{error}");
+        assert_eq!(error.field_path, "/checks/0/accept/at_least");
+
+        // A label selection never fits a scale check.
+        let mut value = scale_definition();
+        value["checks"][0]["accept"] = json!("serious");
+        let error = validate(&value).expect_err("labels on a scale");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0/accept");
+
+        // At least never fits an answers check.
+        let mut value = question_definition(json!({
+            "supported": "All claims are supported.",
+            "incomplete": "Support is missing."
+        }));
+        value["checks"][0]["accept"] = json!({"at_least": "supported"});
+        let error = validate(&value).expect_err("at least on answers");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0/accept");
+    }
+
+    #[test]
+    fn scale_review_stays_below_the_accepted_range() {
+        // A review level below at_least is valid.
+        let mut value = scale_definition();
+        value["checks"][0]["review"] = json!("minor");
+        assert!(validate(&value).is_ok());
+
+        // A review level inside the accepted range overlaps.
+        let mut value = scale_definition();
+        value["checks"][0]["review"] = json!("serious");
+        let error = validate(&value).expect_err("review inside the accepted range");
+        assert_eq!(error.code, ReasonCode::AcceptReviewOverlap, "{error}");
+        assert_eq!(error.field_path, "/checks/0/review");
+
+        // A review level outside the scale is unknown.
+        let mut value = scale_definition();
+        value["checks"][0]["review"] = json!("critical");
+        let error = validate(&value).expect_err("unknown review level");
+        assert_eq!(error.code, ReasonCode::UnknownLabel, "{error}");
+        assert_eq!(error.field_path, "/checks/0/review");
+    }
+
+    #[test]
+    fn a_rule_uses_exactly_one_string_input() {
+        // Two inputs.
+        let mut value = minimal_definition();
+        value["inputs"]["properties"]["notice"] = json!({"type": "string"});
+        value["inputs"]["required"] = json!(["summary", "notice"]);
+        value["checks"][0]["using"] = json!(["summary", "notice"]);
+        let error = validate(&value).expect_err("two inputs");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0/using");
+
+        // One number input.
+        let mut value = minimal_definition();
+        let properties = value["inputs"]["properties"]
+            .as_object_mut()
+            .expect("an object");
+        properties.remove("summary");
+        properties.insert("severity".to_owned(), json!({"type": "integer"}));
+        value["inputs"]["required"] = json!(["severity"]);
+        value["checks"][0]["using"] = json!(["severity"]);
+        let error = validate(&value).expect_err("number input");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0/using");
+
+        // One undeclared input.
+        let mut value = minimal_definition();
+        value["checks"][0]["using"] = json!(["body"]);
+        let error = validate(&value).expect_err("undeclared input");
+        assert_eq!(error.code, ReasonCode::UnknownInputName, "{error}");
+        assert_eq!(error.field_path, "/checks/0/using");
+    }
+
+    #[test]
+    fn a_validated_definition_serializes_to_its_artifact() {
+        let value = scale_definition();
+        let validated = validate(&value).expect("validates");
+        assert_eq!(validated.as_definition().name, "consequence-level");
+        let serialized = serde_json::to_value(&validated).expect("serializes");
+        assert_eq!(serialized, value);
     }
 }

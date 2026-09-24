@@ -106,6 +106,13 @@ stable reason codes and field paths. The strict gate maps the pinned
 `serde_json` failure wording to registry codes; the conformance fixtures
 cover every row of that mapping.
 
+Decided in T010: `measuretwice_core::input_schema` validates the supported
+input schema subset and returns one typed schema tree. Case validation in
+later tasks walks that tree, so the data rules and the schema rules cannot
+drift apart. `measuretwice_core::definition::validate_definition` runs after
+parsing, keeps the authored artifact unchanged, and establishes the kind of
+every check. It adds no evaluator name and no numerical cutoff.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

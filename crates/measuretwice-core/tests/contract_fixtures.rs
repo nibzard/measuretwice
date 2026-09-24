@@ -7,8 +7,10 @@
 //! Later tasks add the remaining groups as their validation lands. The tests
 //! read local files only, so they stay offline and deterministic.
 
+use measuretwice_core::definition::{CheckKind, WhenUncertain};
 use measuretwice_core::{definition, json};
 use serde_json::Value;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -67,48 +69,101 @@ fn the_ordered_scale_keeps_its_written_order() {
     assert_eq!(names, ["minor", "meaningful", "serious"]);
 }
 
-/// The rejection records that the parse boundary owns. The records with
-/// semantic codes, such as `duplicate_id` or the input-schema subset, belong
-/// to the definition-validation tasks that follow parsing.
-const STRUCTURAL_REJECTIONS: &[(&str, &str)] = &[
-    ("unsupported_schema_version", "/schema_version"),
-    ("unknown_field", "/evaluator"),
-    ("unknown_field", "/checks/0/cutoffs"),
-    ("missing_field", "/inputs"),
-    ("invalid_field_type", "/when_uncertain"),
-    ("invalid_field_type", "/checks/0/rule/includes"),
-    ("invalid_field_type", "/checks/0/rule/maxLength"),
+/// The reason codes that the definitions-invalid group covers, as the fixture
+/// manifest states. Every record runs through parsing and definition
+/// validation, so the core owns the whole group.
+const DEFINITION_REJECTION_CODES: &[&str] = &[
+    "duplicate_id",
+    "unknown_input_name",
+    "accept_review_overlap",
+    "unknown_label",
+    "invalid_scale",
+    "empty_check_set",
+    "unsupported_keyword",
+    "unsupported_schema_version",
+    "unknown_field",
+    "missing_field",
+    "invalid_field_type",
 ];
 
 #[test]
-fn structural_definition_rejections_report_the_stated_codes_and_paths() {
+fn definition_rejections_report_the_stated_codes_and_paths() {
     let document = fixture_document("definitions/invalid.json");
     let records = document["records"].as_array().expect("a record array");
     assert!(records.len() >= 20, "the fixture group lost records");
 
-    let mut matched = 0;
+    let mut covered: BTreeSet<&str> = BTreeSet::new();
     for record in records {
         let note = record["note"].as_str().expect("a note");
         let expected = &record["expected"];
         let code = expected["reason_code"].as_str().expect("a code");
         let path = expected["field_path"].as_str().expect("a path");
-        if !STRUCTURAL_REJECTIONS.contains(&(code, path)) {
-            continue;
-        }
-        matched += 1;
+        covered.insert(code);
         let text = serde_json::to_string(&record["raw"]).expect("the raw artifact serializes");
-        let error = definition::parse_definition_str(&text)
+        let error = definition::validate_definition_str(&text)
             .err()
             .unwrap_or_else(|| panic!("{note}: the artifact was accepted"));
         assert_eq!(error.code.as_str(), code, "{note}: {error}");
         assert_eq!(error.field_path, path, "{note}: {error}");
         assert!(!error.message.is_empty(), "{note}: the cause is empty");
     }
+    for code in DEFINITION_REJECTION_CODES {
+        assert!(covered.contains(code), "no fixture record covers {code}");
+    }
+}
+
+/// Every valid artifact, its check kinds, and the one documented default.
+const VALID_KINDS: &[(&str, &[CheckKind])] = &[
+    ("all-input-types", &[CheckKind::Binary, CheckKind::Rule]),
+    ("binary-question", &[CheckKind::Binary]),
+    ("categorical-question", &[CheckKind::Categorical]),
+    (
+        "exact-rules",
+        &[CheckKind::Rule, CheckKind::Rule, CheckKind::Rule],
+    ),
+    ("memory-length", &[CheckKind::Rule]),
+    ("memory-length-explicit", &[CheckKind::Rule]),
+    ("ordered-scale", &[CheckKind::Ordered]),
+];
+
+#[test]
+fn every_valid_definition_validates_with_its_stated_kinds() {
+    assert!(VALID_KINDS.len() >= 6, "the expectation table lost files");
+    let mut exact_only_seen = false;
+    for (stem, kinds) in VALID_KINDS {
+        let path = fixture(&format!("definitions/valid/{stem}.json"));
+        let text = fs::read_to_string(&path).expect("the fixture file reads");
+        let validated = definition::validate_definition_str(&text)
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+        assert_eq!(validated.check_kinds(), *kinds, "{stem}");
+        // The one documented default: an omitted when_uncertain means review.
+        assert_eq!(
+            validated.effective_when_uncertain(),
+            WhenUncertain::Review,
+            "{stem}"
+        );
+        // The validated value still serializes to the source artifact.
+        let source: Value = serde_json::from_str(&text).expect("the fixture parses");
+        let serialized = serde_json::to_value(&validated).expect("the definition serializes");
+        assert_eq!(serialized, source, "{stem}");
+        exact_only_seen |= validated.is_exact_only();
+    }
+    assert!(exact_only_seen, "no fixture covers an exact-only set");
+
+    // The memory pair validates on both sides of the when_uncertain default.
+    let omitted = definition::validate_definition_str(
+        &fs::read_to_string(fixture("definitions/valid/memory-length.json")).unwrap(),
+    )
+    .expect("the omitted side validates");
+    let stated = definition::validate_definition_str(
+        &fs::read_to_string(fixture("definitions/valid/memory-length-explicit.json")).unwrap(),
+    )
+    .expect("the stated side validates");
     assert_eq!(
-        matched,
-        STRUCTURAL_REJECTIONS.len(),
-        "the fixture group no longer covers every structural rejection"
+        omitted.effective_when_uncertain(),
+        stated.effective_when_uncertain()
     );
+    assert_eq!(omitted.check_kinds(), stated.check_kinds());
 }
 
 #[test]
