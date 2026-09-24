@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "name": "jev-translations",
+  "status": "Frozen for v0 on 24 September 2026",
+  "description": "Jev translation conformance cases. One question check becomes exactly one Jev question: named answers become Choice, explicit yes and no answers become Noul, and one ordered scale becomes Score. Each case pins the complete translated question, its canonical text, and its translation-domain content hash, together with the evidence state that the projected inputs produce. Every wrapper translates the same definitions into the same questions and the same hashes. The group is mandatory for the TypeScript SDK and for the later Python SDK, whose native adapter must pass the same cases.",
+  "translation_version": "0.1.0",
+  "provenance": {
+    "sdk": "@typesafe-ai/sdk",
+    "sdk_version": "0.6.0",
+    "shapes_from": "the question declarations in dist/index.d.mts of the pinned version",
+    "contract_record": "../../providers/jev/README.md",
+    "live_calls": false,
+    "verified_at": "2026-09-24"
+  },
+  "mapping": [
+    {
+      "question_kind": "categorical",
+      "primitive": "choice",
+      "rule": "Named answers become Choice criteria. The criteria keys are exactly the declared answer labels and each value is the answer description."
+    },
+    {
+      "question_kind": "binary",
+      "primitive": "noul",
+      "rule": "One question with exactly the answers yes and no becomes Noul. The yes description maps to criteria.true and the no description to criteria.false. The noul value of the answer is the probability of yes."
+    },
+    {
+      "question_kind": "ordered",
+      "primitive": "score",
+      "rule": "One ordered scale becomes Score. The criteria tuple holds the level descriptions in the declared order, indexed from zero. The level names stay in the check meaning; the adapter maps reported positions back to names."
+    }
+  ],
+  "state_envelope": "One fixed key evidence holds exactly the projected inputs that the using list names. The envelope frames every supplied value as untrusted evidence for the question, never as instructions.",
+  "never_in_state": [
+    "case identifier",
+    "labels",
+    "label explanations",
+    "baseline decisions"
+  ],
+  "cases": [
+    {
+      "note": "One categorical question with named answers becomes one Choice question. The instructions hold the question wording unchanged and the criteria hold every answer description keyed by label.",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "kind": "categorical",
+      "primitive": "choice",
+      "question": {
+        "type": "choice",
+        "instructions": "Does every material claim in the proposed message follow from the evidence?",
+        "criteria": {
+          "supported": "All claims are supported with appropriate certainty and attribution.",
+          "contradicted": "A material claim conflicts with the supplied evidence.",
+          "incomplete": "Support for a material claim is missing or ambiguous."
+        }
+      },
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "expected_state": {
+        "evidence": {
+          "prior_decision": "Customer exports stay in the EU.",
+          "conversation": "The team proposes one export worker in the US region.",
+          "proposed_message": "The export worker moves to the US region."
+        }
+      },
+      "canonical": "{\"criteria\":{\"contradicted\":\"A material claim conflicts with the supplied evidence.\",\"incomplete\":\"Support for a material claim is missing or ambiguous.\",\"supported\":\"All claims are supported with appropriate certainty and attribution.\"},\"instructions\":\"Does every material claim in the proposed message follow from the evidence?\",\"type\":\"choice\"}",
+      "content_hash": "88c86b66dde9d79e165a273059e5a34c84c2766706bc53c86d2a3079242d90b2"
+    },
+    {
+      "note": "One binary question with exactly the answers yes and no becomes one Noul question. The yes description maps to criteria.true and the no description to criteria.false.",
+      "definition": "binary-question.json",
+      "check": "adds-information",
+      "kind": "binary",
+      "primitive": "noul",
+      "question": {
+        "type": "noul",
+        "instructions": "Has the conversation already acknowledged this concern?",
+        "criteria": {
+          "true": "A participant explicitly recognizes this specific concern.",
+          "false": "No supplied message explicitly recognizes this specific concern."
+        }
+      },
+      "case_input": {
+        "conversation": "We agreed on the EU export region yesterday.",
+        "proposed_message": "The export region changes today."
+      },
+      "using": [
+        "conversation",
+        "proposed_message"
+      ],
+      "expected_state": {
+        "evidence": {
+          "conversation": "We agreed on the EU export region yesterday.",
+          "proposed_message": "The export region changes today."
+        }
+      },
+      "canonical": "{\"criteria\":{\"false\":\"No supplied message explicitly recognizes this specific concern.\",\"true\":\"A participant explicitly recognizes this specific concern.\"},\"instructions\":\"Has the conversation already acknowledged this concern?\",\"type\":\"noul\"}",
+      "content_hash": "1effabfe8691b01f830d6f8de8d815bb097e5090c65fee9d9bcf42651f51df24"
+    },
+    {
+      "note": "One ordered scale becomes one Score question. The criteria tuple holds the level descriptions in the declared order, indexed from zero. The level names stay in the check meaning; the adapter maps positions back to names.",
+      "definition": "ordered-scale.json",
+      "check": "consequence",
+      "kind": "ordered",
+      "primitive": "score",
+      "question": {
+        "type": "score",
+        "instructions": "What consequence does this concern have, based on the evidence?",
+        "criteria": [
+          "A wording or preference difference with no identified operational consequence.",
+          "A coordination problem causing rework or delay.",
+          "A conflict affecting an explicit customer commitment or operational requirement."
+        ]
+      },
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "expected_state": {
+        "evidence": {
+          "prior_decision": "Customer exports stay in the EU.",
+          "conversation": "The team proposes one export worker in the US region.",
+          "proposed_message": "The export worker moves to the US region."
+        }
+      },
+      "canonical": "{\"criteria\":[\"A wording or preference difference with no identified operational consequence.\",\"A coordination problem causing rework or delay.\",\"A conflict affecting an explicit customer commitment or operational requirement.\"],\"instructions\":\"What consequence does this concern have, based on the evidence?\",\"type\":\"score\"}",
+      "content_hash": "1c952f70a388c014e9386bf08596299274dd2c4e51fb8578dc3191d9151ed01a"
+    }
+  ],
+  "identity": [
+    {
+      "note": "One changed translation behavior changes the translated question and its hash while the definition stays unchanged: this alternative frames the instructions as one structured value instead of one string. The evaluator binding that records the translation must change, and the prior qualification no longer applies.",
+      "base": "categorical-question.json",
+      "check": "message-supported",
+      "changed_element": "translation behavior",
+      "origin": "translation",
+      "question": {
+        "type": "choice",
+        "instructions": {
+          "question": "Does every material claim in the proposed message follow from the evidence?",
+          "answer": "Select exactly one label."
+        },
+        "criteria": {
+          "supported": "All claims are supported with appropriate certainty and attribution.",
+          "contradicted": "A material claim conflicts with the supplied evidence.",
+          "incomplete": "Support for a material claim is missing or ambiguous."
+        }
+      },
+      "canonical": "{\"criteria\":{\"contradicted\":\"A material claim conflicts with the supplied evidence.\",\"incomplete\":\"Support for a material claim is missing or ambiguous.\",\"supported\":\"All claims are supported with appropriate certainty and attribution.\"},\"instructions\":{\"answer\":\"Select exactly one label.\",\"question\":\"Does every material claim in the proposed message follow from the evidence?\"},\"type\":\"choice\"}",
+      "content_hash": "f8d6db7183e57f390a20be653b5386902cda2b74f83b04f41d4f88250ddf7f44"
+    },
+    {
+      "note": "One changed question wording changes the definition hash and the translation hash together.",
+      "base": "binary-question.json",
+      "check": "adds-information",
+      "changed_element": "question wording",
+      "origin": "check",
+      "variant_question": {
+        "kind": "binary",
+        "question": "Has the conversation already acknowledged this specific concern?",
+        "answers": {
+          "yes": "A participant explicitly recognizes this specific concern.",
+          "no": "No supplied message explicitly recognizes this specific concern."
+        }
+      },
+      "question": {
+        "type": "noul",
+        "instructions": "Has the conversation already acknowledged this specific concern?",
+        "criteria": {
+          "true": "A participant explicitly recognizes this specific concern.",
+          "false": "No supplied message explicitly recognizes this specific concern."
+        }
+      },
+      "canonical": "{\"criteria\":{\"false\":\"No supplied message explicitly recognizes this specific concern.\",\"true\":\"A participant explicitly recognizes this specific concern.\"},\"instructions\":\"Has the conversation already acknowledged this specific concern?\",\"type\":\"noul\"}",
+      "content_hash": "1962c1ffd5c5e64cf191afca25d16ef83369c53e82286d58eae1a25d1a94d09b"
+    },
+    {
+      "note": "One reordered scale changes the definition hash and the translation hash together, because the criteria tuple order carries the scale order.",
+      "base": "ordered-scale.json",
+      "check": "consequence",
+      "changed_element": "scale order",
+      "origin": "check",
+      "variant_question": {
+        "kind": "ordered",
+        "question": "What consequence does this concern have, based on the evidence?",
+        "scale": [
+          {
+            "name": "serious",
+            "description": "A conflict affecting an explicit customer commitment or operational requirement."
+          },
+          {
+            "name": "meaningful",
+            "description": "A coordination problem causing rework or delay."
+          },
+          {
+            "name": "minor",
+            "description": "A wording or preference difference with no identified operational consequence."
+          }
+        ]
+      },
+      "question": {
+        "type": "score",
+        "instructions": "What consequence does this concern have, based on the evidence?",
+        "criteria": [
+          "A conflict affecting an explicit customer commitment or operational requirement.",
+          "A coordination problem causing rework or delay.",
+          "A wording or preference difference with no identified operational consequence."
+        ]
+      },
+      "canonical": "{\"criteria\":[\"A conflict affecting an explicit customer commitment or operational requirement.\",\"A coordination problem causing rework or delay.\",\"A wording or preference difference with no identified operational consequence.\"],\"instructions\":\"What consequence does this concern have, based on the evidence?\",\"type\":\"score\"}",
+      "content_hash": "96390817a0a7dd9d46fed513573c2b9479173190121b0c1a0eca4ae9f8d55e1c"
+    },
+    {
+      "note": "One changed answer description changes the definition hash and the translation hash together.",
+      "base": "categorical-question.json",
+      "check": "message-supported",
+      "changed_element": "answer description",
+      "origin": "check",
+      "variant_question": {
+        "kind": "categorical",
+        "question": "Does every material claim in the proposed message follow from the evidence?",
+        "answers": {
+          "supported": "All claims are supported with appropriate certainty and attribution.",
+          "contradicted": "A material claim conflicts with the supplied evidence.",
+          "incomplete": "Support for a material claim is absent or ambiguous."
+        }
+      },
+      "question": {
+        "type": "choice",
+        "instructions": "Does every material claim in the proposed message follow from the evidence?",
+        "criteria": {
+          "supported": "All claims are supported with appropriate certainty and attribution.",
+          "contradicted": "A material claim conflicts with the supplied evidence.",
+          "incomplete": "Support for a material claim is absent or ambiguous."
+        }
+      },
+      "canonical": "{\"criteria\":{\"contradicted\":\"A material claim conflicts with the supplied evidence.\",\"incomplete\":\"Support for a material claim is absent or ambiguous.\",\"supported\":\"All claims are supported with appropriate certainty and attribution.\"},\"instructions\":\"Does every material claim in the proposed message follow from the evidence?\",\"type\":\"choice\"}",
+      "content_hash": "7ceccbd01391128161c105594749f64002bb2ffd57c85a61b84d1eadedcfab9e"
+    }
+  ],
+  "state_rejections": [
+    {
+      "note": "One projected input outside the using list never enters the state. A label is not evidence.",
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "inputs": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region.",
+        "label": "supported"
+      },
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/inputs/label"
+      }
+    },
+    {
+      "note": "One label explanation outside the using list never enters the state.",
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "inputs": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region.",
+        "label_explanation": "The reviewer agreed with the model."
+      },
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/inputs/label_explanation"
+      }
+    },
+    {
+      "note": "One baseline decision outside the using list never enters the state.",
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "inputs": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region.",
+        "baseline_decision": "silent"
+      },
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/inputs/baseline_decision"
+      }
+    },
+    {
+      "note": "One missing projected input fails before any request exists. The state never invents a value.",
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "inputs": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/inputs/conversation"
+      }
+    }
+  ]
+}

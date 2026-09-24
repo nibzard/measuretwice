@@ -437,6 +437,30 @@ core or the binding. The synthetic response fixtures with their provenance
 live in `providers/jev/fixtures/responses.json`; the repository checks in
 `tests/repo/provider-fixtures.test.ts` tie them to this pin.
 
+Decided in T025: `packages/measuretwice/src/jev.ts` owns the versioned
+translation of one question check into one Jev question, and nothing
+else. A categorical question becomes Choice, one binary question with
+exactly the answers yes and no becomes Noul, and one ordered scale
+becomes Score, as the [provider record](providers/jev/README.md) states.
+The module imports no SDK type, so the public package still keeps
+`typebox` as its only runtime dependency; the adapter that sends the
+questions arrives with task T026. The translated question is plain JSON
+in the wire shape of the pinned SDK, and the Rust core computes its
+canonical form and its translation-domain digest, so no wrapper hashes on
+its own. The request state frames the supplied content as evidence under
+one fixed `evidence` key that holds exactly the projected inputs of
+`using`, so labels, label explanations, baseline decisions, and the case
+identifier never reach the provider. One changed translated question
+changes the digest, so the profile binding that records the digest and
+the complete question changes and the prior qualification no longer
+applies; the profile compatibility check that compares a recorded
+translation arrives with task T028. The shared cases live in
+`fixtures/translations/jev.json` with the manifest group
+`translations-jev`; the package suite in
+`packages/measuretwice/test/jev.test.ts`, the repository checks in
+`tests/repo/fixtures.test.ts`, and the Rust integration tests in
+`crates/measuretwice-core/tests/contract_fixtures.rs` keep them honest.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

@@ -5,9 +5,11 @@
 //! groups that the parse boundary, the hashing boundary, the report boundary,
 //! and the run state boundary own: the valid definition artifacts, the
 //! structural definition rejections, the input validation records, the
-//! hashing rejection records, the canonical hash fixtures, the serialization
-//! round trips, the profile self-hashes, the outcome and completion records,
-//! and the runtime traces replayed event by event through the run state.
+//! hashing rejection records, the canonical hash fixtures, the Jev
+//! translation questions with their translation-domain digests, the
+//! serialization round trips, the profile self-hashes, the outcome and
+//! completion records, and the runtime traces replayed event by event
+//! through the run state.
 //! Later tasks add the remaining groups as their validation lands. The tests
 //! read local files only, so they stay offline and deterministic.
 
@@ -18,7 +20,7 @@ use measuretwice_core::run_state::{AttemptResolution, CheckPlace, Phase, RunLimi
 use measuretwice_core::testing::SplitMix64;
 use measuretwice_core::{case, definition, json, report, rule};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
@@ -410,6 +412,110 @@ fn hashing_canonical_fixtures_match_forms_and_digests() {
         "split",
     ] {
         assert!(domains.contains(tag), "no fixture record covers {tag}");
+    }
+}
+
+/// Checks one translated question record against the core canonicalizer.
+fn assert_translated_question(record: &Value, note: &str) {
+    let question = &record["question"];
+    let expected_form = record["canonical"].as_str().expect("a canonical form");
+    let expected_hash = record["content_hash"].as_str().expect("a digest");
+    assert_eq!(hashing::canonical_form(question), expected_form, "{note}");
+    assert_eq!(
+        hashing::content_hash(Domain::Translation, question),
+        expected_hash,
+        "{note}"
+    );
+}
+
+#[test]
+fn jev_translation_fixtures_hash_through_the_core() {
+    let document = fixture_document("translations/jev.json");
+    let cases = document["cases"].as_array().expect("a case array");
+    assert!(cases.len() >= 3, "the fixture group lost cases");
+
+    // The mapping covers every question kind and its Jev primitive.
+    let mut primitives: BTreeSet<&str> = BTreeSet::new();
+    for row in document["mapping"].as_array().expect("a mapping array") {
+        let kind = row["question_kind"].as_str().expect("a question kind");
+        let primitive = row["primitive"].as_str().expect("a primitive");
+        let expected = match kind {
+            "categorical" => "choice",
+            "binary" => "noul",
+            "ordered" => "score",
+            other => panic!("unknown question kind {other}"),
+        };
+        assert_eq!(primitive, expected, "{kind} maps to {expected}");
+        primitives.insert(primitive);
+    }
+    assert_eq!(
+        primitives,
+        BTreeSet::from(["choice", "noul", "score"]),
+        "every Jev primitive appears"
+    );
+
+    let mut base_hashes: BTreeMap<String, &str> = BTreeMap::new();
+    for case in cases {
+        let note = case["note"].as_str().expect("a note");
+        assert_translated_question(case, note);
+        let key = format!(
+            "{}/{}",
+            case["definition"].as_str().expect("a definition file"),
+            case["check"].as_str().expect("a check identifier")
+        );
+        base_hashes.insert(key, case["content_hash"].as_str().expect("a digest"));
+
+        // The evidence state holds exactly the projected inputs of using.
+        let state = case["expected_state"].as_object().expect("a state object");
+        assert_eq!(state.len(), 1, "{note}: the state holds one envelope key");
+        let evidence = state["evidence"].as_object().expect("an evidence object");
+        let using = case["using"].as_array().expect("a using list");
+        let mut named: BTreeSet<&str> = BTreeSet::new();
+        for name in using {
+            named.insert(name.as_str().expect("an input name"));
+        }
+        let evidence_names: BTreeSet<&str> = evidence.keys().map(|key| key.as_str()).collect();
+        assert_eq!(evidence_names, named, "{note}: the state names only using");
+        let input = case["case_input"].as_object().expect("a case input");
+        for (name, value) in evidence {
+            assert_eq!(Some(value), input.get(name), "{note}: the value of {name}");
+        }
+    }
+
+    // Every identity variant changes the digest of its base case.
+    let identity = document["identity"].as_array().expect("an identity array");
+    assert!(identity.len() >= 3, "the fixture group lost variants");
+    for record in identity {
+        let note = record["note"].as_str().expect("a note");
+        assert_translated_question(record, note);
+        let key = format!(
+            "{}/{}",
+            record["base"].as_str().expect("a definition file"),
+            record["check"].as_str().expect("a check identifier")
+        );
+        let base = *base_hashes
+            .get(&key)
+            .unwrap_or_else(|| panic!("{note}: no base case named {key}"));
+        assert_ne!(
+            record["content_hash"].as_str().expect("a digest"),
+            base,
+            "{note}: the variant kept the base digest"
+        );
+    }
+
+    // Every state rejection names one registered reason code.
+    for record in document["state_rejections"]
+        .as_array()
+        .expect("a rejection array")
+    {
+        let note = record["note"].as_str().expect("a note");
+        let code = record["expected"]["reason_code"]
+            .as_str()
+            .expect("a reason code");
+        assert!(
+            ReasonCode::from_registry(code).is_some(),
+            "{note}: {code} names no registered reason"
+        );
     }
 }
 

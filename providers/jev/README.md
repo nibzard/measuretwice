@@ -4,7 +4,7 @@ Status: verified 24 September 2026 against `@typesafe-ai/sdk` 0.6.0.
 
 This record is the verified provider contract for the Jev evaluator adapter.
 It replaces the design-time assumptions in [MVP_SPEC.md](../../MVP_SPEC.md)
-sections 5 and 6. Task T025 translates checks into Jev questions. Task T026
+sections 5 and 6. Task T025 added the translation contract below. Task T026
 normalizes Jev assessments. Both build on this record.
 
 No repository code imports the SDK yet. The public package keeps `typebox`
@@ -141,6 +141,53 @@ Verified semantics:
 A criterion description is `EntryType`. A `null` entry leaves one label or one
 score level undescribed. `ScoreCriteria` indexes descriptions by array
 position from zero. A rubric needs at least two entries.
+
+## Translation contract
+
+Task T025 translates one question check into one Jev question. The module
+`packages/measuretwice/src/jev.ts` owns the translation and nothing else.
+It imports no SDK type, so the public package keeps `typebox` as its only
+runtime dependency until the adapter of task T026 imports the SDK.
+
+| Check shape | Jev primitive | Translation |
+| --- | --- | --- |
+| Named answers | Choice | The criteria keys are exactly the declared answer labels. Each value is the answer description. |
+| Explicit yes and no answers | Noul | The yes description maps to `criteria.true` and the no description to `criteria.false`. |
+| Ordered descriptive scale | Score | The criteria tuple holds the level descriptions in the declared order, indexed from zero. |
+
+The translation preserves the question wording, every answer description,
+and the scale order. The level names of a scale stay in the check meaning;
+the adapter maps reported positions back to names when it normalizes one
+assessment. The accept and review sets never enter the question, because
+acceptance defines meaning and carries no probability of correctness.
+
+The translated question is plain JSON in the wire shape above:
+`{ type, instructions, criteria }`. Its canonical form is hashed in the
+translation domain of the Rust core, as
+[contracts/v0/hashing.md](../../contracts/v0/hashing.md) states. One
+changed translated question changes the digest, so the profile binding
+that records the digest and the complete question changes, and the prior
+qualification no longer applies. A changed translation behavior also
+changes the translation contract version, which the adapter version
+carries.
+
+The request state frames the supplied content as evidence. One fixed
+`evidence` key holds exactly the projected inputs that the `using` list
+names, so a label, a label explanation, a baseline decision, and the case
+identifier never reach the provider. The envelope marks every supplied
+value as evidence for the question, never as instructions. The adapter
+sends one request as `{ state, questions: { [check id]: question } }`.
+
+The shared translation cases live in
+[fixtures/translations/jev.json](../../fixtures/translations/jev.json)
+with the manifest group `translations-jev`. They pin the translated
+question, the canonical text, and the digest of one categorical, one
+binary, and one ordered check, together with the evidence state and the
+identity variants that prove one changed element changes the digest. The
+package suite in `packages/measuretwice/test/jev.test.ts`, the repository
+checks in `tests/repo/fixtures.test.ts`, and the Rust integration tests in
+`crates/measuretwice-core/tests/contract_fixtures.rs` keep them honest.
+The later Python adapter must pass the same cases.
 
 ## Cancellation, timeout, and retries
 

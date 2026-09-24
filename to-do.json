@@ -916,8 +916,8 @@
       "id": "T025",
       "title": "Translate checks into versioned Jev questions",
       "priority": 2,
-      "status": "todo",
-      "details": "Translate named answers to Choice, explicit yes/no answers to Noul, and ordered scales to Score. Sources: MVP_SPEC.md sections 4, 6, 12.",
+      "status": "done",
+      "details": "Translate named answers to Choice, explicit yes/no answers to Noul, and ordered scales to Score. Sources: MVP_SPEC.md sections 4, 6, 12. Done: packages/measuretwice/src/jev.ts owns the versioned Jev translation (JEV_TRANSLATION_VERSION 0.1.0) and nothing else. translateJevQuestion maps one validated question to exactly one wire question of the pinned SDK shape: named answers become Choice criteria keyed by label, one binary yes/no question becomes Noul with the yes description under criteria.true and the no description under criteria.false, and one ordered scale becomes one Score criteria tuple in the declared order. The module imports no SDK type, so the public package keeps typebox as its only runtime dependency; the adapter that sends the questions arrives with T026. The wording, every answer description, and the scale order pass through unchanged, and the accept and review sets stay outside the question. jevEvidenceState frames the supplied content as evidence under one fixed evidence key that holds exactly the projected inputs of using and rejects every other field, so labels, label explanations, baseline decisions, and the case identifier never reach the provider. Each translation records the complete question and its translation-domain content hash computed by the Rust core. fixtures/translations/jev.json (manifest group translations-jev) pins the three translated questions with canonical text and digests, the evidence states, four state rejections, and four identity variants; one variant changes only the translation behavior, which changes the digest while the definition hash stays, so the profile binding that records the translation changes. packages/measuretwice/test/jev.test.ts drives every case through the dispatched request and the public translation, proves the binding change through two loadable exploration profiles that differ only in their recorded translation, and ties the wire shapes to the pinned SDK record in providers/jev/fixtures/responses.json. tests/repo/fixtures.test.ts verifies the group data and the Rust integration tests hash the same questions through the core; providers/jev/README.md records the translation contract. The load-time comparison of one recorded translation against the live one arrives with T028.",
       "steps": [
         "Write translation fixtures for categorical, binary, and ordered questions.",
         "Preserve question wording, answer descriptions, scale order, and exact projected input fields.",
@@ -935,6 +935,22 @@
         "T012",
         "T022",
         "T024"
+      ],
+      "updated_at": "2026-09-24T04:27:35Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/translations/jev.json",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/jev.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/jev.test.ts",
+        "providers/jev/README.md",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
       ]
     },
     {

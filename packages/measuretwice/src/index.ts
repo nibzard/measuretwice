@@ -10,9 +10,10 @@
  * that the host registers with `registerEvaluators`. The package also ships
  * two test adapters, `createScriptedEvaluator` and
  * `createLabelOnlyEvaluator`, that stay offline and prove the contract
- * needs no Jev response shape. The semantic run path
- * and the public operations `calibrate`, `evaluate`, and `compare` are
- * specified in MVP_SPEC.md and arrive with their tasks.
+ * needs no Jev response shape, and `translateJevQuestion`, the versioned
+ * translation of one question check into one Jev question. The semantic
+ * run path and the public operations `calibrate`, `evaluate`, and
+ * `compare` are specified in MVP_SPEC.md and arrive with their tasks.
  *
  * This package never exposes provider SDK types or native binding types.
  * Invalid data fails with one {@link ValidationError} before execution.
@@ -68,6 +69,16 @@ export type {
   ScriptedEvaluatorOptions,
   TestEvaluatorControl,
 } from "./test-evaluator.js";
+export { JEV_TRANSLATION_VERSION, jevEvidenceState, translateJevQuestion } from "./jev.js";
+export type {
+  JevChoiceQuestion,
+  JevEvidenceState,
+  JevNoulQuestion,
+  JevPrimitive,
+  JevQuestionValue,
+  JevScoreQuestion,
+  JevTranslation,
+} from "./jev.js";
 export { load } from "./run.js";
 export type {
   AggregateOutcome,

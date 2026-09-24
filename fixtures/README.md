@@ -25,6 +25,7 @@ one group through the Rust core is not conformant.
 | Serialization | [serialization/round-trips.json](serialization/round-trips.json) | Round trips, ordered arrays, order strictness, absence, and rejected executable values. |
 | Assessments | [assessments/samples.json](assessments/samples.json) | The assessment contract and `invalid_assessment` rejections. |
 | Adapter conformance | [adapters/conformance.json](adapters/conformance.json) | The test-adapter controls, absent optional measurements, the label-only decision rule, evaluator replacement, and independent profile bindings. |
+| Jev translations | [translations/jev.json](translations/jev.json) | The Choice, Noul, and Score translations of the question definitions, their canonical text and translation-domain digests, the evidence state envelope, and the excluded label and baseline fields. |
 | Outcomes | [reports/outcomes.json](reports/outcomes.json) | The aggregate order, every check outcome, and the completion statuses. |
 | Profile states | [profiles/states.json](profiles/states.json) | Every qualification status, self-hash verification, and compatibility failures. |
 | Runtime traces | [runtime/traces.json](runtime/traces.json) | Queue limits, deadlines, cancellation, retries, partial failure, and late results. |
@@ -55,6 +56,15 @@ one group through the Rust core is not conformant.
   `delay_ms`. A case may state `signal: "aborted"`. An expected record holds
   one exact `assessment` or one `failure` with one code and one exact or
   contained message, plus the observed `delays_ms`.
+- A Jev translation case holds `note`, `definition` (a file name in
+  `definitions/valid/`), `check`, `kind`, `primitive`, `question` (the
+  complete translated question in the wire shape of the pinned SDK),
+  `canonical`, `content_hash`, `case_input`, `using`, and `expected_state`.
+  An identity record adds `base`, `changed_element`, and `origin`, which is
+  `translation` for one changed translation of the same check or `check`
+  for one changed check that also carries `variant_question`. A state
+  rejection holds `using`, `inputs`, and the expected `reason_code` and
+  `field_path`.
 
 ## Digests
 
@@ -85,6 +95,12 @@ The fixtures reference each other. A change to one file must keep these links:
   profile of `profiles/states.json`.
 - The exact profile in `profiles/states.json` records the definition hash of
   `definitions/valid/exact-rules.json`.
+- The Jev translation cases reference the question definitions of
+  `definitions/valid/`. The identity records of the translation group vary
+  one preserved element at a time, so each changed element changes the
+  translation digest. The exploration profile of `profiles/states.json`
+  keeps its own synthetic translation binding; profile generation records
+  real translations when it lands.
 - The calibration profiles record the plan, dataset, and split digests from
   `hashing/canonical.json`.
 - The exploration profile records the translation digest from the translation

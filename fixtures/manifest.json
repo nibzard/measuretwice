@@ -77,6 +77,13 @@
       "runner": "Drive each case through the wrapper test adapters and the dispatch contract. Compare the normalized execution, the failure code, and the message fragment, and observe the stated delays through one injected sleep. Decide each label-rule row with the separately specified rule. Verify that replacing the evaluator changes no request field and no definition hash, and that one rebound profile needs its own binding and its own content hash."
     },
     {
+      "id": "translations-jev",
+      "path": "translations/jev.json",
+      "kind": "translation-set",
+      "covers": ["categorical to Choice", "binary to Noul", "ordered to Score", "question wording preserved", "answer descriptions preserved", "scale order preserved", "evidence state envelope", "labels and baselines excluded", "translation hash identity", "changed translation changes the binding"],
+      "runner": "Translate each referenced question check with the versioned Jev translation and compare the complete translated question, the canonical text, and the translation-domain digest through the Rust core. Build the request state from the projected inputs and the using list, and reject every state that carries one field outside the using list. Verify that each identity variant changes the digest, so one changed translated question changes the evaluator binding that records it."
+    },
+    {
       "id": "reports-outcomes",
       "path": "reports/outcomes.json",
       "kind": "table-set",

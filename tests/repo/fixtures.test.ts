@@ -951,6 +951,184 @@ test("replacement pairs and binding rows keep the evaluator independence invaria
   expect(String(jevRow.adapter_version)).toBe(String(explorationBinding?.adapter_version));
 });
 
+// ---------------------------------------------------------------------------
+// Jev translation cases.
+// ---------------------------------------------------------------------------
+
+/** One Jev translation case, identity variant, or state rejection. */
+type TranslationCase = {
+  note?: string;
+  definition?: string;
+  check?: string;
+  kind?: string;
+  primitive?: string;
+  question?: Json;
+  canonical?: string;
+  content_hash?: string;
+  case_input?: Json;
+  using?: string[];
+  expected_state?: Json;
+  base?: string;
+  changed_element?: string;
+  origin?: string;
+  variant_question?: Json;
+  inputs?: Json;
+  expected?: { reason_code?: string; field_path?: string };
+};
+
+/** Verifies the digest formula and the canonical text of one translated question. */
+function checkTranslatedQuestion(record: TranslationCase, where: string): void {
+  const canonical = String(record.canonical);
+  const hash = String(record.content_hash);
+  expect(HASH_PATTERN.test(hash), where).toBe(true);
+  expect(digestOf("translation", canonical), where).toBe(hash);
+  const parsed = JSON.parse(canonical) as Json;
+  expect(keysAreSorted(parsed), `${where} holds unsorted keys`).toBe(true);
+  expect(deepEqualNumbers(parsed, record.question), `${where}: canonical text does not parse back to the question`).toBe(true);
+}
+
+test("the Jev translation group maps every question kind to its primitive", () => {
+  const doc = loadJson("translations/jev.json") as Record<string, Json | undefined>;
+  expect(doc.schema_version).toBe(1);
+  expect(String(doc.translation_version)).toMatch(/^\d+\.\d+\.\d+$/);
+  expect(doc.provenance).toBeTypeOf("object");
+  const provenance = doc.provenance as Record<string, Json>;
+  expect(provenance.sdk).toBe("@typesafe-ai/sdk");
+  expect(provenance.sdk_version).toBe("0.6.0");
+  expect(provenance.live_calls).toBe(false);
+  const pairs = new Map(asObjects(doc.mapping as Json[]).map((row) => [String(row.question_kind), String(row.primitive)]));
+  expect([...pairs.entries()].sort()).toEqual([
+    ["binary", "noul"],
+    ["categorical", "choice"],
+    ["ordered", "score"],
+  ]);
+  expect(Array.isArray(doc.never_in_state)).toBe(true);
+  expect((doc.never_in_state as string[]).length).toBeGreaterThanOrEqual(3);
+});
+
+test("each Jev translation preserves the wording, descriptions, order, and input projection", () => {
+  const doc = loadJson("translations/jev.json") as Record<string, Json | undefined>;
+  const cases = asObjects(doc.cases as Json[]) as unknown as TranslationCase[];
+  expect(cases.length).toBe(3);
+  const pairs = new Map(asObjects(doc.mapping as Json[]).map((row) => [String(row.question_kind), String(row.primitive)]));
+  const seenKinds = new Set<string>();
+  for (const record of cases) {
+    const where = String(record.note);
+    const check = questionCheckOf(String(record.definition), String(record.check));
+    expect(check, where).toBeDefined();
+    const kind = questionKindOf(check!);
+    expect(record.kind, where).toBe(kind);
+    seenKinds.add(kind);
+    expect(record.primitive, where).toBe(pairs.get(kind));
+    expect(record.using, where).toEqual(check!.using);
+
+    const question = record.question as Record<string, Json>;
+    // The wire question holds exactly the fields of the pinned SDK shape.
+    expect(Object.keys(question).sort(), where).toEqual(["criteria", "instructions", "type"]);
+    expect(question.type, where).toBe(record.primitive);
+    // The wording passes through unchanged, and no acceptance field appears.
+    expect(question.instructions, where).toBe(check!.question);
+    if (kind === "ordered") {
+      const scale = check!.scale as Record<string, Json>[];
+      expect(question.criteria, where).toEqual(scale.map((level) => level[Object.keys(level)[0]!]));
+    } else {
+      const answers = check!.answers as Record<string, Json>;
+      if (kind === "binary") {
+        expect(question.criteria, where).toEqual({ true: answers.yes, false: answers.no });
+      } else {
+        expect(question.criteria, where).toEqual(answers);
+      }
+    }
+    checkTranslatedQuestion(record, where);
+
+    // The evidence state carries exactly the projected inputs of using.
+    const state = record.expected_state as Record<string, Json>;
+    expect(Object.keys(state), where).toEqual(["evidence"]);
+    const evidence = state.evidence as Record<string, Json>;
+    expect(Object.keys(evidence).sort(), where).toEqual([...record.using!].sort());
+    const input = record.case_input as Record<string, Json>;
+    expect(Object.keys(input).sort(), where).toEqual([...record.using!].sort());
+    for (const name of record.using!) {
+      expect(evidence[name], `${where}: the state value of ${name}`).toBe(input[name]);
+    }
+  }
+  expect([...seenKinds].sort()).toEqual(["binary", "categorical", "ordered"]);
+});
+
+test("each translation identity variant changes the digest of its base case", () => {
+  const doc = loadJson("translations/jev.json") as Record<string, Json | undefined>;
+  const cases = asObjects(doc.cases as Json[]) as unknown as TranslationCase[];
+  const baseHash = new Map(cases.map((record) => [`${record.definition}/${record.check}`, String(record.content_hash)]));
+  const identity = asObjects(doc.identity as Json[]) as unknown as TranslationCase[];
+  expect(identity.length).toBeGreaterThanOrEqual(3);
+  const changed = new Set<string>();
+  for (const record of identity) {
+    const where = String(record.note);
+    const base = baseHash.get(`${record.base}/${record.check}`);
+    expect(base, where).toBeDefined();
+    checkTranslatedQuestion(record, where);
+    expect(record.content_hash, where).not.toBe(base);
+    changed.add(String(record.changed_element));
+    if (record.origin === "check") {
+      // The variant is one changed check: the wording, the descriptions, or
+      // the scale order differ, and the translated question follows them.
+      const check = questionCheckOf(String(record.base), String(record.check))!;
+      const variant = record.variant_question as Record<string, Json>;
+      expect(variant.kind, where).toBe(questionKindOf(check));
+      expect(
+        JSON.stringify(variant) === JSON.stringify({ kind: questionKindOf(check), question: check.question, ...(Array.isArray(check.scale) ? { scale: check.scale } : { answers: check.answers }) }),
+        `${where} states one variant that equals the base check`,
+      ).toBe(false);
+      expect(record.question, where).toEqual(translateVariant(variant));
+    } else {
+      expect(record.origin, where).toBe("translation");
+      expect(record.variant_question, `${where} states no changed check`).toBeUndefined();
+    }
+  }
+  expect([...changed].sort()).toEqual(["answer description", "question wording", "scale order", "translation behavior"]);
+});
+
+/** Builds the expected wire question of one variant question, as the mapping states it. */
+function translateVariant(variant: Record<string, Json>): Json {
+  if (variant.kind === "ordered") {
+    // One variant question holds the validated shape: one name and one
+    // description per level.
+    const scale = variant.scale as Record<string, Json>[];
+    return { type: "score", instructions: variant.question, criteria: scale.map((level) => level.description) };
+  }
+  const answers = variant.answers as Record<string, Json>;
+  if (variant.kind === "binary") {
+    return { type: "noul", instructions: variant.question, criteria: { true: answers.yes, false: answers.no } };
+  }
+  return { type: "choice", instructions: variant.question, criteria: answers };
+}
+
+test("state rejections keep every label and baseline field out of the evidence", () => {
+  const doc = loadJson("translations/jev.json") as Record<string, Json | undefined>;
+  const rejections = asObjects(doc.state_rejections as Json[]) as unknown as TranslationCase[];
+  expect(rejections.length).toBeGreaterThanOrEqual(4);
+  const codes = new Set<string>();
+  for (const record of rejections) {
+    const where = String(record.note);
+    expect(Array.isArray(record.using) && record.using!.length > 0, where).toBe(true);
+    expect(isObject(record.inputs), where).toBe(true);
+    const expected = record.expected as { reason_code?: string; field_path?: string };
+    expect(REASON_CODES.has(String(expected.reason_code)), where).toBe(true);
+    codes.add(String(expected.reason_code));
+    expect(String(expected.field_path).startsWith("/inputs/"), where).toBe(true);
+    const extra = String(expected.field_path).slice("/inputs/".length);
+    if (expected.reason_code === "unknown_field") {
+      expect(record.using!, `${where} names ${extra} as authorized`).not.toContain(extra);
+      expect(Object.keys(record.inputs as Record<string, Json>)).toContain(extra);
+    }
+    if (expected.reason_code === "missing_field") {
+      expect(record.using!, where).toContain(extra);
+      expect(Object.keys(record.inputs as Record<string, Json>), where).not.toContain(extra);
+    }
+  }
+  expect([...codes].sort()).toEqual(["missing_field", "unknown_field"]);
+});
+
 test("the aggregate table follows the fixed order and the samples cover every outcome", () => {
   const doc = loadJson("reports/outcomes.json") as Record<string, Json | undefined>;
   const table = asObjects(doc.aggregate_table);
