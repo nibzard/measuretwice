@@ -4,11 +4,15 @@ Status: verified 24 September 2026 against `@typesafe-ai/sdk` 0.6.0.
 
 This record is the verified provider contract for the Jev evaluator adapter.
 It replaces the design-time assumptions in [MVP_SPEC.md](../../MVP_SPEC.md)
-sections 5 and 6. Task T025 added the translation contract below. Task T026
-normalizes Jev assessments. Both build on this record.
+sections 5 and 6. Task T025 added the translation contract below, and task
+T026 added the normalization contract. Both build on this record.
 
-No repository code imports the SDK yet. The public package keeps `typebox`
-as its only runtime dependency until the adapter arrives.
+No repository code imports the SDK. The adapter of task T026 takes the Jev
+boundary as one function that matches `systemOne` structurally, so the
+public package keeps `typebox` as its only runtime dependency and no
+dependency entry is needed. The host constructs the client and passes its
+`systemOne` operation, which keeps the credential and the endpoint with the
+host.
 
 ## Pin
 
@@ -147,7 +151,7 @@ position from zero. A rubric needs at least two entries.
 Task T025 translates one question check into one Jev question. The module
 `packages/measuretwice/src/jev.ts` owns the translation and nothing else.
 It imports no SDK type, so the public package keeps `typebox` as its only
-runtime dependency until the adapter of task T026 imports the SDK.
+runtime dependency.
 
 | Check shape | Jev primitive | Translation |
 | --- | --- | --- |
@@ -187,6 +191,83 @@ identity variants that prove one changed element changes the digest. The
 package suite in `packages/measuretwice/test/jev.test.ts`, the repository
 checks in `tests/repo/fixtures.test.ts`, and the Rust integration tests in
 `crates/measuretwice-core/tests/contract_fixtures.rs` keep them honest.
+The later Python adapter must pass the same cases.
+
+## Normalization contract
+
+Task T026 normalizes one Jev answer into one typed assessment. The module
+`packages/measuretwice/src/jev-assessment.ts` owns the normalization, the
+operational record, and the adapter, and nothing else. Like the translation
+module, it imports no SDK type and no SDK package: the adapter takes the
+Jev boundary as one function that matches `client.systemOne` structurally,
+so the public package keeps `typebox` as its only runtime dependency and the
+host keeps the client, the credential, and the endpoint.
+
+| Answer | Assessment | Rules |
+| --- | --- | --- |
+| Choice | `categorical` | `choice` crosses as `label`. `probabilities` becomes the `distribution` over every declared label, in the declared order. `confidence` crosses as `confidence`. |
+| Noul | `binary` | `noul` is the probability of yes. One half or more selects yes; less selects no. No confidence crosses, because Noul defines none. No distribution is derived: the v0 policy derives the masses from the value, as MVP_SPEC.md section 6 states. |
+| Score | `ordered` | `score` crosses as `position` without rounding. The nearest level becomes `level`; one tie between two levels selects the higher level. `probabilities` maps the level indices to the declared level names, in the declared order. `confidence` crosses as `confidence`. The `legend` is one echo of the sent descriptions and is consumed by nothing. |
+
+Verified details behind the rules:
+
+- One distribution must cover exactly the declared labels or level indices,
+  with every mass inside the unit interval. A missing key, one undeclared
+  key, or one mass outside the interval fails with `invalid_assessment`.
+- The mass sum is not checked in the adapter. The Rust core
+  (`measuretwice_core::assessment`) validates one normalized assessment
+  against its check before it enters one report: the matching kind, the
+  declared labels and levels, one position inside the scale, one
+  distribution that names declared names and sums to one within 1e-6, and
+  evidence references that the `using` list authorizes.
+- One Noul answer that carries a confidence field anyway changes nothing.
+  The value is consumed by no rule and `confidence` stays absent.
+- One fractional score stays fractional in `position`. The nearest level is
+  one recorded answer, never one replacement of the measurement.
+
+The operational record of one call keeps what the call measured:
+
+| Field | Source | Notes |
+| --- | --- | --- |
+| `model_resolved` | `response.model` | The versioned identifier that answered. One request may send one alias; the record keeps the resolved version. |
+| `usage` | `response.usage` | `input_tokens` and `output_tokens`, per request. No per-question usage exists, so none is invented. One incomplete usage object fails the whole response. |
+| `latency_ms` | Adapter clock | No response field states latency, so the adapter measures it with its injectable clock. |
+| `requestId` | Error field | Kept inside the sanitized failure message of one provider error, never as one assessment field. |
+
+Failure mapping:
+
+| Cause | Code | Message |
+| --- | --- | --- |
+| One response or answer outside the recorded shapes, one undeclared label or level index, one value outside its range, one incomplete usage object, one missing model identifier, one unknown answer type | `invalid_assessment` | Names the defect. |
+| `APIUserAbortError`, one aborted signal before or after one answer | `evaluator_timeout` | States the abort. One answer that arrives after one abort is dropped. |
+| `APITimeoutError`, one spent attempt deadline | `evaluator_timeout` | States the timeout. |
+| Every other thrown error | `evaluator_error` | The class name, the numeric `status`, and the string `requestId`. |
+
+The adapter sanitizes provider error text by construction: it reads the
+class name, the status, and the request identifier, and it reads no message,
+no body, and no header, because each can quote case content or one
+credential. The class, the status, and the request identifier keep the
+operational reason visible, as the evaluator contract requires.
+
+The adapter passes the caller `AbortSignal` on every call and bounds one
+attempt with the remaining budget of the request, because the SDK retries
+carry no total budget. The wrapper scheduler owns the attempts, the backoff,
+and the total deadline; task T032 reconciles the SDK retry defaults with
+that budget.
+
+The shared cases live in
+[fixtures/adapters/jev-normalization.json](../../fixtures/adapters/jev-normalization.json)
+with the manifest group `jev-normalization`. Every case drives the adapter
+through the dispatch contract, so the Rust core validates each normalized
+assessment against its check. The responses come from the synthetic
+fixtures of this record; one case answers under the check identifier,
+because one real response echoes the key of the request and the adapter
+keys its one question by the check identifier. One provider case stays
+outside the group: `choice-two-labels-null-criteria`, because one check
+whose answers are exactly yes and no is binary and translates to Noul, so
+no Choice question of this translation carries those labels. The package
+suite in `packages/measuretwice/test/jev-assessment.test.ts` and the
+repository checks in `tests/repo/fixtures.test.ts` keep the group honest.
 The later Python adapter must pass the same cases.
 
 ## Cancellation, timeout, and retries
@@ -323,8 +404,9 @@ A fixture record holds `id`, `note`, `origin`, `source`, `request`, and
 adds one `defect` that names the broken invariant. A `request` names the
 synthetic state and questions that its response answers. The file header
 records the provenance: the SDK version, the model, the check date, and the
-sources. Task T026 adds the normalization expectations; this file carries
-the data only.
+sources. The normalization expectations live in the shared group
+[fixtures/adapters/jev-normalization.json](../../fixtures/adapters/jev-normalization.json);
+this file carries the response data only.
 
 ## Sources
 

@@ -24,12 +24,13 @@ layout.
 | Evaluator contract | `packages/measuretwice/test/evaluator.test.ts` | Vitest | The registration and execution contract: stable evaluator and adapter identities, the frozen registry, and every registration rejection. The dispatched request of each question kind: the validated question, only the projected inputs of `using`, the budget, and the cancellation signal. Label-only assessments with absent optionals preserved, operational failures, malformed adapter answers, and profile bindings against the registered evaluators. |
 | Test evaluators | `packages/measuretwice/test/test-evaluator.test.ts` | Vitest | The shipped test adapters and the adapter conformance cases of `fixtures/adapters/conformance.json`: every scripted control with success, review, malformed, error, and delayed responses; the label-only answers with no invented confidence, distribution, usage, or evidence; the separately specified decision rule for label-only assessments; identical requests and one definition hash across evaluators; and independent profile bindings when evaluator behavior changes. |
 | Jev translation | `packages/measuretwice/test/jev.test.ts` | Vitest | The versioned translation of one question check into one Jev question: every translation case of `fixtures/translations/jev.json` through the dispatched request and the public translation, with the canonical text and the translation-domain digest computed by the Rust core; the evidence state with exactly the projected inputs of `using`; the identity variants that change the digest and the evaluator binding while the definition stays; the state rejections that keep labels and baselines out; and the wire shapes tied to the pinned SDK record. |
+| Jev normalization | `packages/measuretwice/test/jev-assessment.test.ts` | Vitest | The normalization of one Jev answer into one typed assessment: every case of `fixtures/adapters/jev-normalization.json` through the Jev adapter and the dispatch contract with one injected clock and one fake call boundary, so the Rust core validates each assessment against its check; the operational record with the resolved model, the per-request usage, and the adapter-measured latency; the sanitized provider errors that keep the class, the status, and the request identifier without one echoed body; and the abort and deadline paths that stop the adapter before one call. |
 | Run path | `packages/measuretwice/test/run.test.ts` | Vitest | The `load` and `run` boundary: the typed import and the explicit JSON path, injected file access, clocks, and identifiers, YAML and TypeScript path rejection, profile self-hash verification and structural exact compatibility, case validation failures, the evaluator gate for question checks, enforcement qualification, and report determinism and immutability. |
 | Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, the project name, and the prebuilt packages. |
 | Packaging | `tests/repo/packaging.test.ts` | Vitest | The published shape: the three declared-target lists stay equal, the public manifest ships the built package without private content, every platform package carries its target fields and the license, the staged manifest selects the native artifact, and the packed tarballs hold the required content only. The suite runs the assembly script, so `npm run build` must run first. |
 | Installation gate wiring | `tests/repo/install-gate.test.ts` | Vitest | The offline wiring of the clean-installation gate: the command exists, the check script imports installed packages only, the artifact workflow requires one clean installation per declared Node version, and the guides document the gate. |
-| Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, adapter conformance cases, Jev translations, outcomes, profile states, and runtime traces. |
+| Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, adapter conformance cases, Jev translations, Jev normalization, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
 
 The package tests load the native binding and the compiled CLI. Run
@@ -222,6 +223,19 @@ its runner rule.
   the definition stays unchanged. The Rust integration tests hash the
   same questions through the core directly. The later Python adapter must
   pass the same cases.
+- The Jev normalization suite in
+  `packages/measuretwice/test/jev-assessment.test.ts` drives every case of
+  `fixtures/adapters/jev-normalization.json` through the Jev adapter and
+  the dispatch contract, so each normalized assessment crosses the Rust
+  assessment validation against its check. The responses come from the
+  synthetic provider fixtures, the clock is injected, and the Jev boundary
+  is one fake function, so the suite stays offline. The later Python
+  adapter must produce the same assessments and the same failures.
+- The Rust integration tests in `crates/measuretwice-core/tests/contract_fixtures.rs`
+  run the assessment samples of `fixtures/assessments/samples.json` through
+  `measuretwice_core::assessment::validate_assessment`, one definition per
+  answer kind, so the semantic rules of the assessment contract stay inside
+  the core.
 - The same fixtures are mandatory for the later Python SDK. MVP_SPEC.md
   section 15 states this requirement.
 - A contract change updates the affected fixtures in the same change, as the

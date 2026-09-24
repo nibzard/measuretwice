@@ -936,7 +936,7 @@
         "T022",
         "T024"
       ],
-      "updated_at": "2026-09-24T04:27:35Z",
+      "updated_at": "2026-09-24T04:30:43Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -957,8 +957,8 @@
       "id": "T026",
       "title": "Normalize Jev assessments and execution failures",
       "priority": 2,
-      "status": "todo",
-      "details": "Preserve actual provider measurements and distinguish operational failures from semantic outcomes. Sources: MVP_SPEC.md sections 6, 9, 12.",
+      "status": "done",
+      "details": "Preserve actual provider measurements and distinguish operational failures from semantic outcomes. Sources: MVP_SPEC.md sections 6, 9, 12. Done: packages/measuretwice/src/jev-assessment.ts owns the normalization and nothing else. normalizeJevExecution maps one response of the pinned SDK to exactly one typed assessment with its operational record, or to one operational failure that names the defect. One Choice answer becomes one categorical assessment with the selected label, the distribution over every declared label in the declared order, and the reported confidence. One Noul answer becomes one binary assessment where one half or more selects yes: Noul defines no confidence, so one hostile confidence field is consumed by nothing, and no distribution is derived, because the v0 policy derives the masses from the value. One Score answer keeps the fractional position unrounded, names the nearest level with one tie selecting the higher level, maps the level indices to the declared level names, and reads no word of the legend. The operational record keeps the resolved model identifier, the per-request token usage, and the adapter-measured latency, and an unavailable measurement stays absent. createJevEvaluator turns the normalization into one registered evaluator over one injected call boundary that matches client.systemOne structurally, passes the caller AbortSignal on every call, bounds one attempt with the remaining budget, drops one answer that arrives after one abort, and stops before one call on one spent deadline or one aborted signal. mapJevError sanitizes provider errors by construction: the error class, the numeric status, and the request identifier cross, and no message, body, or header does, because each can quote case content or one credential. The module imports no SDK package, so the public package keeps typebox as its only runtime dependency and the host keeps the client and the credential. measuretwice_core::assessment::validate_assessment owns the semantic half of the assessment contract in Rust: the matching kind, the declared labels and levels, one position inside the scale, one distribution that names declared names and sums to one within 1e-6, and evidence references that the using list authorizes; every failure reports invalid_assessment with the field path of the broken rule. The binding exposes the boundary as validateAssessment and dispatchAssessment validates every adapter answer through it, so one assessment outside the contract of its check becomes one invalid_assessment failure and never enters one report; one adapter may report the operational measurements model_resolved, usage, and latency_ms beside either result, and dispatch passes them frozen to the run report. fixtures/adapters/jev-normalization.json, manifest group jev-normalization, pins 20 cases that drive the adapter through the dispatch contract with the responses of the provider fixtures: every valid shape of all three primitives, the three answers of one batched response, the alias resolution, the Noul answer that carries one confidence field anyway, and every malformed variant, plus one synthetic variant whose masses do not sum to one, which the adapter accepts by shape and the Rust core rejects. packages/measuretwice/test/jev-assessment.test.ts drives every case with one injected clock and one fake call boundary, ties the sent question to the pinned translation, proves the evidence envelope with the signal and the attempt timeout, and keeps the error canaries: no provider message, no credential, and no case text crosses into one failure. The Rust integration tests run fixtures/assessments/samples.json through the new core boundary. The semantic run path through registered evaluators is task T034.\n",
       "steps": [
         "Test real response shapes with sanitized fixtures and synthetic malformed variants.",
         "Normalize labels, Noul values, Score positions, distributions, optional confidence, and supported evidence references.",
@@ -977,6 +977,27 @@
         "T014",
         "T024",
         "T025"
+      ],
+      "updated_at": "2026-09-24T05:05:00Z",
+      "files": [
+        "crates/measuretwice-core/src/assessment.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "fixtures/adapters/jev-normalization.json",
+        "fixtures/manifest.json",
+        "packages/measuretwice/src/evaluator.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/jev-assessment.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/jev-assessment.test.ts",
+        "providers/jev/README.md",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
       ]
     },
     {

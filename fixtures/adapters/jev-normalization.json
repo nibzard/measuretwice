@@ -1,0 +1,1127 @@
+{
+  "schema_version": 1,
+  "name": "jev-normalization",
+  "status": "Frozen for v0 on 24 September 2026",
+  "description": "Jev normalization conformance cases. One adapter normalizes one response of the pinned SDK into exactly one typed assessment with its operational record, or into one operational failure that names the defect. Every case drives the adapter through the dispatch contract, so the Rust core validates each normalized assessment against its check before it can enter one report. The group is mandatory for the TypeScript SDK and for the later Python SDK, whose native adapter must produce the same assessments and the same failures. Each response answers its question under the check identifier of the case: one real response echoes the key of the request, and the adapter keys its one question by the check identifier, so the provider answer key of the source record is renamed to the check identifier and nothing else changes.",
+  "provenance": {
+    "sdk": "@typesafe-ai/sdk",
+    "sdk_version": "0.6.0",
+    "responses": "../../providers/jev/fixtures/responses.json",
+    "contract_record": "../../providers/jev/README.md",
+    "live_calls": false,
+    "verified_at": "2026-09-24"
+  },
+  "rules": {
+    "choice": "The selected label crosses as label, the probabilities over every declared label become the distribution in the declared order, and one reported confidence crosses as confidence.",
+    "noul": "The noul value is the probability of yes. One half or more selects yes; less selects no. Noul defines no confidence, so one confidence field in one response is consumed by nothing and the assessment holds no confidence and no derived distribution.",
+    "score": "The position crosses unrounded, the nearest level names the answer, and the distribution maps the level indices to the declared level names in the declared order. The legend is one echo of the sent descriptions and is consumed by nothing.",
+    "tie": "One tie selects the answer with the greater position: one Noul value of one half selects yes, and one Score position halfway between two levels selects the higher level.",
+    "operational_record": "The record keeps the response model as model_resolved, the per-request token usage as usage, and the adapter-measured call time as latency_ms. No response field states latency, so the adapter measures it. No per-question usage exists, so usage stays at request level.",
+    "never_invented": [
+      "noul confidence",
+      "evidence references",
+      "per-question usage",
+      "response latency field",
+      "score rounding",
+      "derived binary distribution"
+    ]
+  },
+  "cases": [
+    {
+      "note": "One Choice answer becomes one categorical assessment with the selected label, the distribution over every declared label, and the reported confidence.",
+      "origin": "provider-fixture",
+      "provider_case": "choice-three-labels",
+      "check": "category",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "categorical",
+        "question": "What is this support ticket about?",
+        "answers": {
+          "billing": "Problems with charges, invoices, or refunds.",
+          "technical": "Problems with the product itself.",
+          "other": "The ticket fits none of the other categories."
+        }
+      },
+      "case_input": {
+        "ticket_text": "I was charged twice for one order. Please fix this."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 214,
+          "output_tokens": 19
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.83,
+            "probabilities": {
+              "billing": 0.91,
+              "technical": 0.06,
+              "other": 0.03
+            }
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "categorical",
+          "label": "billing",
+          "distribution": [
+            {
+              "name": "billing",
+              "mass": 0.91
+            },
+            {
+              "name": "technical",
+              "mass": 0.06
+            },
+            {
+              "name": "other",
+              "mass": 0.03
+            }
+          ],
+          "confidence": 0.83
+        }
+      }
+    },
+    {
+      "note": "One Noul answer of 0.93 selects yes. The assessment holds the binary value only: Noul defines no confidence and the adapter derives no distribution.",
+      "origin": "provider-fixture",
+      "provider_case": "noul-clear-yes",
+      "check": "evidence-supports-claim",
+      "using": [
+        "claim",
+        "evidence"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the evidence support the claim?",
+        "answers": {
+          "yes": "The evidence states the same fact as the claim.",
+          "no": "The evidence does not state the same fact."
+        }
+      },
+      "case_input": {
+        "claim": "The patch removes the deprecated endpoint.",
+        "evidence": "The changelog entry for 2.3.0 lists the removal of the endpoint."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 168,
+          "output_tokens": 6
+        },
+        "answers": {
+          "evidence-supports-claim": {
+            "type": "noul",
+            "noul": 0.93
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "binary",
+          "value": true
+        }
+      }
+    },
+    {
+      "note": "One Noul answer of 0.49 selects no. The split stays visible only through the recorded value and the policy that reads it; the assessment invents no distribution.",
+      "origin": "provider-fixture",
+      "provider_case": "noul-uncertain",
+      "check": "evidence-supports-claim",
+      "using": [
+        "claim",
+        "evidence"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the evidence support the claim?",
+        "answers": {
+          "yes": "The evidence states the same fact as the claim.",
+          "no": "The evidence does not state the same fact."
+        }
+      },
+      "case_input": {
+        "claim": "The report was reviewed before release.",
+        "evidence": "The report header lists a review date one day after the release tag."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 151,
+          "output_tokens": 6
+        },
+        "answers": {
+          "evidence-supports-claim": {
+            "type": "noul",
+            "noul": 0.49
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "binary",
+          "value": false
+        }
+      }
+    },
+    {
+      "note": "One Score answer at position 2.25 keeps the fractional position unrounded, names the nearest level, and records the distribution over the declared level names in the declared order.",
+      "origin": "provider-fixture",
+      "provider_case": "score-four-levels-fractional",
+      "check": "severity",
+      "using": [
+        "summary"
+      ],
+      "question": {
+        "kind": "ordered",
+        "question": "How severe is the reported problem?",
+        "scale": [
+          {
+            "name": "routine",
+            "description": "Routine question; no impact on work."
+          },
+          {
+            "name": "slowed",
+            "description": "Work is slowed but continues."
+          },
+          {
+            "name": "blocked-person",
+            "description": "Work is blocked for one person."
+          },
+          {
+            "name": "blocked-team",
+            "description": "Work is blocked for a team."
+          }
+        ]
+      },
+      "case_input": {
+        "summary": "The notice tells the customer about a delivery delay of two days and gives no new date."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 187,
+          "output_tokens": 24
+        },
+        "answers": {
+          "severity": {
+            "type": "score",
+            "score": 2.25,
+            "confidence": 0.64,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": {
+              "0": 0.02,
+              "1": 0.21,
+              "2": 0.58,
+              "3": 0.19
+            }
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "ordered",
+          "level": "blocked-person",
+          "position": 2.25,
+          "distribution": [
+            {
+              "name": "routine",
+              "mass": 0.02
+            },
+            {
+              "name": "slowed",
+              "mass": 0.21
+            },
+            {
+              "name": "blocked-person",
+              "mass": 0.58
+            },
+            {
+              "name": "blocked-team",
+              "mass": 0.19
+            }
+          ],
+          "confidence": 0.64
+        }
+      }
+    },
+    {
+      "note": "One Score answer on the smallest rubric sits on one level. The integral position and the named level agree.",
+      "origin": "provider-fixture",
+      "provider_case": "score-two-levels-integral",
+      "check": "needs-human-review",
+      "using": [
+        "summary"
+      ],
+      "question": {
+        "kind": "ordered",
+        "question": "How much human review does this request need?",
+        "scale": [
+          {
+            "name": "none",
+            "description": "None; the answer is routine."
+          },
+          {
+            "name": "full",
+            "description": "Full review; the answer needs a person."
+          }
+        ]
+      },
+      "case_input": {
+        "summary": "The message asks for one account setting change."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 92,
+          "output_tokens": 14
+        },
+        "answers": {
+          "needs-human-review": {
+            "type": "score",
+            "score": 1,
+            "confidence": 0.78,
+            "legend": {
+              "0": "None; the answer is routine.",
+              "1": "Full review; the answer needs a person."
+            },
+            "probabilities": {
+              "0": 0.15,
+              "1": 0.85
+            }
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "ordered",
+          "level": "full",
+          "position": 1,
+          "distribution": [
+            {
+              "name": "none",
+              "mass": 0.15
+            },
+            {
+              "name": "full",
+              "mass": 0.85
+            }
+          ],
+          "confidence": 0.78
+        }
+      }
+    },
+    {
+      "note": "The Choice answer of one batched response serves its check by key. Usage and model stay per request.",
+      "origin": "provider-fixture",
+      "provider_case": "batched-three-questions",
+      "check": "category",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "categorical",
+        "question": "What is this support ticket about?",
+        "answers": {
+          "billing": "Problems with charges, invoices, or refunds.",
+          "technical": "Problems with the product itself.",
+          "other": "The ticket fits none of the other categories."
+        }
+      },
+      "case_input": {
+        "ticket_text": "The invoice for order 4471 shows two charges on the same day. I need one charge removed before Friday."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 402,
+          "output_tokens": 47
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.88,
+            "probabilities": {
+              "billing": 0.95,
+              "technical": 0.03,
+              "other": 0.02
+            }
+          },
+          "is_billing": {
+            "type": "noul",
+            "noul": 0.97
+          },
+          "severity": {
+            "type": "score",
+            "score": 1.4,
+            "confidence": 0.59,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": {
+              "0": 0.09,
+              "1": 0.62,
+              "2": 0.25,
+              "3": 0.04
+            }
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "categorical",
+          "label": "billing",
+          "distribution": [
+            {
+              "name": "billing",
+              "mass": 0.95
+            },
+            {
+              "name": "technical",
+              "mass": 0.03
+            },
+            {
+              "name": "other",
+              "mass": 0.02
+            }
+          ],
+          "confidence": 0.88
+        }
+      }
+    },
+    {
+      "note": "The Noul answer of the same batched response serves its own check by key.",
+      "origin": "provider-fixture",
+      "provider_case": "batched-three-questions",
+      "check": "is-billing",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Is this ticket about a charge, invoice, or refund?",
+        "answers": {
+          "yes": "The ticket concerns a charge, an invoice, or a refund.",
+          "no": "The ticket concerns none of those."
+        }
+      },
+      "case_input": {
+        "ticket_text": "The invoice for order 4471 shows two charges on the same day. I need one charge removed before Friday."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 402,
+          "output_tokens": 47
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.88,
+            "probabilities": {
+              "billing": 0.95,
+              "technical": 0.03,
+              "other": 0.02
+            }
+          },
+          "severity": {
+            "type": "score",
+            "score": 1.4,
+            "confidence": 0.59,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": {
+              "0": 0.09,
+              "1": 0.62,
+              "2": 0.25,
+              "3": 0.04
+            }
+          },
+          "is-billing": {
+            "type": "noul",
+            "noul": 0.97
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "binary",
+          "value": true
+        }
+      }
+    },
+    {
+      "note": "The Score answer of the same batched response serves its own check by key. The position 1.4 names the nearest level.",
+      "origin": "provider-fixture",
+      "provider_case": "batched-three-questions",
+      "check": "severity",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "ordered",
+        "question": "How severe is the reported problem?",
+        "scale": [
+          {
+            "name": "routine",
+            "description": "Routine question; no impact on work."
+          },
+          {
+            "name": "slowed",
+            "description": "Work is slowed but continues."
+          },
+          {
+            "name": "blocked-person",
+            "description": "Work is blocked for one person."
+          },
+          {
+            "name": "blocked-team",
+            "description": "Work is blocked for a team."
+          }
+        ]
+      },
+      "case_input": {
+        "ticket_text": "The invoice for order 4471 shows two charges on the same day. I need one charge removed before Friday."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 402,
+          "output_tokens": 47
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.88,
+            "probabilities": {
+              "billing": 0.95,
+              "technical": 0.03,
+              "other": 0.02
+            }
+          },
+          "is_billing": {
+            "type": "noul",
+            "noul": 0.97
+          },
+          "severity": {
+            "type": "score",
+            "score": 1.4,
+            "confidence": 0.59,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": {
+              "0": 0.09,
+              "1": 0.62,
+              "2": 0.25,
+              "3": 0.04
+            }
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "ordered",
+          "level": "slowed",
+          "position": 1.4,
+          "distribution": [
+            {
+              "name": "routine",
+              "mass": 0.09
+            },
+            {
+              "name": "slowed",
+              "mass": 0.62
+            },
+            {
+              "name": "blocked-person",
+              "mass": 0.25
+            },
+            {
+              "name": "blocked-team",
+              "mass": 0.04
+            }
+          ],
+          "confidence": 0.59
+        }
+      }
+    },
+    {
+      "note": "The request sent one alias; the response names the versioned identifier that answered, and the operational record keeps that identifier.",
+      "origin": "provider-fixture",
+      "provider_case": "alias-resolves-to-version",
+      "check": "reports-success",
+      "using": [
+        "report"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the text report one successful completion?",
+        "answers": {
+          "yes": "The text reports one successful completion.",
+          "no": "The text reports no successful completion."
+        }
+      },
+      "case_input": {
+        "report": "The export finished with 42 rows."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 44,
+          "output_tokens": 5
+        },
+        "answers": {
+          "reports-success": {
+            "type": "noul",
+            "noul": 0.91
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "binary",
+          "value": true
+        }
+      }
+    },
+    {
+      "note": "One Noul answer for one state that holds structured values. The normalization reads the answer, not the state.",
+      "origin": "provider-fixture",
+      "provider_case": "structured-instructions",
+      "check": "diff-matches-policy",
+      "using": [
+        "diff",
+        "policy"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the new text in the diff violate the policy?",
+        "answers": {
+          "yes": "The new text violates the policy.",
+          "no": "The new text violates no policy."
+        }
+      },
+      "case_input": {
+        "diff": [
+          "- The service retries failed calls three times.",
+          "+ The service retries failed calls five times."
+        ],
+        "policy": "Retries are limited to three attempts."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 133,
+          "output_tokens": 6
+        },
+        "answers": {
+          "diff-matches-policy": {
+            "type": "noul",
+            "noul": 0.86
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "binary",
+          "value": true
+        }
+      }
+    },
+    {
+      "note": "One Noul answer that carries one confidence field anyway. The adapter consumes no such field, so the normalized assessment holds no confidence.",
+      "origin": "provider-fixture",
+      "provider_case": "noul-carries-confidence",
+      "check": "evidence-supports-claim",
+      "using": [
+        "claim",
+        "evidence"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the evidence support the claim?",
+        "answers": {
+          "yes": "The evidence states the same fact as the claim.",
+          "no": "The evidence does not state the same fact."
+        }
+      },
+      "case_input": {
+        "claim": "The backup ran last night.",
+        "evidence": "The log shows a backup entry for 02:10 last night."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 97,
+          "output_tokens": 5
+        },
+        "answers": {
+          "evidence-supports-claim": {
+            "type": "noul",
+            "noul": 0.88,
+            "confidence": 0.88
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "binary",
+          "value": true
+        }
+      }
+    },
+    {
+      "note": "One Choice answer whose selected label is outside the declared labels fails with invalid_assessment and names no invented answer.",
+      "origin": "provider-fixture",
+      "provider_case": "choice-label-outside-criteria",
+      "check": "category",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "categorical",
+        "question": "What is this support ticket about?",
+        "answers": {
+          "billing": "Problems with charges, invoices, or refunds.",
+          "technical": "Problems with the product itself.",
+          "other": "The ticket fits none of the other categories."
+        }
+      },
+      "case_input": {
+        "ticket_text": "The site is down for our whole team."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 121,
+          "output_tokens": 11
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "urgent",
+            "confidence": 0.4,
+            "probabilities": {
+              "billing": 0.05,
+              "technical": 0.9,
+              "other": 0.05
+            }
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "names no declared answer"
+        }
+      }
+    },
+    {
+      "note": "One Choice answer without the probabilities distribution fails, because the assessment contract needs the distribution for probability mass.",
+      "origin": "provider-fixture",
+      "provider_case": "choice-missing-probabilities",
+      "check": "category",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "categorical",
+        "question": "What is this support ticket about?",
+        "answers": {
+          "billing": "Problems with charges, invoices, or refunds.",
+          "technical": "Problems with the product itself.",
+          "other": "The ticket fits none of the other categories."
+        }
+      },
+      "case_input": {
+        "ticket_text": "I cannot log in since this morning."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 108,
+          "output_tokens": 9
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "technical",
+            "confidence": 0.9
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "probabilities"
+        }
+      }
+    },
+    {
+      "note": "One Noul answer above one fails, because the value sits outside the documented range.",
+      "origin": "provider-fixture",
+      "provider_case": "noul-out-of-range",
+      "check": "evidence-supports-claim",
+      "using": [
+        "claim",
+        "evidence"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the evidence support the claim?",
+        "answers": {
+          "yes": "The evidence states the same fact as the claim.",
+          "no": "The evidence does not state the same fact."
+        }
+      },
+      "case_input": {
+        "claim": "The limit is 900 characters.",
+        "evidence": "The policy page states a limit of 900 characters."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 88,
+          "output_tokens": 5
+        },
+        "answers": {
+          "evidence-supports-claim": {
+            "type": "noul",
+            "noul": 1.4
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "range"
+        }
+      }
+    },
+    {
+      "note": "One Score answer above the highest level fails, because the position sits outside the scale range.",
+      "origin": "provider-fixture",
+      "provider_case": "score-outside-rubric",
+      "check": "severity",
+      "using": [
+        "summary"
+      ],
+      "question": {
+        "kind": "ordered",
+        "question": "How severe is the reported problem?",
+        "scale": [
+          {
+            "name": "routine",
+            "description": "Routine question; no impact on work."
+          },
+          {
+            "name": "slowed",
+            "description": "Work is slowed but continues."
+          },
+          {
+            "name": "blocked-person",
+            "description": "Work is blocked for one person."
+          },
+          {
+            "name": "blocked-team",
+            "description": "Work is blocked for a team."
+          }
+        ]
+      },
+      "case_input": {
+        "summary": "The payment gateway rejects every card since the update."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 143,
+          "output_tokens": 21
+        },
+        "answers": {
+          "severity": {
+            "type": "score",
+            "score": 4.5,
+            "confidence": 0.55,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": {
+              "0": 0.0,
+              "1": 0.0,
+              "2": 0.05,
+              "3": 0.95
+            }
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "scale range"
+        }
+      }
+    },
+    {
+      "note": "One Score answer whose distribution names one level index outside the rubric fails. The position of the source record sits outside the rubric too, so this variant brings the position inside the range and isolates the distribution defect. The source distribution omits the mass of level 3 and adds the index 7, so the completeness rule fires first.",
+      "origin": "synthetic-variant",
+      "provider_case": "score-unknown-level",
+      "check": "severity",
+      "using": [
+        "summary"
+      ],
+      "question": {
+        "kind": "ordered",
+        "question": "How severe is the reported problem?",
+        "scale": [
+          {
+            "name": "routine",
+            "description": "Routine question; no impact on work."
+          },
+          {
+            "name": "slowed",
+            "description": "Work is slowed but continues."
+          },
+          {
+            "name": "blocked-person",
+            "description": "Work is blocked for one person."
+          },
+          {
+            "name": "blocked-team",
+            "description": "Work is blocked for a team."
+          }
+        ]
+      },
+      "case_input": {
+        "summary": "One report column shows stale data from yesterday."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 129,
+          "output_tokens": 22
+        },
+        "answers": {
+          "severity": {
+            "type": "score",
+            "score": 2.2,
+            "confidence": 0.51,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": {
+              "0": 0.01,
+              "1": 0.04,
+              "2": 0.1,
+              "7": 0.85
+            }
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "omits the declared"
+        }
+      }
+    },
+    {
+      "note": "One response without the output token count fails, because the operational record cannot state complete usage. The readable parts of the record stay.",
+      "origin": "provider-fixture",
+      "provider_case": "usage-missing-field",
+      "check": "is-billing",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Is this ticket about a charge, invoice, or refund?",
+        "answers": {
+          "yes": "The ticket concerns a charge, an invoice, or a refund.",
+          "no": "The ticket concerns none of those."
+        }
+      },
+      "case_input": {
+        "ticket_text": "Please update the billing address on my account."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 71
+        },
+        "answers": {
+          "is-billing": {
+            "type": "noul",
+            "noul": 0.72
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "usage"
+        },
+        "record_fields": [
+          "latency_ms",
+          "model_resolved"
+        ]
+      }
+    },
+    {
+      "note": "One response without the model identifier fails, because the effective model version cannot be recorded.",
+      "origin": "provider-fixture",
+      "provider_case": "model-field-missing",
+      "check": "reports-delay",
+      "using": [
+        "summary"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the text report one delay?",
+        "answers": {
+          "yes": "The text reports one delay.",
+          "no": "The text reports no delay."
+        }
+      },
+      "case_input": {
+        "summary": "The dashboard loads in four seconds."
+      },
+      "response": {
+        "usage": {
+          "input_tokens": 58,
+          "output_tokens": 5
+        },
+        "answers": {
+          "reports-delay": {
+            "type": "noul",
+            "noul": 0.31
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "model"
+        },
+        "record_fields": [
+          "latency_ms"
+        ]
+      }
+    },
+    {
+      "note": "One answer with one unknown discriminator fails with invalid_assessment.",
+      "origin": "provider-fixture",
+      "provider_case": "unknown-answer-type",
+      "check": "mentions-price",
+      "using": [
+        "summary"
+      ],
+      "question": {
+        "kind": "binary",
+        "question": "Does the text mention one price?",
+        "answers": {
+          "yes": "The text mentions one price.",
+          "no": "The text mentions no price."
+        }
+      },
+      "case_input": {
+        "summary": "The notice explains a price change for next month."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 64,
+          "output_tokens": 7
+        },
+        "answers": {
+          "mentions-price": {
+            "type": "text",
+            "text": "The notice mentions a price change."
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "neither choice, noul, nor score"
+        }
+      }
+    },
+    {
+      "note": "One Choice distribution whose masses sum to 0.8 passes the adapter shape and fails in the Rust core, which checks the sum for the report.",
+      "origin": "synthetic-variant",
+      "provider_case": "choice-three-labels",
+      "check": "category",
+      "using": [
+        "ticket_text"
+      ],
+      "question": {
+        "kind": "categorical",
+        "question": "What is this support ticket about?",
+        "answers": {
+          "billing": "Problems with charges, invoices, or refunds.",
+          "technical": "Problems with the product itself.",
+          "other": "The ticket fits none of the other categories."
+        }
+      },
+      "case_input": {
+        "ticket_text": "I was charged twice for one order. Please fix this."
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": {
+          "input_tokens": 214,
+          "output_tokens": 19
+        },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.83,
+            "probabilities": {
+              "billing": 0.5,
+              "technical": 0.2,
+              "other": 0.1
+            }
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "invalid_assessment",
+          "message_contains": "sum"
+        }
+      }
+    }
+  ]
+}

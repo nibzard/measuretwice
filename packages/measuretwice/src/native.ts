@@ -20,6 +20,7 @@
  * through unchanged.
  */
 import { createRequire } from "node:module";
+import type { JSONValue } from "./define-checks.js";
 import type {
   CaseInfo,
   DefinitionInfo,
@@ -149,6 +150,25 @@ export function nativeAssessRuleChecks(
   caseText: string,
 ): RuleAssessment[] {
   return call(() => binding.assessRuleChecks(definitionText, caseText));
+}
+
+/** The validated assessment of one check, as the core accepted it. */
+export interface ValidatedAssessment {
+  /** The assessed check identifier. */
+  check: string;
+  /** The answer kind of the assessment. */
+  kind: string;
+  /** The validated assessment value, unchanged. */
+  assessment: JSONValue;
+}
+
+/** Validates one normalized assessment against the check that asked for it. */
+export function nativeValidateAssessment(
+  definitionText: string,
+  checkId: string,
+  assessmentText: string,
+): ValidatedAssessment {
+  return call(() => binding.validateAssessment(definitionText, checkId, assessmentText));
 }
 
 /** Builds the canonical form of one strict JSON document. */

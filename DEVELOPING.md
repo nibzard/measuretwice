@@ -461,6 +461,37 @@ translation arrives with task T028. The shared cases live in
 `tests/repo/fixtures.test.ts`, and the Rust integration tests in
 `crates/measuretwice-core/tests/contract_fixtures.rs` keep them honest.
 
+Decided in T026: the Jev answer normalization is one module and one Rust
+boundary. `packages/measuretwice/src/jev-assessment.ts` normalizes one
+response of the pinned SDK into one assessment with its operational
+record, or into one operational failure that names the defect, and
+`createJevEvaluator` turns that into one registered evaluator. The adapter
+takes the Jev boundary as one function that matches `client.systemOne`
+structurally and imports no SDK package, so the public package keeps
+`typebox` as its only runtime dependency and the host keeps the client and
+the credential. Noul confidence never crosses and no binary distribution
+is derived; one fractional score position stays unrounded while the
+nearest level names the answer, with one tie selecting the higher level.
+The operational record keeps the resolved model, the per-request usage,
+and the adapter-measured latency, and the sanitized provider errors keep
+the class, the status, and the request identifier without one echoed body.
+`measuretwice_core::assessment::validate_assessment` owns the semantic
+half of the assessment contract: the matching kind, the declared labels
+and levels, one position inside the scale, one distribution that names
+declared names and sums to one, and evidence references that the `using`
+list authorizes. `dispatchAssessment` validates every adapter answer
+through that boundary, so one assessment that breaks the contract of its
+check becomes one `invalid_assessment` failure and never enters one
+report; the adapter may report the operational measurements beside either
+result, and the run report records them with its evaluator, timing, and
+usage fields. The shared cases live in
+`fixtures/adapters/jev-normalization.json` with the manifest group
+`jev-normalization`, driven through the adapter and the dispatch contract
+by `packages/measuretwice/test/jev-assessment.test.ts`; the repository
+checks in `tests/repo/fixtures.test.ts` and the Rust integration tests of
+`fixtures/assessments/samples.json` keep the two boundaries honest. The
+semantic run path that schedules these executions is task T034.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

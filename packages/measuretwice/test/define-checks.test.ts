@@ -609,9 +609,12 @@ test("the returned definition is serializable and immutable", () => {
 
 test("the package entry point exposes the authoring and run API without native types", () => {
   expect(Object.keys(publicApi).sort()).toEqual([
+    "JEV_ADAPTER_VERSION",
+    "JEV_DEFAULT_MODEL",
     "JEV_TRANSLATION_VERSION",
     "ValidationError",
     "contractVersion",
+    "createJevEvaluator",
     "createLabelOnlyEvaluator",
     "createScriptedEvaluator",
     "decideLabelOnly",
@@ -619,6 +622,8 @@ test("the package entry point exposes the authoring and run API without native t
     "jevEvidenceState",
     "labelRuleChecks",
     "load",
+    "mapJevError",
+    "normalizeJevExecution",
     "registerEvaluators",
     "translateJevQuestion",
   ]);

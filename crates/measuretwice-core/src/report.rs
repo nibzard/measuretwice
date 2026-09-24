@@ -41,9 +41,9 @@
 //! evaluator-selected support.
 //!
 //! The assessment keeps its recorded spelling. This module enforces the
-//! structural assessment contract at the report boundary; the semantic
-//! normalization, such as evidence authorization against the `using` list of
-//! the check, belongs to the evaluator adapter boundary.
+//! structural assessment contract at the report boundary; the semantic rules
+//! that need the check, such as evidence authorization against the `using`
+//! list, live in [`crate::assessment`].
 
 use crate::artifact::{expect_object, reject_unknown_fields};
 use crate::case::ValidatedCase;
@@ -1883,16 +1883,17 @@ fn parse_word<T>(
 ///
 /// The boundary covers the schema file: known fields, the answer kind, the
 /// field that each kind requires and forbids, the distribution range, the
-/// confidence range, and the evidence entry shape. The evaluator adapter
-/// boundary owns the semantic rules that need the check, such as closing the
-/// distribution names against the declared answers and authorizing every
-/// evidence reference against the `using` list.
+/// confidence range, and the evidence entry shape. The semantic half, which
+/// needs the check, lives in [`crate::assessment::validate_assessment`]:
+/// closing the labels, levels, and distribution names against the declared
+/// answers, bounding the position, checking the mass sum, and authorizing
+/// every evidence reference against the `using` list.
 ///
 /// # Errors
 ///
 /// Returns a [`ValidationError`] when the assessment breaks one structural
 /// rule of the assessment schema.
-fn check_assessment(value: &Value, base: &str) -> Result<(), ValidationError> {
+pub(crate) fn check_assessment(value: &Value, base: &str) -> Result<(), ValidationError> {
     let map = expect_object(value, base)?;
     reject_unknown_fields(map, ASSESSMENT_FIELDS, base)?;
     let kind = match map.get("kind") {

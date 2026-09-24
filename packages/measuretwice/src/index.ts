@@ -10,8 +10,10 @@
  * that the host registers with `registerEvaluators`. The package also ships
  * two test adapters, `createScriptedEvaluator` and
  * `createLabelOnlyEvaluator`, that stay offline and prove the contract
- * needs no Jev response shape, and `translateJevQuestion`, the versioned
- * translation of one question check into one Jev question. The semantic
+ * needs no Jev response shape, `translateJevQuestion`, the versioned
+ * translation of one question check into one Jev question, and
+ * `createJevEvaluator`, the adapter that normalizes one Jev answer into one
+ * typed assessment with its operational record. The semantic
  * run path and the public operations `calibrate`, `evaluate`, and
  * `compare` are specified in MVP_SPEC.md and arrive with their tasks.
  *
@@ -50,6 +52,7 @@ export type {
   EvaluatorRequest,
   EvidenceReference,
   ExecutionBudget,
+  ExecutionMeasurements,
   OrderedQuestion,
   ScaleEntry,
   ValidatedQuestion,
@@ -79,6 +82,28 @@ export type {
   JevScoreQuestion,
   JevTranslation,
 } from "./jev.js";
+export {
+  createJevEvaluator,
+  JEV_ADAPTER_VERSION,
+  JEV_DEFAULT_MODEL,
+  mapJevError,
+  normalizeJevExecution,
+} from "./jev-assessment.js";
+export type {
+  JevAnswerValue,
+  JevCall,
+  JevChoiceAnswer,
+  JevEvaluator,
+  JevEvaluatorOptions,
+  JevExecution,
+  JevNoulAnswer,
+  JevOperationalRecord,
+  JevRequestOptions,
+  JevScoreAnswer,
+  JevSystemOneRequest,
+  JevSystemOneResult,
+  JevUsage,
+} from "./jev-assessment.js";
 export { load } from "./run.js";
 export type {
   AggregateOutcome,

@@ -77,6 +77,13 @@
       "runner": "Drive each case through the wrapper test adapters and the dispatch contract. Compare the normalized execution, the failure code, and the message fragment, and observe the stated delays through one injected sleep. Decide each label-rule row with the separately specified rule. Verify that replacing the evaluator changes no request field and no definition hash, and that one rebound profile needs its own binding and its own content hash."
     },
     {
+      "id": "jev-normalization",
+      "path": "adapters/jev-normalization.json",
+      "kind": "normalization-set",
+      "covers": ["Choice to categorical", "Noul to binary", "Score to ordered", "fractional position unrounded", "nearest level with ties up", "Noul confidence not consumed", "distribution over declared names", "undeclared label rejected", "missing distribution rejected", "value outside range rejected", "undeclared level index rejected", "incomplete usage rejected", "missing model rejected", "unknown answer type rejected", "mass sum checked by the core", "operational record with model, usage, and adapter-measured latency"],
+      "runner": "Drive each case through the Jev adapter and the dispatch contract with one injected clock and one fake call boundary. Compare the normalized assessment, the failure code, the message fragment, and the record fields. Every response of one case comes from the provider fixture of the same name, so every wrapper normalizes the same shapes. The later Python adapter must pass the same cases."
+    },
+    {
       "id": "translations-jev",
       "path": "translations/jev.json",
       "kind": "translation-set",

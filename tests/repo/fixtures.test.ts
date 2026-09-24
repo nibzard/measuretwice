@@ -952,6 +952,121 @@ test("replacement pairs and binding rows keep the evaluator independence invaria
 });
 
 // ---------------------------------------------------------------------------
+// Jev normalization cases.
+// ---------------------------------------------------------------------------
+
+/** One Jev normalization case of the adapter group. */
+type JevCase = {
+  note?: string;
+  origin?: string;
+  provider_case?: string;
+  check?: string;
+  using?: string[];
+  question?: Record<string, Json>;
+  case_input?: Record<string, Json>;
+  response?: { model?: Json; usage?: Json; answers?: Record<string, Json> };
+  expected?: {
+    assessment?: Record<string, Json>;
+    failure?: { code?: string; message_contains?: string };
+    record_fields?: string[];
+  };
+};
+
+/** Reads the declared answer or level names of one normalization question. */
+function declaredNamesOf(question: Record<string, Json>): string[] {
+  if (Array.isArray(question.scale)) {
+    // One normalization question states its scale as one name and one
+    // description per level, the validated question shape.
+    return (question.scale as Record<string, Json>[]).map((level) => String(level.name));
+  }
+  return Object.keys(question.answers ?? {});
+}
+
+test("the Jev normalization group keeps its provenance and case structure", () => {
+  const doc = loadJson("adapters/jev-normalization.json") as Record<string, Json | undefined>;
+  expect(doc.schema_version).toBe(1);
+  const provenance = doc.provenance as Record<string, Json>;
+  expect(provenance.sdk).toBe("@typesafe-ai/sdk");
+  expect(provenance.sdk_version).toBe("0.6.0");
+  expect(provenance.live_calls).toBe(false);
+  const providerDoc = loadJson("../providers/jev/fixtures/responses.json") as {
+    cases: { id: string; response: Json }[];
+  };
+  const providerIds = new Set(providerDoc.cases.map((record) => record.id));
+
+  const cases = asObjects(doc.cases as Json[]) as unknown as JevCase[];
+  expect(cases.length).toBeGreaterThanOrEqual(20);
+  const kinds = new Set<string>();
+  const referenced = new Set<string>();
+  let invalid = 0;
+  for (const record of cases) {
+    const where = String(record.note);
+    expect(["provider-fixture", "synthetic-variant"], where).toContain(String(record.origin));
+    expect(providerIds.has(String(record.provider_case)), `${where} names no provider case`).toBe(true);
+    referenced.add(String(record.provider_case));
+
+    expect(ARTIFACT_ID.test(String(record.check)), where).toBe(true);
+    expect(Array.isArray(record.using) && record.using!.length > 0, where).toBe(true);
+    const question = record.question as Record<string, Json>;
+    const kind = String(question.kind);
+    expect(["categorical", "binary", "ordered"], where).toContain(kind);
+    kinds.add(kind);
+    const declared = declaredNamesOf(question);
+    expect(declared.length, where).toBeGreaterThanOrEqual(2);
+
+    // The case input carries every authorized input, and the response
+    // answers the check under its own identifier.
+    const inputKeys = Object.keys(record.case_input ?? {});
+    for (const name of record.using!) {
+      expect(inputKeys.includes(name), `${where} omits the input ${name}`).toBe(true);
+    }
+    const answers = record.response?.answers ?? {};
+    expect(answers[String(record.check)], `${where} holds no answer for its check`).toBeDefined();
+
+    const expected = record.expected as Record<string, Json | undefined>;
+    const held = ["assessment", "failure"].filter((key) => expected[key] !== undefined);
+    expect(held.length, `${where} expects ${held.length} results`).toBe(1);
+    if (held[0] === "assessment") {
+      const assessment = expected.assessment as Record<string, Json>;
+      expect(assessment.kind, where).toBe(kind);
+      const selected = ["label", "value", "level"].filter((key) => assessment[key] !== undefined);
+      expect(selected.length, `${where} states no selected answer`).toBe(1);
+      if (assessment.label !== undefined) expect(declared.includes(String(assessment.label)), where).toBe(true);
+      if (assessment.level !== undefined) expect(declared.includes(String(assessment.level)), where).toBe(true);
+      if (assessment.value !== undefined) expect(kind, where).toBe("binary");
+      if (assessment.position !== undefined) expect(kind, where).toBe("ordered");
+      const distribution = assessment.distribution as Record<string, Json>[] | undefined;
+      if (distribution !== undefined) {
+        for (const entry of distribution) {
+          expect(declared.includes(String(entry.name)), `${where} invents one name`).toBe(true);
+        }
+      }
+      // Noul answers report no measurement that Noul defines no field for.
+      if (kind === "binary") {
+        expect(assessment.confidence, `${where} invents one binary confidence`).toBeUndefined();
+        expect(assessment.distribution, `${where} invents one binary distribution`).toBeUndefined();
+      }
+    } else {
+      invalid += 1;
+      const failure = expected.failure as Record<string, Json>;
+      expect(REASON_CODES.has(String(failure.code)), `${where}: ${String(failure.code)}`).toBe(true);
+      expect(typeof failure.message_contains === "string" && failure.message_contains !== "", where).toBe(true);
+      const recordFields = (expected.record_fields as string[] | undefined) ?? [];
+      for (const field of recordFields) {
+        expect(["latency_ms", "model_resolved", "usage"], `${where}: ${field}`).toContain(field);
+      }
+    }
+  }
+  expect(invalid).toBeGreaterThanOrEqual(8);
+  expect([...kinds].sort()).toEqual(["binary", "categorical", "ordered"]);
+  // The group references every provider case except the one that no
+  // question of this translation can produce: answers of exactly yes and
+  // no declare one binary question, which translates to Noul.
+  expect(referenced.has("choice-two-labels-null-criteria")).toBe(false);
+  expect(referenced.size).toBe(providerIds.size - 1);
+});
+
+// ---------------------------------------------------------------------------
 // Jev translation cases.
 // ---------------------------------------------------------------------------
 

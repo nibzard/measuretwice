@@ -28,7 +28,7 @@ extern crate napi_derive;
 use measuretwice_core::error::{ReasonCode, ValidationError};
 use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
-use measuretwice_core::{case, definition, hashing, json, report, rule, run_state};
+use measuretwice_core::{assessment, case, definition, hashing, json, report, rule, run_state};
 use serde_json::Value;
 
 // Every exported signature states `Result<T, napi::Error>` in full. The
@@ -199,6 +199,50 @@ pub fn assess_rule_checks(
                 .expect("serializes"),
         })
         .collect())
+}
+
+/// The result of validating one assessment against its check.
+#[napi(object)]
+pub struct AssessmentInfo {
+    /// The assessed check identifier.
+    pub check: String,
+    /// The answer kind of the assessment, as the core read it.
+    pub kind: String,
+    /// The validated assessment, unchanged. The run report records this
+    /// value exactly as it stands here.
+    pub assessment: Value,
+}
+
+/// Validates one normalized assessment against the check that asked for it.
+///
+/// The definition text must pass the strict JSON gate and the definition
+/// contract. The assessment text must pass the strict gate, the structural
+/// assessment schema, and the semantic rules of its check: the matching
+/// kind, the declared labels and levels, one position inside the scale, one
+/// distribution that names declared answers or levels and sums to one, and
+/// evidence references that the `using` list authorizes. A failure throws
+/// `invalid_assessment` with the field path of the broken rule.
+#[napi]
+pub fn validate_assessment(
+    definition_text: String,
+    check_id: String,
+    assessment_text: String,
+) -> Result<AssessmentInfo, napi::Error> {
+    let validated = lift(definition::validate_definition_str(&definition_text))?;
+    let value = strict(&assessment_text)?;
+    lift(assessment::validate_assessment(
+        &validated, &check_id, &value,
+    ))?;
+    let kind = value
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    Ok(AssessmentInfo {
+        check: check_id,
+        kind,
+        assessment: value,
+    })
 }
 
 /// Builds the canonical form of one strict JSON document.

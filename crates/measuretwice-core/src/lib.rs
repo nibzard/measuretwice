@@ -26,6 +26,8 @@
 
 /// Shared envelope rules for every portable artifact.
 pub mod artifact;
+/// Semantic validation of one assessment against its check.
+pub mod assessment;
 /// The run-case envelope, input validation, and authorized input projection.
 pub mod case;
 /// The portable check definition contract.

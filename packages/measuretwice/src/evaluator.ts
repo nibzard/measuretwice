@@ -19,20 +19,27 @@
  *
  * `dispatchAssessment` is internal. It builds one request from one
  * validated definition and one projected input set, calls the evaluator,
- * and normalizes the answer. The normalization freezes the result and maps
- * one broken adapter answer to one operational failure. It adds no field
- * and it invents no measurement: one label-only assessment stays
- * label-only, and one absent optional measurement stays absent. The Rust
- * assessment validation arrives with its own task.
+ * and normalizes the answer. The normalization freezes the result, maps one
+ * broken adapter answer to one operational failure, and validates one
+ * returned assessment in the Rust core against the check that asked for it.
+ * It adds no field and it invents no measurement: one label-only assessment
+ * stays label-only, and one absent optional measurement stays absent. One
+ * adapter may report the operational measurements of its call beside the
+ * result: the resolved model version, the provider-reported usage, and the
+ * adapter-measured latency. The run report records them next to the
+ * assessment.
  *
  * Failure behavior: one evaluator object outside the contract fails
  * registration with one {@link ValidationError} and one field path. The
  * dispatch helper reports one adapter that throws, resolves nothing, or
- * resolves one malformed record as one `evaluator_error` failure, so one
- * broken adapter cannot crash one run.
+ * resolves one malformed record as one `evaluator_error` failure, and one
+ * assessment that breaks the contract of its check as one
+ * `invalid_assessment` failure, so one broken adapter cannot crash one run
+ * and one invalid answer cannot enter one report.
  */
 import type { CheckDefinition, Definition, JSONValue } from "./define-checks.js";
-import type { DefinitionInfo } from "./native.js";
+import { NativeFailure, nativeValidateAssessment } from "./native.js";
+import type { DefinitionInfo, ValidatedAssessment } from "./native.js";
 import { ValidationError } from "./error.js";
 
 /** One check kind of one validated definition, as the core reports it. */
@@ -48,7 +55,7 @@ const IDENTIFIER_LIMIT = 64;
 const MESSAGE_LIMIT = 500;
 
 /** The operational failure codes that one evaluator may report. */
-const FAILURE_CODES = ["evaluator_error", "evaluator_timeout"] as const;
+const FAILURE_CODES = ["evaluator_error", "evaluator_timeout", "invalid_assessment"] as const;
 
 // ---------------------------------------------------------------------------
 // The execution contract types.
@@ -143,7 +150,7 @@ export interface Assessment {
 }
 
 /** The stable codes of one operational failure of one evaluator execution. */
-export type EvaluatorFailureCode = "evaluator_error" | "evaluator_timeout";
+export type EvaluatorFailureCode = "evaluator_error" | "evaluator_timeout" | "invalid_assessment";
 
 /**
  * One operational failure of one evaluator execution.
@@ -159,10 +166,33 @@ export interface EvaluatorFailure {
   readonly message: string;
 }
 
-/** One evaluator execution: exactly one assessment or one operational failure. */
+/**
+ * The operational measurements that one adapter may report beside its
+ * result.
+ *
+ * Every field is optional and stays absent when the adapter measured
+ * nothing. `model_resolved` names the model version that actually served
+ * the call, `usage` holds the provider-reported amounts by unit, and
+ * `latency_ms` is the adapter-measured execution time. The run report
+ * records them next to the assessment, as its evaluator, usage, and timing
+ * fields.
+ */
+export interface ExecutionMeasurements {
+  /** The model version that served this execution, when the adapter knows it. */
+  readonly model_resolved?: string;
+  /** The usage amounts of this execution, keyed by unit. */
+  readonly usage?: Readonly<Record<string, number>>;
+  /** The adapter-measured execution time, in milliseconds. */
+  readonly latency_ms?: number;
+}
+
+/**
+ * One evaluator execution: exactly one assessment or one operational
+ * failure, with the operational measurements beside it.
+ */
 export type EvaluatorExecution =
-  | { readonly assessment: Assessment }
-  | { readonly failure: EvaluatorFailure };
+  | ({ readonly assessment: Assessment } & ExecutionMeasurements)
+  | ({ readonly failure: EvaluatorFailure } & ExecutionMeasurements);
 
 /** The execution budget of one evaluator request. */
 export interface ExecutionBudget {
@@ -313,10 +343,14 @@ export interface EvaluatorDispatch {
  * Builds one evaluator request and returns the normalized answer.
  *
  * The request carries the validated question of the check, the projected
- * inputs, the budget, and the signal. The answer comes back frozen. One
- * assessment stays exactly as the evaluator reported it. One broken answer
- * becomes one `evaluator_error` failure, and one thrown adapter error
- * becomes one too, so one adapter cannot crash one run.
+ * inputs, the budget, and the signal. The answer comes back frozen. The
+ * Rust core validates one assessment against the check, so the value that
+ * crosses is the value the core accepted, with no added field. One broken
+ * answer becomes one `evaluator_error` failure, one assessment outside the
+ * contract of its check becomes one `invalid_assessment` failure, and one
+ * thrown adapter error becomes one `evaluator_error` failure, so one
+ * adapter cannot crash one run and one invalid answer cannot enter one
+ * report.
  *
  * @throws {Error} when the stated check names no check of the artifact or
  * holds one exact rule. Both state one wrapper bug, because the core
@@ -357,6 +391,10 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
   if (!isPlainObject(returned)) {
     return failure("evaluator_error", "The evaluator resolved without one result object.");
   }
+  const measured = readMeasurements(returned);
+  if ("message" in measured) {
+    return failure("evaluator_error", measured.message);
+  }
   const assessment = field(returned, "assessment");
   const failureRecord = field(returned, "failure");
   if (assessment !== undefined && failureRecord !== undefined) {
@@ -374,11 +412,14 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
       typeof message === "string" &&
       message !== ""
     ) {
-      return failure(code as EvaluatorFailureCode, message);
+      return Object.freeze({
+        failure: Object.freeze({ code: code as EvaluatorFailureCode, message: shorten(message) }),
+        ...measured.measurements,
+      });
     }
     return failure(
       "evaluator_error",
-      "The evaluator reported one failure outside the failure contract. Report code evaluator_error or evaluator_timeout with one nonempty message.",
+      "The evaluator reported one failure outside the failure contract. Report code evaluator_error, evaluator_timeout, or invalid_assessment with one nonempty message.",
     );
   }
   if (assessment === undefined) {
@@ -390,11 +431,79 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
   if (!isPlainObject(assessment)) {
     return failure("evaluator_error", "The evaluator resolved with one assessment that is not one object.");
   }
-  // The assessment crosses as it came back. The core validates it against
-  // the assessment contract before it enters one report. This helper adds
-  // no field, so one absent optional measurement stays absent.
-  deepFreeze(assessment);
-  return Object.freeze({ assessment: assessment as unknown as Assessment });
+  // The core validates the assessment against the check that asked for it,
+  // under the semantic rules of the assessment contract. The value that the
+  // core accepted crosses frozen and exactly as the core saw it, so what
+  // enters one report is what was validated. This helper adds no field, so
+  // one absent optional measurement stays absent.
+  let text: string;
+  try {
+    text = JSON.stringify(assessment);
+  } catch {
+    return failure(
+      "evaluator_error",
+      "The assessment holds one value that JSON cannot express, so the core cannot validate it.",
+    );
+  }
+  let validated: ValidatedAssessment;
+  try {
+    validated = nativeValidateAssessment(
+      JSON.stringify(dispatch.artifact),
+      dispatch.checkId,
+      text,
+    );
+  } catch (cause) {
+    if (cause instanceof NativeFailure) {
+      return Object.freeze({
+        failure: Object.freeze({
+          code: "invalid_assessment" as EvaluatorFailureCode,
+          message: shorten(
+            `${cause.message}${cause.fieldPath === "" ? "" : ` (at ${cause.fieldPath})`}`,
+          ),
+        }),
+        ...measured.measurements,
+      });
+    }
+    throw cause;
+  }
+  deepFreeze(validated.assessment);
+  return Object.freeze({
+    assessment: validated.assessment as unknown as Assessment,
+    ...measured.measurements,
+  });
+}
+
+/** Reads the operational measurements of one adapter result, or rejects them. */
+function readMeasurements(
+  returned: Record<string, unknown>,
+): { readonly measurements: ExecutionMeasurements } | { readonly message: string } {
+  const record: Record<string, unknown> = {};
+  const model = field(returned, "model_resolved");
+  if (model !== undefined) {
+    if (typeof model !== "string" || model === "" || model.length > 128) {
+      return { message: "The reported model version is not one string of 1 to 128 characters." };
+    }
+    record.model_resolved = model;
+  }
+  const usage = field(returned, "usage");
+  if (usage !== undefined) {
+    if (
+      !isPlainObject(usage) ||
+      Object.values(usage).some((value) => typeof value !== "number" || !Number.isFinite(value))
+    ) {
+      return { message: "The reported usage is not one object of finite numbers." };
+    }
+    deepFreeze(usage);
+    record.usage = usage;
+  }
+  const latency = field(returned, "latency_ms");
+  if (latency !== undefined) {
+    if (typeof latency !== "number" || !Number.isFinite(latency) || latency < 0) {
+      return { message: "The reported latency is not one finite number of zero or more." };
+    }
+    record.latency_ms = latency;
+  }
+  return { measurements: Object.freeze(record) as ExecutionMeasurements };
 }
 
 /** Builds the validated question of one check from its validated artifact. */

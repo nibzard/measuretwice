@@ -19,7 +19,7 @@ use measuretwice_core::hashing::{self, Domain};
 use measuretwice_core::run_state::{AttemptResolution, CheckPlace, Phase, RunLimits, RunState};
 use measuretwice_core::testing::SplitMix64;
 use measuretwice_core::{case, definition, json, report, rule};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
@@ -1290,6 +1290,134 @@ fn runtime_traces_replay_through_the_run_state_boundary() {
         assert!(
             statuses.contains(status),
             "no replayed trace ended {status}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Assessment fixtures: every sample against the check that asked for it.
+// ---------------------------------------------------------------------------
+
+/// The check identifier of each answer kind, as the fixture definitions use
+/// them.
+fn assessment_check(kind: &str) -> &'static str {
+    match kind {
+        "binary" => "adds-information",
+        "ordered" => "consequence",
+        _ => "message-supported",
+    }
+}
+
+/// Builds one validated definition with one question check of the stated
+/// kind, whose `using` list is the stated one.
+fn assessment_definition(kind: &str, using: &[&str]) -> definition::ValidatedDefinition {
+    let check = match kind {
+        "binary" => json!({
+            "id": "adds-information",
+            "name": "We are adding something new",
+            "using": using,
+            "question": "Has the conversation already acknowledged this concern?",
+            "answers": {
+                "yes": "One participant explicitly recognizes this specific concern.",
+                "no": "No supplied message explicitly recognizes this specific concern."
+            },
+            "accept": "no"
+        }),
+        "ordered" => json!({
+            "id": "consequence",
+            "name": "The concern warrants an interruption",
+            "using": using,
+            "question": "What consequence does this concern have, based on the evidence?",
+            "scale": [
+                {"minor": "A wording difference with no identified operational consequence."},
+                {"meaningful": "A coordination problem causing rework or delay."},
+                {"serious": "A conflict affecting an explicit customer commitment."}
+            ],
+            "accept": {"at_least": "meaningful"}
+        }),
+        _ => json!({
+            "id": "message-supported",
+            "name": "Our message accurately describes the evidence",
+            "using": using,
+            "question": "Does every material claim in the proposed message follow from the evidence?",
+            "answers": {
+                "supported": "All claims are supported with appropriate certainty and attribution.",
+                "contradicted": "A material claim conflicts with the supplied evidence.",
+                "incomplete": "Support for a material claim is missing or ambiguous."
+            },
+            "accept": "supported",
+            "review": "incomplete"
+        }),
+    };
+    let artifact = json!({
+        "schema_version": 1,
+        "name": "assessment-samples",
+        "inputs": {
+            "type": "object",
+            "properties": {
+                "prior_decision": {"type": "string", "minLength": 1},
+                "conversation": {"type": "string", "minLength": 1},
+                "proposed_message": {"type": "string", "minLength": 1}
+            },
+            "required": ["prior_decision", "conversation", "proposed_message"],
+            "additionalProperties": false
+        },
+        "checks": [check]
+    });
+    definition::validate_definition_str(&artifact.to_string())
+        .unwrap_or_else(|error| panic!("the fixture definition for {kind} failed: {error}"))
+}
+
+#[test]
+fn assessment_samples_validate_against_their_checks() {
+    let document = fixture_document("assessments/samples.json");
+    let valid = document["valid"].as_array().expect("valid records");
+    assert!(valid.len() >= 4, "the fixture group lost valid records");
+    for record in valid {
+        let note = record["note"].as_str().expect("a note");
+        let assessment = &record["assessment"];
+        let kind = assessment["kind"].as_str().expect("a kind");
+        let definition = assessment_definition(
+            kind,
+            &["prior_decision", "conversation", "proposed_message"],
+        );
+        measuretwice_core::assessment::validate_assessment(
+            &definition,
+            assessment_check(kind),
+            assessment,
+        )
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+    }
+
+    let invalid = document["invalid"].as_array().expect("invalid records");
+    assert!(invalid.len() >= 6, "the fixture group lost invalid records");
+    for record in invalid {
+        let note = record["note"].as_str().expect("a note");
+        let assessment = &record["assessment"];
+        let kind = assessment["kind"].as_str().expect("a kind");
+        let using: Vec<&str> = record["using"]
+            .as_array()
+            .expect("the using list of the check")
+            .iter()
+            .map(|name| name.as_str().expect("an input name"))
+            .collect();
+        let definition = assessment_definition(kind, &using);
+        let error = measuretwice_core::assessment::validate_assessment(
+            &definition,
+            assessment_check(kind),
+            assessment,
+        )
+        .err()
+        .unwrap_or_else(|| panic!("{note}: the assessment was accepted"));
+        let expected = record["expected"]["reason_code"]
+            .as_str()
+            .expect("an expected reason code");
+        assert_eq!(error.code.as_str(), expected, "{note}: {error}");
+        // The pointer names the broken rule inside the assessment.
+        assert!(
+            error.field_path.starts_with("/assessment"),
+            "{note}: {}",
+            error.field_path
         );
     }
 }
