@@ -413,12 +413,11 @@ test("the public package depends on no provider package", () => {
   const manifest = JSON.parse(
     readFileSync(path.join(repoRoot, "packages", "measuretwice", "package.json"), "utf8"),
   ) as { dependencies?: Record<string, string> };
-  // The runtime dependencies of the public package are the native binding and
-  // the authoring library. A provider SDK belongs to an adapter, never here.
-  expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual([
-    "measuretwice-node",
-    "typebox",
-  ]);
+  // The runtime dependency of the public package is the authoring library.
+  // The native binding ships beside the compiled code as `binding.cjs`, and
+  // the private binding package is no dependency. A provider SDK belongs
+  // to an adapter, never here.
+  expect(Object.keys(manifest.dependencies ?? {}).sort()).toEqual(["typebox"]);
 });
 
 test("the complete slice runs with no network and no credential read", () => {

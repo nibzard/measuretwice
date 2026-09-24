@@ -714,7 +714,7 @@
         "T006",
         "T018"
       ],
-      "updated_at": "2026-09-24T02:29:51Z",
+      "updated_at": "2026-09-24T02:30:32Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -728,8 +728,8 @@
       "id": "T020",
       "title": "Build prebuilt Node packages",
       "priority": 1,
-      "status": "todo",
-      "details": "Package native artifacts for the declared Node platform matrix before expanding the API. Sources: MVP_SPEC.md sections 5, 14-15.",
+      "status": "done",
+      "details": "Package native artifacts for the declared Node platform matrix before expanding the API. The generated NAPI-RS loader ships inside the public package and selects the measuretwice-<target> platform packages. Sources: MVP_SPEC.md sections 5, 14-15. The zig cross toolchain built four of the five targets on this Linux host; the artifact workflow builds all five on matching runners, and the Windows binary needs it. Clean installations of the packed tarballs are task T021.",
       "steps": [
         "Build the NAPI-RS artifacts for every declared supported target.",
         "Package the TypeScript entry points, declarations, schemas, and required native artifact selection.",
@@ -746,6 +746,28 @@
         "T004",
         "T016",
         "T019"
+      ],
+      "updated_at": "2026-09-24T02:59:09Z",
+      "files": [
+        ".github/workflows/build-artifacts.yml",
+        ".gitignore",
+        "Cargo.toml",
+        "crates/measuretwice-node/package.json",
+        "DEVELOPING.md",
+        "package-lock.json",
+        "package.json",
+        "packages/measuretwice/LICENSE",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/package.json",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/slice.test.ts",
+        "scripts/build-artifacts.mjs",
+        "scripts/build-packages.mjs",
+        "scripts/copy-binding.mjs",
+        "TESTING.md",
+        "tests/repo/packaging.test.ts",
+        "to-do.json"
       ]
     },
     {

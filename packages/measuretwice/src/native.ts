@@ -6,6 +6,12 @@
  * from the package entry point. This module is the one place that turns the
  * failures of the Rust boundary into stable TypeScript errors.
  *
+ * The binding itself is the NAPI-RS loader that `npm run build:native`
+ * generates and copies next to the compiled package as `binding.cjs`. The
+ * loader picks the prebuilt binary of its platform. Development finds the
+ * locally built binary beside it. Installation finds the binary of the
+ * matching `measuretwice-<target>` package.
+ *
  * Every fallible binding call throws one native error whose message holds
  * the serialized `ValidationError` of the core: `code`, `message`, and
  * `field_path`. The helpers below rebuild that record into one
@@ -13,23 +19,54 @@
  * a JavaScript argument of the wrong type, carries no domain data and passes
  * through unchanged.
  */
-import {
-  assessRuleChecks,
-  canonicalForm,
-  computeSelfHash,
-  contentHash,
-  contractVersion,
-  createRunState,
-  datasetHash,
-  splitHash,
-  validateCase,
-  validateDefinition,
-  verifySelfHash,
-  type CaseInfo,
-  type DefinitionInfo,
-  type RuleAssessment,
-  type RunState,
-} from "measuretwice-node";
+import { createRequire } from "node:module";
+import type {
+  CaseInfo,
+  DefinitionInfo,
+  RuleAssessment,
+  RunState,
+} from "../binding.cjs";
+
+/**
+ * The declared native targets of the published packages. The list matches
+ * `napi.targets` in `crates/measuretwice-node/package.json` and the
+ * `optionalDependencies` that `scripts/build-packages.mjs` injects. The
+ * repository packaging test keeps the three lists equal.
+ */
+const DECLARED_NATIVE_TARGETS = [
+  "darwin-arm64",
+  "darwin-x64",
+  "linux-arm64-gnu",
+  "linux-x64-gnu",
+  "win32-x64-msvc",
+] as const;
+
+/**
+ * Loads the generated NAPI-RS loader of this package.
+ *
+ * A failed load keeps its cause and names the declared targets, so an
+ * unsupported platform reports one clear error instead of the generic
+ * missing-binary advice of the generated loader.
+ */
+function loadBinding(): typeof import("../binding.cjs") {
+  const requireBinding = createRequire(import.meta.url);
+  try {
+    // The loader is CommonJS. Named access works because it assigns every
+    // export of the binary at the end of the file.
+    return requireBinding("../binding.cjs") as typeof import("../binding.cjs");
+  } catch (error) {
+    const target = `${process.platform}-${process.arch}`;
+    throw new Error(
+      `measuretwice found no native binding for ${target}. ` +
+        `The declared targets are: ${DECLARED_NATIVE_TARGETS.join(", ")}. ` +
+        "When the target is declared, reinstall measuretwice so its binary package installs. " +
+        "No Rust compiler and no source build exists as a fallback.",
+      { cause: error },
+    );
+  }
+}
+
+const binding = loadBinding();
 
 /** One typed failure reported by the Rust boundary. */
 export class NativeFailure extends Error {
@@ -93,17 +130,17 @@ function call<T>(operation: () => T): T {
 
 /** Returns the contract schema version reported by the Rust core. */
 export function nativeContractVersion(): number {
-  return contractVersion();
+  return binding.contractVersion();
 }
 
 /** Validates one definition artifact and returns its meaning and hash. */
 export function nativeValidateDefinition(definitionText: string): DefinitionInfo {
-  return call(() => validateDefinition(definitionText));
+  return call(() => binding.validateDefinition(definitionText));
 }
 
 /** Validates one case and projects each check's authorized inputs. */
 export function nativeValidateCase(definitionText: string, caseText: string): CaseInfo {
-  return call(() => validateCase(definitionText, caseText));
+  return call(() => binding.validateCase(definitionText, caseText));
 }
 
 /** Assesses every exact rule of one case, with the record text of each result. */
@@ -111,37 +148,37 @@ export function nativeAssessRuleChecks(
   definitionText: string,
   caseText: string,
 ): RuleAssessment[] {
-  return call(() => assessRuleChecks(definitionText, caseText));
+  return call(() => binding.assessRuleChecks(definitionText, caseText));
 }
 
 /** Builds the canonical form of one strict JSON document. */
 export function nativeCanonicalForm(text: string): string {
-  return call(() => canonicalForm(text));
+  return call(() => binding.canonicalForm(text));
 }
 
 /** Computes the content hash of one strict JSON document in one domain. */
 export function nativeContentHash(domain: string, text: string): string {
-  return call(() => contentHash(domain, text));
+  return call(() => binding.contentHash(domain, text));
 }
 
 /** Computes the self-hash of one profile or plan artifact. */
 export function nativeComputeSelfHash(domain: string, artifactText: string): string {
-  return call(() => computeSelfHash(domain, artifactText));
+  return call(() => binding.computeSelfHash(domain, artifactText));
 }
 
 /** Verifies the stored self-hash of one profile or plan artifact. */
 export function nativeVerifySelfHash(domain: string, artifactText: string): void {
-  call(() => verifySelfHash(domain, artifactText));
+  call(() => binding.verifySelfHash(domain, artifactText));
 }
 
 /** Computes the dataset-domain content hash of one record-set array. */
 export function nativeDatasetHash(recordsText: string): string {
-  return call(() => datasetHash(recordsText));
+  return call(() => binding.datasetHash(recordsText));
 }
 
 /** Computes the split-domain content hash of one record-set array. */
 export function nativeSplitHash(recordsText: string): string {
-  return call(() => splitHash(recordsText));
+  return call(() => binding.splitHash(recordsText));
 }
 
 /** Starts one run of one case through the core state boundary. */
@@ -154,7 +191,14 @@ export function nativeCreateRunState(
   maxAttempts: number,
 ): RunState {
   return call(() =>
-    createRunState(definitionText, caseReferenceText, profileReferenceText, runId, mode, maxAttempts),
+    binding.createRunState(
+      definitionText,
+      caseReferenceText,
+      profileReferenceText,
+      runId,
+      mode,
+      maxAttempts,
+    ),
   );
 }
 

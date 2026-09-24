@@ -19,11 +19,12 @@ layout.
 | --- | --- | --- | --- |
 | Rust unit tests | next to the code in `crates/` | `cargo test` | Core behavior and invariants. |
 | Package tests | `packages/measuretwice/test/` | Vitest | Public package behavior, the CLI, and the test support itself. |
-| Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, and the runtime traces replayed through the run state class. |
+| Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, the runtime traces replayed through the run state class, and the clear loading error outside the declared targets. |
 | Authoring | `packages/measuretwice/test/define-checks.test.ts` | Vitest | The `defineChecks` boundary: inferred case-input types and `using` names at compile time, the documented TypeBox conversion, rejection of nonportable values and unsupported forms, and the shared TypeBox pairs executed through the built package with their published hashes. |
 | Run path | `packages/measuretwice/test/run.test.ts` | Vitest | The `load` and `run` boundary: the typed import and the explicit JSON path, injected file access, clocks, and identifiers, YAML and TypeScript path rejection, profile self-hash verification and structural exact compatibility, case validation failures, the evaluator gate for question checks, enforcement qualification, and report determinism and immutability. |
 | Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
-| Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, and the project name. |
+| Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, the project name, and the prebuilt packages. |
+| Packaging | `tests/repo/packaging.test.ts` | Vitest | The published shape: the three declared-target lists stay equal, the public manifest ships the built package without private content, every platform package carries its target fields and the license, the staged manifest selects the native artifact, and the packed tarballs hold the required content only. The suite runs the assembly script, so `npm run build` must run first. |
 | Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
 
@@ -197,3 +198,9 @@ that no hosted runner executes natively, and builds the native binding with
 Node.js 20, 22, and 24 on Linux, plus Windows and macOS, as
 [DEVELOPING.md](DEVELOPING.md) declares. The jobs read no secrets, so the
 whole pipeline stays deterministic and free.
+
+`.github/workflows/build-artifacts.yml` builds one release binary for every
+declared target on a matching runner, assembles the platform packages and
+the staged public package, and uploads the packed tarballs as workflow
+artifacts. It reads no secrets and publishes nothing. Clean installations
+of the packed tarballs are the gate of task T021.

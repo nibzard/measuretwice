@@ -842,3 +842,61 @@ console.log("BOUNDARY_OK");
     rmSync(work, { recursive: true, force: true });
   }
 });
+
+/**
+ * Reports the load result of one child process that sees a spoofed
+ * platform. The child prints `LOADED` on success or the message of the
+ * thrown error.
+ */
+function loadWithPlatform(platform: string, arch: string): string {
+  const entry = path.join(repoRoot, "packages/measuretwice/dist/native.js");
+  return execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+Object.defineProperty(process, "platform", { value: ${JSON.stringify(platform)} });
+Object.defineProperty(process, "arch", { value: ${JSON.stringify(arch)} });
+try {
+  await import(${JSON.stringify(pathToFileURL(entry).href)});
+  console.log("LOADED");
+} catch (error) {
+  console.log(error instanceof Error ? error.message : String(error));
+}
+`,
+    ],
+    { cwd: repoRoot, encoding: "utf8" },
+  ).trim();
+}
+
+test("loading outside the declared targets fails with one clear error", () => {
+  // An operating system outside the matrix reports the unsupported target
+  // and the declared list, not the generic advice of the generated loader.
+  const unsupported = loadWithPlatform("sunos", "x64");
+  expect(unsupported).toContain("measuretwice found no native binding for sunos-x64");
+  expect(unsupported).toContain("darwin-arm64");
+  expect(unsupported).toContain("linux-x64-gnu");
+  expect(unsupported).toContain("win32-x64-msvc");
+  expect(unsupported).toContain("No Rust compiler and no source build exists as a fallback");
+  expect(unsupported).not.toContain("npm has a bug");
+});
+
+test("loading on a declared target without its binary keeps the clear error", () => {
+  // This build host has no binary and no platform package for the spoofed
+  // target, so the loader runs out of candidates. The wrapper still names
+  // the declared targets and keeps the failure actionable. The spoofed
+  // target differs from the build host, so the check holds on every
+  // declared runner.
+  const host = `${process.platform}-${process.arch}`;
+  const foreign =
+    host !== "darwin-arm64"
+      ? { platform: "darwin", arch: "arm64" }
+      : { platform: "linux", arch: "x64" };
+  const missing = loadWithPlatform(foreign.platform, foreign.arch);
+  expect(missing).toContain(
+    `measuretwice found no native binding for ${foreign.platform}-${foreign.arch}`,
+  );
+  expect(missing).toContain("reinstall measuretwice");
+  expect(missing).not.toContain("LOADED");
+});

@@ -15,6 +15,17 @@
 /crates/measuretwice-node/index.js
 /crates/measuretwice-node/index.d.ts
 /crates/measuretwice-node/*.node
+/crates/measuretwice-node/npm/
+/packages/measuretwice/binding.cjs
+/packages/measuretwice/binding.d.cts
+/packages/measuretwice/*.node
+/packages/measuretwice/schemas/
+# The cc crate leaves this probe file when a zig cross build finds no
+# platform SDK.
+/.intentionally-empty-file.o
+
+# Staged prebuilt packages
+/build/
 
 # TLC scratch output from model runs
 /states/

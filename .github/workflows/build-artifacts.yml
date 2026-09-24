@@ -1,0 +1,109 @@
+# Prebuilt package assembly for measuretwice.
+#
+# The matrix builds one release binary for every declared target of
+# DEVELOPING.md on a runner that can produce it. The package job collects
+# the binaries, assembles the platform packages and the staged public
+# package, and packs them. The tarballs stay workflow artifacts: publishing
+# belongs to the release procedure, not to this workflow. Every job reads
+# no secrets and runs no live evaluation.
+
+name: Build artifacts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  binaries:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cross: false
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            cross: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            cross: false
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            cross: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            cross: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      # The zig toolchain links the cross targets. See the mlugg/setup-zig
+      # marketplace page.
+      - uses: mlugg/setup-zig@v1
+        if: matrix.cross
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the release binary
+        run:
+          npx napi build --platform --release -p measuretwice-node
+          --package-json-path crates/measuretwice-node/package.json
+          --target ${{ matrix.target }} ${{ matrix.cross && '--cross-compile' || '' }}
+      - name: Upload the binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: crates/measuretwice-node/index.*.node
+          if-no-files-found: error
+
+  packages:
+    name: Assemble and pack the packages
+    needs: binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the loader, the declarations, and the package
+        run: npm run build
+      - name: Collect the binaries of every target
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: binary-*
+          merge-multiple: true
+      - name: Assemble the platform packages and the staged public package
+        run: node scripts/build-packages.mjs --artifacts artifacts --require-all
+      - name: Pack every package
+        run: npm pack crates/measuretwice-node/npm/* build/package/measuretwice
+      - name: Upload the tarballs
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: "*.tgz"
+          if-no-files-found: error

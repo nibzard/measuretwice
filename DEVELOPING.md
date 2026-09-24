@@ -12,12 +12,12 @@ records the test suites and the verification commands. The task list is
 | Path | Content |
 | --- | --- |
 | `crates/measuretwice-core` | Shared Rust library. It owns contract validation, input projection, exact string rules, decision policy, outcome aggregation, canonical content hashes, and statistics. |
-| `crates/measuretwice-node` | Thin NAPI-RS binding. It exposes serializable core operations to Node. |
+| `crates/measuretwice-node` | Thin NAPI-RS binding. It exposes serializable core operations to Node. The `npm/` directory below it holds the generated platform packages. |
 | `packages/measuretwice` | The one public TypeScript package, with the CLI entry point. |
 | `contracts/v0` | The frozen portable artifact contracts. |
 | `fixtures` | Shared cross-language conformance fixtures for the portable contracts. Mandatory for every wrapper. |
 | `models` | TLA+ formal models with their records. See [models/README.md](models/README.md). |
-| `scripts` | Standalone verification scripts, such as the exact-rule smoke check. |
+| `scripts` | Standalone build and verification scripts, such as the exact-rule smoke check and the package assembly. |
 | `.measuretwice` | Development checks for this repository. |
 | `tests/repo` | Repository checks for schemas, examples, links, and names. |
 | `tests/live` | Opt-in live evaluations. Empty until task T065. |
@@ -51,14 +51,55 @@ reads no secrets and starts no live evaluation. The public package ships
 ECMAScript modules. The native loader ships the loaders that NAPI-RS
 generates. Browser, edge, and WebAssembly runtimes are outside v0.
 
+## Prebuilt packages
+
+Installation on a declared target needs no Rust compiler and no source
+build. The public package `measuretwice` ships the compiled entry points,
+the declarations, the contract schemas, and the generated NAPI-RS loader
+`binding.cjs`. The loader selects the native binary of its platform: the
+binary beside it in development, or the `measuretwice-<target>` platform
+package after installation.
+
+| Platform package | Target |
+| --- | --- |
+| `measuretwice-darwin-arm64` | `aarch64-apple-darwin` |
+| `measuretwice-darwin-x64` | `x86_64-apple-darwin` |
+| `measuretwice-linux-arm64-gnu` | `aarch64-unknown-linux-gnu` |
+| `measuretwice-linux-x64-gnu` | `x86_64-unknown-linux-gnu` |
+| `measuretwice-win32-x64-msvc` | `x86_64-pc-windows-msvc` |
+
+The staging script `scripts/build-packages.mjs` assembles every package:
+
+1. `napi create-npm-dirs` writes the platform package directories under
+   `crates/measuretwice-node/npm/`.
+2. Every built binary moves into its platform package, and every package
+   receives the license.
+3. The script stages the public package under `build/package/measuretwice`
+   with the schemas and the `optionalDependencies` that select the native
+   artifact of the installing platform.
+
+The staged manifest carries the `optionalDependencies`, because the
+platform packages reach the registry only with the first release. A
+committed reference to an unpublished package breaks `npm ci` in the
+workspace. `npm run build:artifacts` builds the release binaries of every
+target the build host can produce: the host target natively, the other
+targets through the zig cross toolchain. A Windows MSVC binary needs a
+Windows host. The workflow `.github/workflows/build-artifacts.yml` builds
+every declared target on a matching runner, collects the binaries, and
+packs the assembled packages as workflow artifacts. It is the source of
+truth for released binaries. Clean installations of the packed artifacts
+are verified by task T021.
+
 ## Commands
 
 | Command | Effect |
 | --- | --- |
 | `npm install` | Link the workspaces and install the development tools. |
-| `npm run build:native` | Build the Rust core and the Node binding. |
+| `npm run build:native` | Build the Rust core, the Node binding, and copy the loader into the public package. |
 | `npm run build:ts` | Compile the public package to `dist/`. |
 | `npm run build` | Run both builds in order. |
+| `npm run build:artifacts` | Build one release binary for every target this host can produce. |
+| `npm run build:packages` | Assemble the platform packages and stage the public package. |
 | `npm run fmt` and `npm run fmt:check` | Format or check the Rust code. |
 | `npm run lint` | Run clippy on the workspace with warnings denied. |
 | `npm run typecheck` | Type-check the test code and the Vitest configs. |
@@ -68,8 +109,8 @@ generates. Browser, edge, and WebAssembly runtimes are outside v0.
 | `npm run check` | Run every gate that continuous integration runs. |
 | `npm run clean` | Remove generated build output. |
 
-Build the native binding before the TypeScript. The generated
-`index.d.ts` is the type source for the binding import. [TESTING.md](TESTING.md)
+Build the native binding before the TypeScript. The copied
+`binding.d.cts` is the type source for the binding import. [TESTING.md](TESTING.md)
 explains the suites behind the test commands.
 
 ## Pinned dependencies
@@ -270,16 +311,38 @@ built package and prints the observable result: the definition hash, the
 rule outcomes, the aggregate outcome `pass`, the completion, and
 `serialized reports identical: yes`, ending with `SMOKE_OK`.
 
+Decided in T020: the prebuilt Node packages follow the generated loader of
+NAPI-RS, not a hand-written selector. `napi.targets` in
+`crates/measuretwice-node/package.json` declares the five targets, and
+`napi.packageName` binds their names to the public package, so the loader
+that `napi build` generates requires exactly the `measuretwice-<target>`
+platform packages that `napi create-npm-dirs` writes. The loader ships
+inside the public package as `binding.cjs` with `binding.d.cts`: in
+development the copied host binary answers beside it, and after
+installation the `optionalDependencies` of the platform matrix answer. The
+private binding package therefore left the runtime dependencies; the
+workspace link stays for development imports. `src/native.ts` wraps the one
+require of the loader, so a failed load names the declared targets instead
+of the generic missing-binary advice of the generated loader, and no Rust
+compiler and no source build exists as a fallback. The release profile
+strips debug information, so the prebuilt binaries stay small. The staging
+script, not a committed manifest, adds the `optionalDependencies`: the
+platform packages are absent from the registry until the first release,
+and a committed reference would break `npm ci` in the workspace.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 
 ## Generated files
 
 `git` ignores the generated output: `target/`, `node_modules/`, `dist/`,
-`*.node`, the generated binding loaders, and `*.tsbuildinfo`. The NAPI-RS
-loader files in `crates/measuretwice-node` are regenerated by
-`npm run build:native`. Do not edit them. Prebuilt platform packages are a
-later task, not a committed artifact.
+`*.node`, the generated binding loaders, the platform package directories,
+the staged packages, and `*.tsbuildinfo`. The NAPI-RS loader files in
+`crates/measuretwice-node` and their copies `binding.cjs` and
+`binding.d.cts` in the public package are regenerated by
+`npm run build:native`. Do not edit them. `npm run build:packages`
+regenerates `crates/measuretwice-node/npm/`, the copied contract schemas,
+and `build/package/measuretwice`.
 
 ## Licensing
 

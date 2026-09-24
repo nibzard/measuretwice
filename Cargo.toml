@@ -17,6 +17,11 @@ license = "Apache-2.0"
 repository = "https://github.com/nibzard/measuretwice"
 rust-version = "1.88"
 
+# Prebuilt release artifacts carry no debug symbols, so the published
+# binaries stay small without a separate strip tool.
+[profile.release]
+strip = "debuginfo"
+
 [workspace.dependencies]
 measuretwice-core = { version = "0.1.0", path = "crates/measuretwice-core" }
 serde = { version = "1.0.229", features = ["derive"] }

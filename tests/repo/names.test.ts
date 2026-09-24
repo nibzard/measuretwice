@@ -18,7 +18,16 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const SCANNED_EXTENSIONS = new Set([".md", ".ts", ".json", ".toml", ".html", ".yml", ".yaml"]);
-const EXCLUDED_DIRECTORIES = new Set([".git", "node_modules", "target", "dist"]);
+// The generated directories hold build output that other suites rewrite
+// while this scan runs, so the scan stays away from them.
+const EXCLUDED_DIRECTORIES = new Set([
+  ".git",
+  "node_modules",
+  "target",
+  "dist",
+  "build",
+  "npm",
+]);
 // package-lock.json is generated. This test file itself enumerates the
 // rejected forms to check the scan, so neither can hold a meaningful use.
 const EXCLUDED_FILES = new Set([
