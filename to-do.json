@@ -829,15 +829,15 @@
         "T015",
         "T021"
       ],
-      "updated_at": "2026-09-24T03:33:45Z",
+      "updated_at": "2026-09-24T03:34:47Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
         "packages/measuretwice/src/evaluator.ts",
         "packages/measuretwice/src/index.ts",
         "packages/measuretwice/src/run.ts",
-        "packages/measuretwice/test/evaluator.test.ts",
         "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/evaluator.test.ts",
         "to-do.json"
       ]
     },
@@ -845,8 +845,8 @@
       "id": "T023",
       "title": "Add test evaluators and adapter conformance cases",
       "priority": 2,
-      "status": "todo",
-      "details": "Use fake and label-only adapters to demonstrate independence from Jev response shapes. Sources: MVP_SPEC.md sections 6, 14-15.",
+      "status": "done",
+      "details": "Use fake and label-only adapters to demonstrate independence from Jev response shapes. Sources: MVP_SPEC.md sections 6, 14-15. Done: packages/measuretwice/src/test-evaluator.ts ships the two test adapters as public product code, so hosts, the CLI workflows, and the later Python wrapper get one offline evaluator. createScriptedEvaluator answers through one control list validated at creation: one valid execution, one raw malformed resolution, one thrown error, or one delayed response through one injectable sleep. It records every request, checks the cancellation signal at entry, and fails explicitly when the script runs out. createLabelOnlyEvaluator answers from one fixed table of check answers and returns exactly the answer kind plus the selected answer, so missing confidence, distribution, position, evidence references, and usage stay absent; one missing, mistyped, or undeclared answer returns one evaluator_error failure instead of an invented answer. labelRuleChecks and decideLabelOnly implement the separately specified test decision rule: the selected answer decides pass, review, or fail from the accept and review sets of the check meaning alone, with scale acceptance expanded over the declared order, and one added confidence value changes no outcome. fixtures/adapters/conformance.json, manifest group adapters-conformance, publishes 18 adapter cases, the 8-row label-rule table, the replacement pair, and the 3-row binding table as reusable conformance data for the future Python wrapper. tests/repo/fixtures.test.ts checks the group structure and the label-rule semantics, and packages/measuretwice/test/test-evaluator.test.ts drives every case through the dispatch contract, proves that the scripted and label-only adapters receive identical requests under one definition hash, and shows through load that one evaluator or adapter-version change fails with evaluator_mismatch before execution while the rebound profile loads with its own content hash.",
       "steps": [
         "Implement deterministic test adapters with success, review, malformed response, error, and delayed response controls.",
         "Verify that missing confidence, distributions, usage, and evidence references remain absent.",
@@ -863,6 +863,20 @@
       "depends_on": [
         "T006",
         "T022"
+      ],
+      "updated_at": "2026-09-24T03:49:23Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/adapters/conformance.json",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/test-evaluator.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/test-evaluator.test.ts",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
       ]
     },
     {

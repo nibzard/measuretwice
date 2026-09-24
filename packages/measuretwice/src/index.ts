@@ -7,7 +7,10 @@
  * one definition to one profile and returns the reviewer whose `run`
  * operation assesses one case and returns the frozen run report. The exact
  * rules run in the Rust core today; question checks run through evaluators
- * that the host registers with `registerEvaluators`. The semantic run path
+ * that the host registers with `registerEvaluators`. The package also ships
+ * two test adapters, `createScriptedEvaluator` and
+ * `createLabelOnlyEvaluator`, that stay offline and prove the contract
+ * needs no Jev response shape. The semantic run path
  * and the public operations `calibrate`, `evaluate`, and `compare` are
  * specified in MVP_SPEC.md and arrive with their tasks.
  *
@@ -50,6 +53,21 @@ export type {
   ScaleEntry,
   ValidatedQuestion,
 } from "./evaluator.js";
+export {
+  createLabelOnlyEvaluator,
+  createScriptedEvaluator,
+  decideLabelOnly,
+  labelRuleChecks,
+} from "./test-evaluator.js";
+export type {
+  LabelOnlyAnswer,
+  LabelOnlyEvaluator,
+  LabelOnlyEvaluatorOptions,
+  LabelRuleCheck,
+  ScriptedEvaluator,
+  ScriptedEvaluatorOptions,
+  TestEvaluatorControl,
+} from "./test-evaluator.js";
 export { load } from "./run.js";
 export type {
   AggregateOutcome,

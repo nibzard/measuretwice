@@ -1,0 +1,422 @@
+{
+  "schema_version": 1,
+  "description": "Adapter conformance cases for the evaluator execution contract. Every wrapper drives each case through its own implementation of the two test adapters and the same dispatch contract. The cases prove independence from Jev response shapes: one label-only assessment is one complete answer, absent optional measurements stay absent, one separately specified decision rule decides label-only assessments from the check meaning alone, replacing the evaluator changes no request field and no definition identity, and one change of evaluator behavior needs one independent profile binding. The group is mandatory for the later Python SDK, whose native adapter must pass the same cases.",
+  "adapters": [
+    {
+      "id": "scripted-test",
+      "adapter_version": "0.1.0",
+      "description": "One fake adapter that answers through one scripted control list: one valid execution, one raw malformed resolution, one thrown error, or one delayed response. It records every request and contacts no provider."
+    },
+    {
+      "id": "label-only-test",
+      "adapter_version": "0.1.0",
+      "description": "One label-only adapter that answers from one fixed table of check answers. It returns exactly the answer kind and the selected answer, never one confidence, one distribution, one position, one evidence reference, or one usage amount."
+    }
+  ],
+  "never_invented": ["position", "distribution", "confidence", "evidence", "usage"],
+  "cases": [
+    {
+      "note": "One scripted label-only categorical answer returns as one complete assessment.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answer": { "assessment": { "kind": "categorical", "label": "supported" } } },
+      "expected": { "assessment": { "kind": "categorical", "label": "supported" } }
+    },
+    {
+      "note": "One scripted binary value returns as one complete assessment. This evaluator reports no confidence field.",
+      "adapter": "scripted-test",
+      "definition": "binary-question.json",
+      "check": "adds-information",
+      "case_input": {
+        "conversation": "We agreed on the EU export region yesterday.",
+        "proposed_message": "The export region changes today."
+      },
+      "control": { "answer": { "assessment": { "kind": "binary", "value": false } } },
+      "expected": { "assessment": { "kind": "binary", "value": false } }
+    },
+    {
+      "note": "One scripted review label returns unchanged. The decision rule, not the adapter, produces the review outcome.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answer": { "assessment": { "kind": "categorical", "label": "incomplete" } } },
+      "expected": { "assessment": { "kind": "categorical", "label": "incomplete" } }
+    },
+    {
+      "note": "One scripted answer with every optional measurement returns unchanged. The contract carries what the adapter measured, Jev-shaped or not.",
+      "adapter": "scripted-test",
+      "definition": "ordered-scale.json",
+      "check": "consequence",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": {
+        "answer": {
+          "assessment": {
+            "kind": "ordered",
+            "level": "meaningful",
+            "position": 1.5,
+            "distribution": [
+              { "name": "minor", "mass": 0.1 },
+              { "name": "meaningful", "mass": 0.55 },
+              { "name": "serious", "mass": 0.35 }
+            ],
+            "confidence": 0.9,
+            "evidence": [{ "input": "prior_decision", "reference": "decision-2026-03" }]
+          }
+        }
+      },
+      "expected": {
+        "assessment": {
+          "kind": "ordered",
+          "level": "meaningful",
+          "position": 1.5,
+          "distribution": [
+            { "name": "minor", "mass": 0.1 },
+            { "name": "meaningful", "mass": 0.55 },
+            { "name": "serious", "mass": 0.35 }
+          ],
+          "confidence": 0.9,
+          "evidence": [{ "input": "prior_decision", "reference": "decision-2026-03" }]
+        }
+      }
+    },
+    {
+      "note": "One scripted operational failure returns with its stable code and message.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": {
+        "answer": {
+          "failure": {
+            "code": "evaluator_timeout",
+            "message": "The provider did not answer inside the attempt budget."
+          }
+        }
+      },
+      "expected": {
+        "failure": {
+          "code": "evaluator_timeout",
+          "message": "The provider did not answer inside the attempt budget."
+        }
+      }
+    },
+    {
+      "note": "One thrown adapter error becomes one evaluator_error failure that keeps the cause.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "error": "the provider connection refused the request" },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "the provider connection refused the request" }
+      }
+    },
+    {
+      "note": "One resolution of null becomes one evaluator_error failure.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "raw": null },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "resolved without one result object" }
+      }
+    },
+    {
+      "note": "One resolution with neither one assessment nor one failure becomes one evaluator_error failure.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "raw": { "label": "supported" } },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "neither one assessment nor one failure" }
+      }
+    },
+    {
+      "note": "One delayed response resolves after its stated delay and keeps its answer.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": {
+        "answer": { "assessment": { "kind": "categorical", "label": "supported" } },
+        "delay_ms": 25
+      },
+      "expected": {
+        "assessment": { "kind": "categorical", "label": "supported" },
+        "delays_ms": [25]
+      }
+    },
+    {
+      "note": "One already aborted signal stops the scripted adapter before one step is used.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "signal": "aborted",
+      "control": { "answer": { "assessment": { "kind": "categorical", "label": "supported" } } },
+      "expected": {
+        "failure": { "code": "evaluator_timeout", "message_contains": "aborted" }
+      }
+    },
+    {
+      "note": "One exhausted script fails explicitly instead of inventing one answer.",
+      "adapter": "scripted-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": "script-empty",
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "ran out of scripted answers" }
+      }
+    },
+    {
+      "note": "The label-only adapter returns one categorical label and nothing else.",
+      "adapter": "label-only-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answers": { "message-supported": "supported" } },
+      "expected": { "assessment": { "kind": "categorical", "label": "supported" } }
+    },
+    {
+      "note": "The label-only adapter returns one binary value and nothing else.",
+      "adapter": "label-only-test",
+      "definition": "binary-question.json",
+      "check": "adds-information",
+      "case_input": {
+        "conversation": "We agreed on the EU export region yesterday.",
+        "proposed_message": "The export region changes today."
+      },
+      "control": { "answers": { "adds-information": false } },
+      "expected": { "assessment": { "kind": "binary", "value": false } }
+    },
+    {
+      "note": "The label-only adapter returns one ordered level and nothing else.",
+      "adapter": "label-only-test",
+      "definition": "ordered-scale.json",
+      "check": "consequence",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answers": { "consequence": "meaningful" } },
+      "expected": { "assessment": { "kind": "ordered", "level": "meaningful" } }
+    },
+    {
+      "note": "One check without one scripted answer fails explicitly. The adapter invents no answer.",
+      "adapter": "label-only-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answers": {} },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "no scripted answer" }
+      }
+    },
+    {
+      "note": "One string answer for one binary question fails with one explicit type message.",
+      "adapter": "label-only-test",
+      "definition": "binary-question.json",
+      "check": "adds-information",
+      "case_input": {
+        "conversation": "We agreed on the EU export region yesterday.",
+        "proposed_message": "The export region changes today."
+      },
+      "control": { "answers": { "adds-information": "no" } },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "boolean" }
+      }
+    },
+    {
+      "note": "One answer that the check does not declare fails with one explicit message.",
+      "adapter": "label-only-test",
+      "definition": "categorical-question.json",
+      "check": "message-supported",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answers": { "message-supported": "excellent" } },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "names no declared answer" }
+      }
+    },
+    {
+      "note": "One level outside the ordered scale fails with one explicit message.",
+      "adapter": "label-only-test",
+      "definition": "ordered-scale.json",
+      "check": "consequence",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "The team proposes one export worker in the US region.",
+        "proposed_message": "The export worker moves to the US region."
+      },
+      "control": { "answers": { "consequence": "critical" } },
+      "expected": {
+        "failure": { "code": "evaluator_error", "message_contains": "names no declared level" }
+      }
+    }
+  ],
+  "label_rule": {
+    "description": "The separately specified test decision rule for label-only assessments.",
+    "statement": "The selected answer of one label-only assessment decides against the check meaning alone. One acceptable label or level passes. One declared review label or level reviews. Every other declared answer fails. The rule reads no confidence, no distribution, and no cutoff, because one label-only adapter reports none, and it changes no accept or review set of the check. One confidence value that one adapter adds cannot change the outcome.",
+    "table": [
+      {
+        "note": "One acceptable categorical label passes.",
+        "definition": "categorical-question.json",
+        "check": "message-supported",
+        "assessment": { "kind": "categorical", "label": "supported" },
+        "expected_outcome": "pass"
+      },
+      {
+        "note": "One declared review label reviews.",
+        "definition": "categorical-question.json",
+        "check": "message-supported",
+        "assessment": { "kind": "categorical", "label": "incomplete" },
+        "expected_outcome": "review"
+      },
+      {
+        "note": "One remaining categorical label fails.",
+        "definition": "categorical-question.json",
+        "check": "message-supported",
+        "assessment": { "kind": "categorical", "label": "contradicted" },
+        "expected_outcome": "fail"
+      },
+      {
+        "note": "The accepted binary answer passes.",
+        "definition": "binary-question.json",
+        "check": "adds-information",
+        "assessment": { "kind": "binary", "value": false },
+        "expected_outcome": "pass"
+      },
+      {
+        "note": "The other binary answer fails.",
+        "definition": "binary-question.json",
+        "check": "adds-information",
+        "assessment": { "kind": "binary", "value": true },
+        "expected_outcome": "fail"
+      },
+      {
+        "note": "The first acceptable scale level passes.",
+        "definition": "ordered-scale.json",
+        "check": "consequence",
+        "assessment": { "kind": "ordered", "level": "meaningful" },
+        "expected_outcome": "pass"
+      },
+      {
+        "note": "One scale level above at_least passes too.",
+        "definition": "ordered-scale.json",
+        "check": "consequence",
+        "assessment": { "kind": "ordered", "level": "serious" },
+        "expected_outcome": "pass"
+      },
+      {
+        "note": "One scale level below at_least fails.",
+        "definition": "ordered-scale.json",
+        "check": "consequence",
+        "assessment": { "kind": "ordered", "level": "minor" },
+        "expected_outcome": "fail"
+      }
+    ]
+  },
+  "replacement": {
+    "description": "Replacing the evaluator changes no request field and no definition identity.",
+    "statement": "The dispatched request carries the validated question, the using list, the projected inputs, the budget, and the signal. No field names the adapter beyond the object that receives the request, and no field of the definition changes. One definition keeps one content hash across every evaluator.",
+    "pairs": [
+      {
+        "note": "The scripted adapter and the label-only adapter receive identical requests for one case.",
+        "definition": "categorical-question.json",
+        "check": "message-supported",
+        "adapters": ["scripted-test", "label-only-test"],
+        "definition_hash_equal": true
+      }
+    ]
+  },
+  "binding": {
+    "description": "One change of evaluator behavior needs one independent profile binding.",
+    "statement": "The definition and its content hash stay equal when the evaluator changes. The bound evaluator and the adapter version of the profile change, and the rebound profile is one new artifact with its own content hash and its own qualification evidence. One registry without the bound evaluator fails load before any execution.",
+    "table": [
+      {
+        "note": "One profile bound to one Jev adapter fails load when the registry holds only the label-only adapter.",
+        "bound": { "evaluator": "jev-choice", "adapter_version": "0.1.0" },
+        "registered": { "evaluator": "label-only-test", "adapter_version": "0.1.0" },
+        "expected": {
+          "reason_code": "evaluator_mismatch",
+          "field_path": "/profile/bindings/0/evaluator"
+        }
+      },
+      {
+        "note": "One changed adapter version fails load with the same code at the version field.",
+        "bound": { "evaluator": "label-only-test", "adapter_version": "0.2.0" },
+        "registered": { "evaluator": "label-only-test", "adapter_version": "0.1.0" },
+        "expected": {
+          "reason_code": "evaluator_mismatch",
+          "field_path": "/profile/bindings/0/adapter_version"
+        }
+      },
+      {
+        "note": "The rebound profile loads, keeps the definition hash, and hashes as one new artifact.",
+        "bound": { "evaluator": "label-only-test", "adapter_version": "0.1.0" },
+        "registered": { "evaluator": "label-only-test", "adapter_version": "0.1.0" },
+        "loads": true,
+        "definition_hash_equal": true,
+        "profile_content_hash_equal": false
+      }
+    ]
+  }
+}

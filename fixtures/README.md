@@ -24,6 +24,7 @@ one group through the Rust core is not conformant.
 | TypeBox pairing | [authoring/typebox-pairs.json](authoring/typebox-pairs.json) | TypeBox sources and equivalent JSON with identical canonical content and hashes. |
 | Serialization | [serialization/round-trips.json](serialization/round-trips.json) | Round trips, ordered arrays, order strictness, absence, and rejected executable values. |
 | Assessments | [assessments/samples.json](assessments/samples.json) | The assessment contract and `invalid_assessment` rejections. |
+| Adapter conformance | [adapters/conformance.json](adapters/conformance.json) | The test-adapter controls, absent optional measurements, the label-only decision rule, evaluator replacement, and independent profile bindings. |
 | Outcomes | [reports/outcomes.json](reports/outcomes.json) | The aggregate order, every check outcome, and the completion statuses. |
 | Profile states | [profiles/states.json](profiles/states.json) | Every qualification status, self-hash verification, and compatibility failures. |
 | Runtime traces | [runtime/traces.json](runtime/traces.json) | Queue limits, deadlines, cancellation, retries, partial failure, and late results. |
@@ -47,6 +48,13 @@ one group through the Rust core is not conformant.
   `events`, and `expected`. Events carry `at_ms` on the fake clock that
   [TESTING.md](../TESTING.md) defines. An event listed in `rejected_events`
   must not change the report.
+- An adapter conformance case holds `note`, `adapter`, `definition` (a file
+  name in `definitions/valid/`), `check`, `case_input`, `control`, and
+  `expected`. A control is the string `script-empty` or one object with
+  exactly one of `answer`, `raw`, `error`, and `answers`, plus one optional
+  `delay_ms`. A case may state `signal: "aborted"`. An expected record holds
+  one exact `assessment` or one `failure` with one code and one exact or
+  contained message, plus the observed `delays_ms`.
 
 ## Digests
 
@@ -71,6 +79,10 @@ The fixtures reference each other. A change to one file must keep these links:
 
 - The `when_uncertain` pair in `definitions/valid/` holds two files with one
   canonical form and one hash.
+- The adapter conformance cases, the label-rule table, the replacement
+  pairs, and the binding table reference the question definitions of
+  `definitions/valid/`, and the binding table rebinds the exploration
+  profile of `profiles/states.json`.
 - The exact profile in `profiles/states.json` records the definition hash of
   `definitions/valid/exact-rules.json`.
 - The calibration profiles record the plan, dataset, and split digests from

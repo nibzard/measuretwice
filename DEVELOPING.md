@@ -395,6 +395,34 @@ because the Rust assessment validation arrives with task T026. The
 semantic run path through registered evaluators arrives with task T034,
 so `run` still refuses one question check before any work starts.
 
+Decided in T023: `packages/measuretwice/src/test-evaluator.ts` owns the
+two shipped test adapters and the separately specified decision rule for
+label-only assessments, and nothing else. The module is product code that
+leaves with the public package, because the CLI workflows, the host
+examples, and the later Python wrapper need one offline evaluator.
+`createScriptedEvaluator` validates its whole script at creation, records
+every request, checks the cancellation signal at entry, and answers
+through one control per step: one valid execution, one raw malformed
+resolution, one thrown error, or one delayed response through one
+injectable sleep. `createLabelOnlyEvaluator` answers from one fixed table
+of check answers and returns exactly the answer kind and the selected
+answer, so one absent confidence, distribution, position, evidence
+reference, or usage amount stays absent. Neither adapter contacts one
+provider, reads one credential, or ships one SDK type.
+`labelRuleChecks` resolves the accept and review sets of one validated
+definition, with scale acceptance expanded over the declared order, and
+`decideLabelOnly` maps one selected answer to pass, review, or fail from
+those sets alone. The rule is separate from the `probability_mass_v0`
+family on purpose: it reads no confidence and no cutoff, one confidence
+value cannot change its outcome, and it changes no check meaning, so
+replacing one evaluator with another preserves the definition and its
+hash while the profile binding, the adapter version, and the profile
+content hash must change. The shared cases live in
+`fixtures/adapters/conformance.json` with the manifest group
+`adapters-conformance`; the package suite in
+`packages/measuretwice/test/test-evaluator.test.ts` and the repository
+checks in `tests/repo/fixtures.test.ts` keep them honest.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

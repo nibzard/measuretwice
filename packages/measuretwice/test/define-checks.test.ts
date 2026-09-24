@@ -611,7 +611,11 @@ test("the package entry point exposes the authoring and run API without native t
   expect(Object.keys(publicApi).sort()).toEqual([
     "ValidationError",
     "contractVersion",
+    "createLabelOnlyEvaluator",
+    "createScriptedEvaluator",
+    "decideLabelOnly",
     "defineChecks",
+    "labelRuleChecks",
     "load",
     "registerEvaluators",
   ]);

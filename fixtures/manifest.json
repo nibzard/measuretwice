@@ -70,6 +70,13 @@
       "runner": "Validate each assessment against the assessment contract and the using list of its check."
     },
     {
+      "id": "adapters-conformance",
+      "path": "adapters/conformance.json",
+      "kind": "case-set",
+      "covers": ["label-only success", "review label", "full optional measurements", "operational failure", "thrown error", "malformed resolution", "delayed response", "aborted signal", "exhausted script", "missing scripted answer", "wrong answer type", "undeclared answer", "absent optionals stay absent", "label-only decision rule", "check meaning unchanged across evaluators", "independent profile binding"],
+      "runner": "Drive each case through the wrapper test adapters and the dispatch contract. Compare the normalized execution, the failure code, and the message fragment, and observe the stated delays through one injected sleep. Decide each label-rule row with the separately specified rule. Verify that replacing the evaluator changes no request field and no definition hash, and that one rebound profile needs its own binding and its own content hash."
+    },
+    {
       "id": "reports-outcomes",
       "path": "reports/outcomes.json",
       "kind": "table-set",

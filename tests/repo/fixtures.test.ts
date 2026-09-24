@@ -730,6 +730,227 @@ test("valid assessments match their kind and invalid assessments are rejected", 
   }
 });
 
+// ---------------------------------------------------------------------------
+// Adapter conformance cases.
+// ---------------------------------------------------------------------------
+
+/** The two shipped test adapters, as the conformance group names them. */
+const TEST_ADAPTER_IDS = ["label-only-test", "scripted-test"];
+
+/** Reads one question check of one definition fixture. */
+function questionCheckOf(definitionFile: string, checkId: string): Record<string, Json> | undefined {
+  const definition = loadJson(`definitions/valid/${definitionFile}`) as Record<string, Json>;
+  const checks = Array.isArray(definition.checks) ? (definition.checks as Record<string, Json>[]) : [];
+  return checks.find((check) => String(check.id) === checkId && check.question !== undefined);
+}
+
+/** Resolves the answer kind of one question check, as the core rule states it. */
+function questionKindOf(check: Record<string, Json>): string {
+  if (Array.isArray(check.scale)) return "ordered";
+  const answers = isObject(check.answers) ? Object.keys(check.answers) : [];
+  return answers.length === 2 && answers.includes("yes") && answers.includes("no") ? "binary" : "categorical";
+}
+
+/** Resolves the acceptable labels or levels of one question check. */
+function acceptLabelsOf(check: Record<string, Json>): Set<string> {
+  const levels = Array.isArray(check.scale)
+    ? (check.scale as Record<string, Json>[]).map((level) => String(Object.keys(level)[0]))
+    : [];
+  const accept = check.accept;
+  const accepted = new Set<string>();
+  if (typeof accept === "string") accepted.add(accept);
+  else if (Array.isArray(accept)) accept.forEach((label) => accepted.add(String(label)));
+  else if (isObject(accept) && typeof accept.at_least === "string") {
+    const start = levels.indexOf(String(accept.at_least));
+    levels.slice(start < 0 ? levels.length : start).forEach((level) => accepted.add(level));
+  }
+  return accepted;
+}
+
+test("adapter conformance cases stay consistent with the question fixtures", () => {
+  const doc = loadJson("adapters/conformance.json") as Record<string, Json | undefined>;
+  const adapters = new Map(
+    asObjects(doc.adapters as Json[]).map((adapter) => [String(adapter.id), adapter]),
+  );
+  expect([...adapters.keys()].sort()).toEqual(TEST_ADAPTER_IDS);
+  for (const adapter of adapters.values()) {
+    expect(ARTIFACT_ID.test(String(adapter.id)), String(adapter.id)).toBe(true);
+    expect(typeof adapter.adapter_version === "string" && adapter.adapter_version !== "").toBe(true);
+  }
+  const neverInvented = new Set((doc.never_invented as Json[] | undefined)?.map(String) ?? []);
+  expect([...neverInvented].sort()).toEqual(["confidence", "distribution", "evidence", "position", "usage"]);
+
+  const cases = asObjects(doc.cases as Json[]);
+  expect(cases.length).toBeGreaterThanOrEqual(15);
+  const controls = new Set<string>();
+  for (const record of cases) {
+    const where = String(record.note);
+    expect(adapters.has(String(record.adapter)), `${where} names no declared adapter`).toBe(true);
+    const check = questionCheckOf(String(record.definition), String(record.check));
+    expect(check, `${where} names no question check of its definition`).toBeDefined();
+    const kind = questionKindOf(check as Record<string, Json>);
+    expect(record.signal === undefined || record.signal === "aborted", where).toBe(true);
+    if (record.signal === "aborted") controls.add("aborted");
+
+    const control = record.control;
+    if (control === "script-empty") {
+      controls.add("script-empty");
+    } else {
+      expect(isObject(control), `${where} holds one malformed control`).toBe(true);
+      const map = control as Record<string, Json>;
+      const keys = Object.keys(map);
+      const single = keys.filter((key) => ["answer", "raw", "error", "answers"].includes(key));
+      expect(single.length, `${where} states ${single.length} controls`).toBe(1);
+      controls.add(single[0] as string);
+      const named = (single[0] as string) ?? "";
+      if (named === "answers") {
+        const answers = map.answers;
+        expect(isObject(answers), `${where} holds no answer table`).toBe(true);
+        const entries = Object.entries(answers as Record<string, Json>);
+        for (const [checkId, answer] of entries) {
+          expect(typeof answer === "string" || typeof answer === "boolean", `${where}: ${checkId}`).toBe(true);
+          expect(checkId, `${where} names one answer outside the check`).toBe(String(record.check));
+        }
+        expect(String(record.adapter)).toBe("label-only-test");
+      } else {
+        expect(String(record.adapter)).toBe("scripted-test");
+        if (named === "error") {
+          expect(
+            typeof map.error === "string" && map.error !== "",
+            `${where} holds no usable error`,
+          ).toBe(true);
+        }
+        const delay = map.delay_ms;
+        if (delay !== undefined) {
+          expect(typeof delay === "number" && Number.isFinite(delay) && delay >= 0, where).toBe(true);
+          controls.add("delay_ms");
+        }
+      }
+    }
+
+    const expected = record.expected as Record<string, Json>;
+    expect(isObject(expected), `${where} holds no expected record`).toBe(true);
+    const held = ["assessment", "failure"].filter((key) => expected[key] !== undefined);
+    expect(held.length, `${where} expects ${held.length} results`).toBe(1);
+    if (held[0] === "assessment") {
+      const assessment = expected.assessment as Record<string, Json>;
+      expect(assessment.kind, where).toBe(kind);
+      const answerKeys = ["label", "value", "level"].filter((key) => assessment[key] !== undefined);
+      expect(answerKeys.length, `${where} expects one selected answer`).toBe(1);
+      if (String(record.adapter) === "label-only-test") {
+        expect(Object.keys(assessment).sort(), `${where} invents one measurement`).toEqual(
+          ["kind", answerKeys[0] as string].sort(),
+        );
+        for (const forbidden of neverInvented) {
+          expect(forbidden in assessment, `${where} invents ${forbidden}`).toBe(false);
+        }
+      }
+    } else {
+      const failure = expected.failure as Record<string, Json>;
+      expect(REASON_CODES.has(String(failure.code)), `${where}: ${String(failure.code)}`).toBe(true);
+      const messages = ["message", "message_contains"].filter((key) => typeof failure[key] === "string");
+      expect(messages.length, `${where} states no message expectation`).toBe(1);
+    }
+    const delays = expected.delays_ms;
+    if (delays !== undefined) {
+      expect(Array.isArray(delays) && delays.every((ms) => typeof ms === "number"), where).toBe(true);
+    }
+  }
+  for (const control of ["answer", "raw", "error", "answers", "delay_ms", "script-empty", "aborted"]) {
+    expect(controls.has(control), `no case covers the control ${control}`).toBe(true);
+  }
+});
+
+test("the label rule table decides from the check meaning alone", () => {
+  const doc = loadJson("adapters/conformance.json") as Record<string, Json | undefined>;
+  const rule = doc.label_rule as Record<string, Json>;
+  expect(typeof rule.statement === "string" && rule.statement !== "").toBe(true);
+  const table = asObjects(rule.table as Json[]);
+  expect(table.length).toBeGreaterThanOrEqual(8);
+  const outcomes = new Set<string>();
+  for (const row of table) {
+    const where = String(row.note);
+    const check = questionCheckOf(String(row.definition), String(row.check));
+    expect(check, `${where} names no question check of its definition`).toBeDefined();
+    const question = check as Record<string, Json>;
+    const accepted = acceptLabelsOf(question);
+    const review = new Set<string>(
+      typeof question.review === "string"
+        ? [question.review]
+        : Array.isArray(question.review)
+          ? question.review.map(String)
+          : [],
+    );
+    const assessment = row.assessment as Record<string, Json>;
+    expect(assessment.kind, where).toBe(questionKindOf(question));
+    const selected =
+      assessment.label !== undefined
+        ? String(assessment.label)
+        : assessment.level !== undefined
+          ? String(assessment.level)
+          : assessment.value === true
+            ? "yes"
+            : assessment.value === false
+              ? "no"
+              : undefined;
+    expect(selected, `${where} states no selected answer`).toBeDefined();
+    const outcome = accepted.has(selected as string)
+      ? "pass"
+      : review.has(selected as string)
+        ? "review"
+        : "fail";
+    expect(row.expected_outcome, where).toBe(outcome);
+    outcomes.add(String(row.expected_outcome));
+  }
+  expect([...outcomes].sort()).toEqual(["fail", "pass", "review"]);
+});
+
+test("replacement pairs and binding rows keep the evaluator independence invariants", () => {
+  const doc = loadJson("adapters/conformance.json") as Record<string, Json | undefined>;
+  const adapters = new Set(asObjects(doc.adapters as Json[]).map((adapter) => String(adapter.id)));
+  const replacement = doc.replacement as Record<string, Json>;
+  for (const pair of asObjects(replacement.pairs as Json[])) {
+    const where = String(pair.note);
+    const named = (pair.adapters as Json[] | undefined)?.map(String) ?? [];
+    expect(named.length, where).toBe(2);
+    expect(new Set(named).size, where).toBe(2);
+    for (const id of named) expect(adapters.has(id), `${where} names ${id}`).toBe(true);
+    expect(questionCheckOf(String(pair.definition), String(pair.check)), where).toBeDefined();
+    expect(pair.definition_hash_equal, where).toBe(true);
+  }
+
+  const binding = doc.binding as Record<string, Json>;
+  const states = loadJson("profiles/states.json") as Record<string, Json | undefined>;
+  const exploration = asObjects(states.profiles).find((profile) => profile.id === "message-supported-exploration");
+  const explorationBinding = (exploration?.bindings as Record<string, Json>[] | undefined)?.[0];
+  for (const row of asObjects(binding.table as Json[])) {
+    const where = String(row.note);
+    for (const side of ["bound", "registered"]) {
+      const entry = row[side] as Record<string, Json>;
+      expect(ARTIFACT_ID.test(String(entry.evaluator)), `${where}: ${side}`).toBe(true);
+      expect(typeof entry.adapter_version === "string" && entry.adapter_version !== "").toBe(true);
+    }
+    const expected = row.expected as { reason_code?: string; field_path?: string } | undefined;
+    if (expected !== undefined) {
+      expect(REASON_CODES.has(String(expected.reason_code)), where).toBe(true);
+      expect(typeof expected.field_path === "string" && expected.field_path !== "").toBe(true);
+      expect(
+        String((row.bound as Record<string, Json>).evaluator) !== String((row.registered as Record<string, Json>).evaluator) ||
+          String((row.bound as Record<string, Json>).adapter_version) !== String((row.registered as Record<string, Json>).adapter_version),
+        `${where} binds exactly what the registry holds`,
+      ).toBe(true);
+    } else {
+      expect(row.loads, where).toBe(true);
+      expect(row.definition_hash_equal, where).toBe(true);
+      expect(row.profile_content_hash_equal, where).toBe(false);
+    }
+  }
+  // The Jev-bound row rebinds the exploration profile of the shared states.
+  const jevRow = asObjects(binding.table as Json[])[0]?.bound as Record<string, Json>;
+  expect(String(jevRow.evaluator)).toBe(String(explorationBinding?.evaluator));
+  expect(String(jevRow.adapter_version)).toBe(String(explorationBinding?.adapter_version));
+});
+
 test("the aggregate table follows the fixed order and the samples cover every outcome", () => {
   const doc = loadJson("reports/outcomes.json") as Record<string, Json | undefined>;
   const table = asObjects(doc.aggregate_table);
