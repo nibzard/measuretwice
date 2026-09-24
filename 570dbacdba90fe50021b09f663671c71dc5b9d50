@@ -1,0 +1,48 @@
+# Context
+
+## Background
+T050 implements the calibrate API of MVP_SPEC.md sections 5, 7-8, and 11.
+T047-T049 delivered the Rust plan contract, the bounded fitting search, and
+the frozen validation, but no Node binding exposed them, so the library had
+no way to run a calibration. The prior session (a5a1fcf) shipped the
+surrounding wrapper parts (evaluate, CLI, fixtures); this commit completes
+the operation itself.
+
+## Why This Way
+- The fitting search and the frozen validation cross as napi `Task`
+  implementations, so `compute` runs on one libuv worker thread. This keeps
+  the bounded calculations (up to 1,048,576 policy decisions) off the Node
+  event loop with no tokio dependency and no callback into user code, which
+  MVP_SPEC.md section 5 requires.
+- `qualifyCandidate` re-runs the deterministic search over the same fitting
+  assessments instead of taking a serialized fit report: `FitReport` holds
+  `&'static str` fields and a `#[serde(skip)]` confusion matrix, so
+  deserializing it would need invasive core changes, and the freeze checks
+  of the core already re-verify every identity.
+- The measurement runs go through `createExplorationProfile` plus a public
+  `load`, served through one delegating file access at a synthetic
+  `measuretwice://...json` path. This reuses the validated execution path
+  (bounds, retries, deadline, cancellation) instead of writing a second
+  scheduler, and the starter policy of the measurement profile never reaches
+  the candidate: the search replays the stored assessments.
+- The host must state `evaluationReports` because the profile contract
+  requires the complete evidence set for one calibration origin and the host
+  owns report storage. The wrapper invents no storage path.
+
+## Gotchas
+- `calibrate` refuses with the record's own operational code when one
+  measured case stores no assessment, and with `model_resolution_changed`
+  when the measurements resolved two model versions: one calibration
+  measures with one model.
+- One plan whose selection names an undeclared split refuses in the wrapper
+  with the core split-locator wording, because no identity exists for the
+  core to compare.
+- The scheduler admission loop now stops after a run that ended during
+  admission; without that guard, one caller abort stated from inside the
+  first attempt made the loop offer the next check to a frozen run state.
+
+## Related
+- DEVELOPING.md "Decided in T050" records the full design.
+- TESTING.md rows: calibrate API suite, native boundary additions, scheduler.
+- T051 (evidence retention) and T052 (assessment reuse) refine the evidence
+  block and the reuse path that this commit records.
