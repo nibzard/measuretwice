@@ -1395,21 +1395,21 @@
         "T028",
         "T034"
       ],
-      "updated_at": "2026-09-24T09:22:41Z",
+      "updated_at": "2026-09-24T09:23:40Z",
       "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
         "contracts/README.md",
         "contracts/v0/run-report.schema.json",
         "crates/measuretwice-core/src/report.rs",
         "crates/measuretwice-core/src/run_state.rs",
         "crates/measuretwice-core/tests/contract_fixtures.rs",
         "crates/measuretwice-node/src/lib.rs",
-        "DEVELOPING.md",
         "fixtures/README.md",
         "fixtures/manifest.json",
         "fixtures/reports/outcomes.json",
         "packages/measuretwice/src/run.ts",
         "packages/measuretwice/test/privacy.test.ts",
-        "TESTING.md",
         "tests/repo/fixtures.test.ts",
         "to-do.json"
       ]
@@ -1418,7 +1418,7 @@
       "id": "T037",
       "title": "Render reports and profile summaries",
       "priority": 2,
-      "status": "todo",
+      "status": "doing",
       "details": "Provide readable summaries with inspectable numerical and operational detail. Sources: MVP_SPEC.md sections 8-11; mvp-guide.html.",
       "steps": [
         "Render JSON reports as terminal text and Markdown.",
@@ -1438,7 +1438,8 @@
         "T028",
         "T034",
         "T036"
-      ]
+      ],
+      "updated_at": "2026-09-24T09:25:08Z"
     },
     {
       "id": "T038",
