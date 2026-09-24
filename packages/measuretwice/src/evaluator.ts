@@ -35,7 +35,11 @@
  * resolves one malformed record as one `evaluator_error` failure, and one
  * assessment that breaks the contract of its check as one
  * `invalid_assessment` failure, so one broken adapter cannot crash one run
- * and one invalid answer cannot enter one report.
+ * and one invalid answer cannot enter one report. One {@link ValidationError}
+ * that the adapter throws keeps its stable registry code and its field path
+ * inside the failure message, so one deterministic rejection before one
+ * provider call, such as evidence above the provider input limit, stays
+ * distinguishable from one transient adapter defect.
  */
 import type { CheckDefinition, Definition, JSONValue } from "./define-checks.js";
 import { NativeFailure, nativeValidateAssessment } from "./native.js";
@@ -428,6 +432,17 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
   try {
     returned = await dispatch.evaluator.assess(request);
   } catch (cause) {
+    if (cause instanceof ValidationError) {
+      // One adapter that rejects its own request before one provider call
+      // throws one validation error with one stable registry code, such as
+      // `oversized_input` for evidence above the provider limit. The
+      // execution contract keeps its three operational codes, so the
+      // stable code and its field path ride inside the message.
+      return failure(
+        "evaluator_error",
+        `${cause.code}${cause.fieldPath === "" ? "" : ` (at ${cause.fieldPath})`}: ${cause.message}`,
+      );
+    }
     return failure("evaluator_error", `The evaluator threw: ${messageOf(cause)}`);
   }
   if (!isPlainObject(returned)) {

@@ -611,6 +611,7 @@ test("the package entry point exposes the authoring and run API without native t
   expect(Object.keys(publicApi).sort()).toEqual([
     "JEV_ADAPTER_VERSION",
     "JEV_DEFAULT_MODEL",
+    "JEV_STATE_BUDGET_BYTES",
     "JEV_TRANSLATION_VERSION",
     "ValidationError",
     "contractVersion",

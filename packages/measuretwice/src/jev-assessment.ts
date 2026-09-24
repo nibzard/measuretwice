@@ -40,6 +40,19 @@
  * adapter-measured. No per-question usage exists, so usage stays at request
  * level. An unavailable measurement stays absent.
  *
+ * The adapter also owns the provider input limits of task T033. One
+ * request must stay inside the Jev state budget, which
+ * `providers/jev/README.md` records as 32,000 tokens for the state plus
+ * the longest question. The adapter holds no tokenizer, so it counts
+ * UTF-8 bytes: one token of UTF-8 text covers at least one byte, so the
+ * byte count bounds the token count from above, and one request that
+ * fits the byte budget fits the token budget. Evidence above the budget
+ * is rejected before the provider call with the stable code
+ * `oversized_input`, and nothing is truncated. Every request derives
+ * from exactly one check of one case: the adapter holds no state between
+ * calls, sends one question per request, and combines no unrelated cases
+ * or access scopes, so shared provider state cannot mix them.
+ *
  * Failure behavior: one response that breaks the recorded SDK shapes, one
  * answer that breaks the assessment contract, one answer that names no
  * declared answer, one distribution with one undeclared name, one value
@@ -59,6 +72,7 @@ import type {
   EvaluatorRequest,
   ValidatedQuestion,
 } from "./evaluator.js";
+import { ValidationError } from "./error.js";
 import { jevEvidenceState, translateJevQuestion } from "./jev.js";
 import type { JevEvidenceState, JevQuestionValue, JevTranslation } from "./jev.js";
 
@@ -77,6 +91,20 @@ export const JEV_ADAPTER_VERSION = "0.1.0";
  * operational record keeps.
  */
 export const JEV_DEFAULT_MODEL = "jev-1.13.0";
+
+/**
+ * The Jev state budget, counted in UTF-8 bytes.
+ *
+ * `providers/jev/README.md` records the service limit as 32,000 tokens
+ * for the state plus the longest question. The adapter holds no
+ * tokenizer, so it counts UTF-8 bytes instead: one token of UTF-8 text
+ * covers at least one byte, so the byte count bounds the token count
+ * from above. One request of this adapter carries exactly one question,
+ * so the serialized state plus the serialized question must stay within
+ * this budget. Evidence above the budget is rejected before the provider
+ * call with the stable code `oversized_input`. Nothing is truncated.
+ */
+export const JEV_STATE_BUDGET_BYTES = 32_000;
 
 /** The token usage of one Jev request, as the response reports it. */
 export interface JevUsage {
@@ -685,6 +713,7 @@ export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
       }
       const translation = translateJevQuestion(request.question);
       const state = jevEvidenceState(request.using, request.inputs);
+      assertStateBudget(state, translation.question);
       const timeout = Math.max(1, Math.ceil(remaining));
       let result: unknown;
       try {
@@ -717,6 +746,53 @@ export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
+
+/**
+ * Rejects one request whose serialized state and question exceed the Jev
+ * state budget.
+ *
+ * The check runs before the provider call and rejects without truncating,
+ * as MVP_SPEC.md section 12 requires: no silent shortening of supplied
+ * evidence. The rejection is one {@link ValidationError} with the stable
+ * registry code `oversized_input`, so the dispatch contract keeps the
+ * stable reason inside its failure message.
+ */
+function assertStateBudget(state: JevEvidenceState, question: JevQuestionValue): void {
+  const total = utf8ByteLength(JSON.stringify(state)) + utf8ByteLength(JSON.stringify(question));
+  if (total > JEV_STATE_BUDGET_BYTES) {
+    throw new ValidationError(
+      "oversized_input",
+      `The projected evidence and the translated question serialize to ${total} UTF-8 bytes, above the Jev state budget of ${JEV_STATE_BUDGET_BYTES} bytes. Supply smaller evidence. The adapter truncates nothing.`,
+      "/inputs",
+    );
+  }
+}
+
+/**
+ * Counts the UTF-8 bytes of one string that JSON serialization produced.
+ *
+ * Well-formed JSON serialization escapes every lone surrogate, so the
+ * text holds complete code points and the count is exact.
+ */
+function utf8ByteLength(text: string): number {
+  let bytes = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    if (code < 0x80) {
+      bytes += 1;
+    } else if (code < 0x800) {
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      // One high surrogate. Its low surrogate follows, because the text
+      // holds complete code points, and the pair encodes four bytes.
+      bytes += 4;
+      index += 1;
+    } else {
+      bytes += 3;
+    }
+  }
+  return bytes;
+}
 
 /**
  * The retry policy the adapter states on every call: the SDK retries

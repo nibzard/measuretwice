@@ -93,6 +93,7 @@ export {
   createJevEvaluator,
   JEV_ADAPTER_VERSION,
   JEV_DEFAULT_MODEL,
+  JEV_STATE_BUDGET_BYTES,
   mapJevError,
   normalizeJevExecution,
 } from "./jev-assessment.js";

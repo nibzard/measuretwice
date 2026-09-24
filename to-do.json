@@ -1216,13 +1216,13 @@
         "T030",
         "T031"
       ],
-      "updated_at": "2026-09-24T07:36:41Z",
+      "updated_at": "2026-09-24T07:40:52Z",
       "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
         "crates/measuretwice-core/src/run_state.rs",
         "crates/measuretwice-core/tests/contract_fixtures.rs",
         "crates/measuretwice-node/src/lib.rs",
-        "DEVELOPING.md",
-        "TESTING.md",
         "fixtures/README.md",
         "fixtures/runtime/traces.json",
         "models/execution/Execution.tla",
@@ -1242,8 +1242,8 @@
       "id": "T033",
       "title": "Enforce provider input limits and call isolation",
       "priority": 2,
-      "status": "todo",
-      "details": "Restrict model state to authorized evidence within one case and access scope. Sources: MVP_SPEC.md sections 6, 12.",
+      "status": "done",
+      "details": "Restrict model state to authorized evidence within one case and access scope. Sources: MVP_SPEC.md sections 6, 12. Done: packages/measuretwice/test/jev-boundaries.test.ts pins the complete boundary with the flagship intervention-review definition of mvp-guide.html, whose four question checks declare four different using lists. Every dispatched request holds exactly the three wire fields, one question keyed by its own check, and one state that equals the projection of that check alone, so no case identifier, label, or unrelated input crosses. The adapter enforces the provider input limit: createJevEvaluator measures the serialized evidence state plus the serialized question against the published JEV_STATE_BUDGET_BYTES of 32,000, the recorded 32,000-token state budget counted in UTF-8 bytes, because the adapter holds no tokenizer and one token of UTF-8 text covers at least one byte, so the byte count bounds the token count from above. Evidence at the budget passes with its complete content; one byte above is rejected before the provider call with the stable code oversized_input at /inputs, and nothing is truncated. dispatchAssessment keeps the stable code and the field path of one thrown ValidationError inside its evaluator_error failure message, so one deterministic rejection stays distinguishable from one transient adapter defect; the wrapper-level limit validation before any attempt starts belongs to T034. The adapter implements no batching: one request carries exactly one question, so the flagship projections need separate calls, and one later batch operation may group questions only inside one case and one access scope under one identical authorized projected state. Two cases from unrelated access scopes never share one request, the adapter holds no state between calls, and the boundary options carry only the signal, the attempt timeout, and the retry policy, so no credential and no scope metadata crosses. One thrown and one malformed provider answer fail their own check alone while the siblings assess normally. Embedded instructions inside supplied evidence stay one string value inside the fixed evidence envelope: they reach no question instructions, no registered evaluator, and no permission, because registration is host code and the request shape is fixed. providers/jev/README.md records the enforcement, the request isolation, and the batching rule; DEVELOPING.md and TESTING.md record the decision and the suite.",
       "steps": [
         "Write tests proving that each request contains only fields authorized by using.",
         "Reject evidence above supported limits before provider execution without truncating it.",
@@ -1262,6 +1262,18 @@
         "T024",
         "T025",
         "T030"
+      ],
+      "updated_at": "2026-09-24T07:58:04Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/src/evaluator.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/jev-assessment.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/jev-boundaries.test.ts",
+        "providers/jev/README.md",
+        "to-do.json"
       ]
     },
     {

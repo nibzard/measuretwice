@@ -659,6 +659,37 @@ scheduler suite drives the backoff, its doubling, the permanent record,
 the cancellation during one backoff, and the deadline that ends one
 backoff.
 
+Decided in T033: the provider input limits and the call isolation live in
+the Jev adapter, with the stable validation code preserved across the
+dispatch boundary. `createJevEvaluator` measures every request against
+`JEV_STATE_BUDGET_BYTES`, 32,000: the recorded service limit of 32,000
+tokens for the state plus the longest question, counted in UTF-8 bytes over
+the serialized evidence state plus the serialized question, because the
+adapter holds no tokenizer and one token of UTF-8 text covers at least one
+byte, so the byte count bounds the token count from above. Evidence above
+the budget is rejected before the provider call with one `ValidationError`
+of code `oversized_input` and path `/inputs`, and nothing is truncated, as
+MVP_SPEC.md section 12 requires. `dispatchAssessment` keeps the stable code
+and the field path of one thrown `ValidationError` inside its
+`evaluator_error` failure message, so one deterministic rejection stays
+distinguishable from one transient adapter defect; the run path of T034
+adds the wrapper-level limit validation before any attempt starts. The
+adapter implements no batching: one request carries exactly one question,
+keyed by its check, so the different projections of the flagship
+intervention-review definition need separate calls, and one later batch
+operation may group questions only inside one case and one access scope
+under one identical authorized projected state. Every request derives from
+exactly one check of one case, the adapter holds no state between calls,
+and the boundary options carry only the signal, the attempt timeout, and
+the retry policy, so no credential, case identifier, or scope metadata
+crosses. Embedded instructions inside supplied evidence stay one string
+value inside the fixed `evidence` envelope: they reach no question
+instructions, no registered evaluator, and no permission, because
+registration is host code and the request shape is fixed. The suite
+`packages/measuretwice/test/jev-boundaries.test.ts` pins every rule with
+the flagship definition; [providers/jev/README.md](providers/jev/README.md)
+records the enforcement and the isolation contract.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

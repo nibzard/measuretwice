@@ -4,8 +4,9 @@ Status: verified 24 September 2026 against `@typesafe-ai/sdk` 0.6.0.
 
 This record is the verified provider contract for the Jev evaluator adapter.
 It replaces the design-time assumptions in [MVP_SPEC.md](../../MVP_SPEC.md)
-sections 5 and 6. Task T025 added the translation contract below, and task
-T026 added the normalization contract. Both build on this record.
+sections 5 and 6. Task T025 added the translation contract below, task T026
+added the normalization contract, and task T033 added the input-limit and
+call-isolation rules. All build on this record.
 
 No repository code imports the SDK. The adapter of task T026 takes the Jev
 boundary as one function that matches `systemOne` structurally, so the
@@ -325,6 +326,36 @@ The rule in MVP_SPEC.md section 12 stands. Batch questions only when their
 authorized projected state is identical. The flagship example uses different
 projections, so it needs separate calls.
 
+The v0 adapter implements no batching. It sends exactly one question per
+request, keyed by the check identifier, so two checks never share one
+request even when their case, their model, and their projected state agree.
+The adapter exposes no batch operation. A later batch operation must group
+questions only inside one case and one access scope, and only when the
+complete authorized projected state of every grouped question is identical.
+The package suite in
+`packages/measuretwice/test/jev-boundaries.test.ts` pins the one-question
+rule.
+
+## Request isolation
+
+Every request derives from exactly one check of one case. The adapter holds
+no state between calls, so no earlier case, question, or answer can enter a
+later request. The request carries exactly three fields of the wire shape,
+`state`, `questions`, and `model`, and the boundary options carry exactly
+the cancellation signal, the attempt timeout, and the retry policy: no
+credential, no case identifier, and no scope metadata crosses, because the
+host keeps the client and the credential. The state holds exactly the
+projected inputs that the `using` list of the check names, framed as
+evidence.
+
+Supplied content is untrusted evidence, as MVP_SPEC.md section 12 states.
+Embedded instructions inside an input value stay one string value inside
+the evidence envelope: JSON quoting keeps them there, they never reach the
+instructions of a question, and they change no registered evaluator, no
+tool permission, and no request boundary, because registration is host code
+and the request shape is fixed. Exact operations and application
+permissions remain in code.
+
 ## Service limits
 
 | Limit | Value |
@@ -338,6 +369,19 @@ projections, so it needs separate calls.
 
 An exceeded rate limit returns status 429 with `RateLimitError`. The limits
 are dynamic. They can change without notice.
+
+Adapter enforcement of the state budget, decided in task T033: the adapter
+holds no tokenizer, so it counts UTF-8 bytes instead of tokens. One token of
+UTF-8 text covers at least one byte, so the byte count bounds the token
+count from above, and one request that fits the byte budget fits the token
+budget. One adapter request carries one question, so it measures the
+serialized evidence state plus the serialized question against
+`JEV_STATE_BUDGET_BYTES`, 32,000 bytes, the published constant of the
+package. Evidence above the budget is rejected before the provider call
+with the stable reason code `oversized_input` and the field path
+`/inputs`. Nothing is truncated, as MVP_SPEC.md section 12 requires. The
+request budget of 64,000 tokens across several questions binds no v0
+request, because no request carries several questions.
 
 ## Errors
 
