@@ -23,6 +23,7 @@ import { createRequire } from "node:module";
 import type { JSONValue } from "./define-checks.js";
 import type {
   CaseInfo,
+  DatasetInfo,
   DefinitionInfo,
   RuleAssessment,
   RunState,
@@ -238,6 +239,15 @@ export function nativeValidateProfile(profileText: string): ProfileInfo {
   return call(() => binding.validateProfile(profileText));
 }
 
+/** Validates one JSONL case dataset with its metadata through the core. */
+export function nativeValidateDataset(
+  metadataText: string,
+  recordsText: string,
+  definitionText: string,
+): DatasetInfo {
+  return call(() => binding.validateDataset(metadataText, recordsText, definitionText));
+}
+
 /** One live evaluator binding of one compatibility check, as data. */
 export interface LiveBindingEntry {
   /** The bound check that the registered evaluator serves. */
@@ -393,4 +403,4 @@ export function runComplete(run: RunState, completedAt?: string | null): void {
   call(() => run.complete(completedAt ?? null));
 }
 
-export type { CaseInfo, DefinitionInfo, RuleAssessment, RunState };
+export type { CaseInfo, DatasetInfo, DefinitionInfo, RuleAssessment, RunState };

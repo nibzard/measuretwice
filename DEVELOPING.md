@@ -884,6 +884,40 @@ async function shadowWorker(job: QueueJob): Promise<void> {
 }
 ```
 
+Decided in T039: `measuretwice_core::dataset` loads one versioned JSONL
+case dataset with its metadata artifact. The core owns the complete
+contract: `parse_case_record` checks one record (identifier, group,
+slice tags, input object, reference labels, label provenance),
+`parse_dataset_metadata_str` checks the metadata artifact (population,
+sampling method, revision, label guidelines, kind, languages, declared
+record count, split declarations), and `load_dataset` reads the record
+file line by line through the strict JSON gate. Every record failure
+names its location: the field path states `/records/<line>` plus the
+pointer inside the record, counted from line 1. One empty line, one
+whitespace-only line, one malformed line, one repeated case identifier
+(`duplicate_id` at the repeated line), and one oversized line each fail
+before any later record is read. One file of no bytes holds one empty
+dataset; one trailing newline ends the last line and adds no empty line.
+`validate_dataset` then runs every input object through the run-case
+boundary of one validated definition, so an invalid input fails at load
+with its line and field, and the returned records project only the
+inputs that each check `using` list names. Reference labels and label
+provenance stay outside the input object, and the run-case envelope
+accepts `id` and `input` alone, so no label reaches an evaluator
+request; `runCase` of the public `Dataset` copies one identifier and one
+input object only. The published limits: one record line holds at most
+8,388,608 bytes, the complete record file holds at most 536,870,912
+bytes, and one dataset holds at most 100,000 records. Nothing is
+truncated, the loader retains the complete parsed records in memory and
+writes no file, and report retention stays with the host. The deeper
+split invariants, group coverage, and dataset content hashes arrive with
+the split-identity task. `loadDataset` in
+`packages/measuretwice/src/dataset.ts` reads one explicit `.json`
+metadata path and one explicit `.jsonl` records path through the
+injectable file access, `packages/measuretwice/test/dataset.test.ts`
+drives the public boundary, and `fixtures/datasets/loading.json` pins
+the shared group, including one materialized oversized record.
+
 ## Generated files
 
 `git` ignores the generated output: `target/`, `node_modules/`, `dist/`,

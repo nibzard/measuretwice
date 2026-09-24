@@ -107,6 +107,11 @@ holds exactly one case record. An empty line is invalid.
   sample. Dataset kind states which one it is.
 - The loader rejects malformed lines with the line number and a field path.
   It reports limits for record size, dataset size, and retained results.
+- The published dataset limits: one record line holds at most 8,388,608
+  bytes, the complete record file holds at most 536,870,912 bytes, and one
+  dataset holds at most 100,000 records. Nothing is truncated. The loader
+  retains the complete parsed records in memory and writes no file; report
+  retention stays with the host.
 
 ## Assessments and the evaluator contract
 
@@ -439,6 +444,9 @@ Related contracts published after this freeze:
   Adds the optional run-report field `case.snapshot`, one host-controlled
   reference for replay, and records that reports hold no raw case content
   and no credential.
+- The dataset loader limits of task T039, published on 24 September 2026.
+  States the published numbers for record size, dataset size, and retained
+  results that the case-record section names.
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.

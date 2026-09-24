@@ -18,6 +18,7 @@ one group through the Rust core is not conformant.
 | Valid definitions | [definitions/valid/](definitions/valid) | Each definition shape, each input type, and the `when_uncertain` default. |
 | Invalid definitions | [definitions/invalid.json](definitions/invalid.json) | One rejection record per contract invariant, with reason code and field path. |
 | Input validation | [inputs/validation.json](inputs/validation.json) | Data validation for each input type, code point length, closed objects, and size limits. |
+| Dataset loading | [datasets/loading.json](datasets/loading.json) | JSONL case records and dataset metadata: labels, provenance, groups, line-numbered rejections, duplicate identifiers, oversized records, and invalid inputs. |
 | Canonical hashing | [hashing/canonical.json](hashing/canonical.json) | Every hash domain, the canonical form, and the digest. Includes the two worked examples from [hashing.md](../contracts/v0/hashing.md). |
 | Exact string rules | [hashing/string-rules.json](hashing/string-rules.json) | `maxLength`, `includes`, and `excludes` boundaries, including the table in [hashing.md](../contracts/v0/hashing.md). |
 | Hashing rejections | [hashing/invalid.json](hashing/invalid.json) | Text and bytes that no hash may cover. |
@@ -40,6 +41,13 @@ one group through the Rust core is not conformant.
 - A hash record follows `hashes` in
 [hashing.schema.json](../contracts/v0/hashing.schema.json): `note`, `domain`,
 `value`, `canonical`, and `content_hash`.
+- A dataset loading record holds `note`, the records text under `records`
+(JSON Lines, one record per line), an optional `metadata` override of the
+group's shared metadata artifact, and, for one invalid record, `expected`
+with the stable `reason_code` and the `field_path`. A record with
+`materialize` states one padded input field: the runner replaces
+`input.<pad_field>` with `<pad_bytes>` filler characters, which puts the
+serialized line above the published record limit.
 - A string rule record follows `string_rules` in the same schema: `note`,
   `rule`, `parameter`, `input`, `outcome`, and `length` for `maxLength`.
 - A TypeBox pair holds `note`, `definition` (a file name in

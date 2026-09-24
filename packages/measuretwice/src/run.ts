@@ -535,7 +535,7 @@ export interface Reviewer<TInput> {
 // ---------------------------------------------------------------------------
 
 /** The default file access: UTF-8 reads through the Node file APIs. */
-const defaultFiles: FileAccess = {
+export const defaultFiles: FileAccess = {
   async read(path: string): Promise<string> {
     return readFile(path, "utf8");
   },
@@ -547,7 +547,7 @@ function defaultRunId(): string {
 }
 
 /** Runs one core operation and rethrows its failure as the public error. */
-function throughCore<T>(operation: () => T): T {
+export function throughCore<T>(operation: () => T): T {
   try {
     return operation();
   } catch (error) {
@@ -559,7 +559,7 @@ function throughCore<T>(operation: () => T): T {
 }
 
 /** Serializes one artifact and rejects what JSON cannot preserve. */
-function jsonText(value: unknown, fieldPath: string): string {
+export function jsonText(value: unknown, fieldPath: string): string {
   try {
     return JSON.stringify(value);
   } catch (error) {
@@ -581,7 +581,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Rejects one path that names no JSON file. */
-function requireJsonPath(filePath: string, fieldPath: string): void {
+export function requireJsonPath(filePath: string, fieldPath: string): void {
   if (!filePath.endsWith(".json")) {
     throw new ValidationError(
       "unsupported_format",
@@ -592,7 +592,7 @@ function requireJsonPath(filePath: string, fieldPath: string): void {
 }
 
 /** Reads one file through the injected access and keeps the cause of one failure. */
-async function readText(files: FileAccess, filePath: string): Promise<string> {
+export async function readText(files: FileAccess, filePath: string): Promise<string> {
   try {
     return await files.read(filePath);
   } catch (cause) {
@@ -614,7 +614,7 @@ function terminalTime(now: () => number): string {
 }
 
 /** Freezes one JSON value deeply. Mirrors the twin in `define-checks.ts`. */
-function deepFreeze(value: unknown): void {
+export function deepFreeze(value: unknown): void {
   if (Array.isArray(value)) {
     for (const item of value) {
       deepFreeze(item);

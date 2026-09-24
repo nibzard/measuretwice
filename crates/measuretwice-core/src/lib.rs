@@ -30,6 +30,8 @@ pub mod artifact;
 pub mod assessment;
 /// The run-case envelope, input validation, and authorized input projection.
 pub mod case;
+/// Versioned JSONL case datasets and their metadata.
+pub mod dataset;
 /// The portable check definition contract.
 pub mod definition;
 /// Stable typed validation errors.

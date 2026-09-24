@@ -624,6 +624,7 @@ test("the package entry point exposes the authoring and run API without native t
     "jevEvidenceState",
     "labelRuleChecks",
     "load",
+    "loadDataset",
     "mapJevError",
     "normalizeJevExecution",
     "registerEvaluators",

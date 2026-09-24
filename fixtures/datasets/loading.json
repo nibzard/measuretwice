@@ -1,0 +1,308 @@
+{
+  "schema_version": 1,
+  "description": "Dataset loading through the Rust core: case records in JSON Lines and the metadata artifact. One metadata object and one records text form one load call. An invalid record names the line and the field. The oversized record is materialized by the runner as its note states, because the data is too large to embed.",
+  "definition": "categorical-question.json",
+  "metadata": {
+    "schema_version": 1,
+    "id": "message-supported-cases",
+    "name": "Message support cases",
+    "revision": "2026-09-24.1",
+    "kind": "development_fixture",
+    "intended_population": "Proposed messages in support conversations.",
+    "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "fit",
+        "purpose": "fitting",
+        "groups": [
+          "dates"
+        ]
+      },
+      {
+        "id": "holdout",
+        "purpose": "validation",
+        "groups": [
+          "limits"
+        ]
+      }
+    ]
+  },
+  "valid": [
+    {
+      "note": "Two labeled records and one plain record. A record without a group forms its own group, and one without expected labels states none.",
+      "records": "{\"id\": \"message-supported-001\", \"group\": \"dates\", \"tags\": [\"date-change\", \"pass\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}, \"outcome\": \"pass\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"Every claim follows from the conversation.\", \"history\": [{\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"First proposal.\"}]}}\n{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-003\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}"
+    },
+    {
+      "note": "A trailing newline ends the last line and adds no empty line.",
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-003\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n"
+    },
+    {
+      "note": "One empty file holds one empty dataset with no empty line.",
+      "records": ""
+    },
+    {
+      "note": "A declared record count that matches the record file loads.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "message-supported-cases",
+        "name": "Message support cases",
+        "revision": "2026-09-24.1",
+        "kind": "development_fixture",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ],
+        "record_count": 2
+      },
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-003\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}"
+    }
+  ],
+  "invalid": [
+    {
+      "note": "One malformed line fails with its line number.",
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": ",
+      "expected": {
+        "reason_code": "invalid_json",
+        "field_path": "/records/2"
+      }
+    },
+    {
+      "note": "One empty line is invalid.",
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n\n",
+      "expected": {
+        "reason_code": "invalid_json",
+        "field_path": "/records/2"
+      }
+    },
+    {
+      "note": "One whitespace-only line is one empty line.",
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n   \n{\"id\": \"message-supported-003\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "invalid_json",
+        "field_path": "/records/2"
+      }
+    },
+    {
+      "note": "One line that repeats one object key fails the strict gate before the record contract.",
+      "records": "{\"id\": \"a\", \"id\": \"b\", \"input\": {}, \"label\": {\"author_type\": \"human\", \"reviewed\": false}}",
+      "expected": {
+        "reason_code": "invalid_json",
+        "field_path": "/records/1"
+      }
+    },
+    {
+      "note": "One repeated case identifier names both lines.",
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-003\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/records/3/id"
+      }
+    },
+    {
+      "note": "One record with a field outside the case-record contract fails. Baselines never enter a dataset record.",
+      "records": "{\"id\": \"message-supported-extra\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}, \"baseline\": \"pass\"}",
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/records/1/baseline"
+      }
+    },
+    {
+      "note": "One reviewed label without a reviewer fails.",
+      "records": "{\"id\": \"message-supported-unreviewed\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"human\", \"reviewed\": true}}",
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/records/1/label/reviewer"
+      }
+    },
+    {
+      "note": "One input object that breaks the definition input schema fails with its line and field.",
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-broken\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/records/2/input/conversation"
+      }
+    },
+    {
+      "note": "The runner materializes this record: it replaces input.proposed_message with 'a' repeated 8388700 times, which puts the serialized line above the 8388608-byte record limit. Nothing is truncated.",
+      "records": "{\"id\": \"message-supported-large\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"x\"}, \"label\": {\"author_type\": \"human\", \"reviewed\": false}}",
+      "materialize": {
+        "pad_field": "proposed_message",
+        "pad_bytes": 8388700
+      },
+      "expected": {
+        "reason_code": "oversized_input",
+        "field_path": "/records/1"
+      }
+    },
+    {
+      "note": "Metadata without a sampling method fails. Dataset metadata states its sampling explicitly.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "message-supported-cases",
+        "name": "Message support cases",
+        "revision": "2026-09-24.1",
+        "kind": "development_fixture",
+        "intended_population": "Proposed messages in support conversations.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/sampling_method"
+      }
+    },
+    {
+      "note": "Metadata with a kind outside the contract fails.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "message-supported-cases",
+        "name": "Message support cases",
+        "revision": "2026-09-24.1",
+        "kind": "convenience_sample",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/kind"
+      }
+    },
+    {
+      "note": "Two splits that share one identifier fail.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "message-supported-cases",
+        "name": "Message support cases",
+        "revision": "2026-09-24.1",
+        "kind": "development_fixture",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "fit",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/splits/1/id"
+      }
+    },
+    {
+      "note": "A declared record count that differs from the record file fails.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "message-supported-cases",
+        "name": "Message support cases",
+        "revision": "2026-09-24.1",
+        "kind": "development_fixture",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ],
+        "record_count": 3
+      },
+      "records": "{\"id\": \"message-supported-002\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}\n{\"id\": \"message-supported-003\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"The message restates the agreed date.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/record_count"
+      }
+    }
+  ]
+}

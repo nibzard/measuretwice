@@ -5,6 +5,7 @@
 //! groups that the parse boundary, the hashing boundary, the report boundary,
 //! and the run state boundary own: the valid definition artifacts, the
 //! structural definition rejections, the input validation records, the
+//! dataset loading records, the
 //! hashing rejection records, the canonical hash fixtures, the Jev
 //! translation questions with their translation-domain digests, the
 //! serialization round trips, the profile self-hashes, the outcome and
@@ -21,7 +22,7 @@ use measuretwice_core::profile::{
 };
 use measuretwice_core::run_state::{AttemptResolution, CheckPlace, Phase, RunLimits, RunState};
 use measuretwice_core::testing::SplitMix64;
-use measuretwice_core::{case, definition, json, report, rule};
+use measuretwice_core::{case, dataset, definition, json, report, rule};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -288,6 +289,100 @@ fn input_validation_records_report_the_stated_codes_and_paths() {
         }
     }
     assert!(oversized_seen, "no fixture record covered oversized_input");
+}
+
+/// The dataset loading group covers valid and invalid loads through the
+/// dataset boundary of the core, as the fixture manifest states.
+const DATASET_REJECTION_CODES: &[&str] = &[
+    "duplicate_id",
+    "invalid_field_type",
+    "invalid_json",
+    "missing_field",
+    "oversized_input",
+    "unknown_field",
+];
+
+/// Builds the records text of one dataset fixture record, materializing the
+/// one padded input field that its note states. The oversized record is too
+/// large to embed.
+fn dataset_records_text(record: &Value) -> String {
+    let text = record["records"].as_str().expect("the records text");
+    let Some(rule) = record.get("materialize") else {
+        return text.to_owned();
+    };
+    let field = rule["pad_field"].as_str().expect("a padded field");
+    let bytes = rule["pad_bytes"].as_u64().expect("a byte count") as usize;
+    let template = text.lines().next().expect("one template line");
+    let mut value: Value = serde_json::from_str(template).expect("the template record parses");
+    value["input"][field] = Value::String("a".repeat(bytes));
+    serde_json::to_string(&value).expect("the materialized record serializes")
+}
+
+#[test]
+fn dataset_loading_records_report_the_stated_codes_and_paths() {
+    let document = fixture_document("datasets/loading.json");
+    let definition_text =
+        fs::read_to_string(fixture("definitions/valid/categorical-question.json"))
+            .expect("the definition file reads");
+    let definition = definition::validate_definition_str(&definition_text)
+        .expect("the fixture definition validates");
+    let default_metadata = &document["metadata"];
+
+    let valid = document["valid"].as_array().expect("valid records");
+    assert!(valid.len() >= 3, "the fixture group lost valid records");
+    for record in valid {
+        let note = record["note"].as_str().expect("a note");
+        let metadata = record
+            .get("metadata")
+            .unwrap_or(default_metadata)
+            .to_owned();
+        let metadata_text = serde_json::to_string(&metadata).expect("the metadata serializes");
+        let records = dataset_records_text(record);
+        let loaded = dataset::load_dataset(&metadata_text, &records)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        dataset::validate_dataset(&loaded, &definition)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        // A declared record count that loads must match the records.
+        if let Some(declared) = metadata["record_count"].as_u64() {
+            assert_eq!(loaded.len() as u64, declared, "{note}");
+        }
+    }
+
+    let invalid = document["invalid"].as_array().expect("invalid records");
+    assert!(
+        invalid.len() >= 10,
+        "the fixture group lost invalid records"
+    );
+    let mut covered = BTreeSet::new();
+    for record in invalid {
+        let note = record["note"].as_str().expect("a note");
+        let metadata = record
+            .get("metadata")
+            .unwrap_or(default_metadata)
+            .to_owned();
+        let metadata_text = serde_json::to_string(&metadata).expect("the metadata serializes");
+        let records = dataset_records_text(record);
+        let error = match dataset::load_dataset(&metadata_text, &records) {
+            Ok(loaded) => dataset::validate_dataset(&loaded, &definition)
+                .err()
+                .unwrap_or_else(|| panic!("{note}: the dataset was accepted")),
+            Err(error) => error,
+        };
+        let expected = &record["expected"];
+        assert_eq!(
+            error.code.as_str(),
+            expected["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            expected["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+        covered.insert(error.code.as_str().to_owned());
+    }
+    let covered: Vec<&str> = covered.iter().map(String::as_str).collect();
+    assert_eq!(covered, DATASET_REJECTION_CODES);
 }
 
 #[test]

@@ -15,7 +15,10 @@
  * `createExplorationProfile` generates the explicitly unvalidated starter
  * profile from one validated definition and the registered evaluators, so
  * one developer can try semantic checks before any qualification evidence
- * exists. The package also ships
+ * exists. `loadDataset` loads one versioned JSONL case dataset with its
+ * metadata through the Rust core, which checks every record line and
+ * validates every input object, so reference labels and label provenance
+ * stay outside every evaluator request. The package also ships
  * two test adapters, `createScriptedEvaluator` and
  * `createLabelOnlyEvaluator`, that stay offline and prove the contract
  * needs no Jev response shape, `translateJevQuestion`, the versioned
@@ -121,6 +124,22 @@ export type {
   JevUsage,
 } from "./jev-assessment.js";
 export { load } from "./run.js";
+export { loadDataset } from "./dataset.js";
+export type {
+  Dataset,
+  DatasetCase,
+  DatasetKind,
+  DatasetMetadata,
+  DatasetSplit,
+  ExpectedCheckLabel,
+  ExpectedLabels,
+  ExpectedOutcome,
+  LabelAuthorType,
+  LabelOrigin,
+  LabelProvenance,
+  LoadDatasetOptions,
+  SplitPurpose,
+} from "./dataset.js";
 export type {
   AggregateOutcome,
   AppliedRuleRecord,

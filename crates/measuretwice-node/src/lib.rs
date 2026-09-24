@@ -29,7 +29,7 @@ use measuretwice_core::error::{ReasonCode, ValidationError};
 use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
 use measuretwice_core::{
-    assessment, case, definition, hashing, json, policy, profile, report, rule, run_state,
+    assessment, case, dataset, definition, hashing, json, policy, profile, report, rule, run_state,
 };
 use serde_json::Value;
 
@@ -344,6 +344,140 @@ pub fn validate_profile(profile_text: String) -> Result<ProfileInfo, napi::Error
         qualification_status: validated.qualification().as_str().to_owned(),
         qualification_scope: validated.qualification_scope().map(str::to_owned),
         content_hash: validated.content_hash().to_owned(),
+    })
+}
+
+/// One declared split of one dataset, as data.
+#[napi(object)]
+pub struct DatasetSplitEntry {
+    /// Stable split identifier.
+    pub id: String,
+    /// Fitting or validation.
+    pub purpose: String,
+    /// Groups assigned to this split, in the declared order.
+    pub groups: Vec<String>,
+}
+
+/// The metadata of one validated dataset.
+#[napi(object)]
+pub struct DatasetMetadataEntry {
+    /// Stable dataset identifier.
+    pub id: String,
+    /// Readable dataset name, when stated.
+    pub name: Option<String>,
+    /// Dataset revision.
+    pub revision: String,
+    /// Dataset kind: development_fixture, synthetic_challenge, or
+    /// representative_sample.
+    pub kind: String,
+    /// Population that the sampling procedure targets.
+    pub intended_population: String,
+    /// How the cases were selected.
+    pub sampling_method: String,
+    /// Written label guidelines, or one reference to them.
+    pub label_guidelines: String,
+    /// Language tags that occur in the cases.
+    pub languages: Vec<String>,
+    /// The declared splits.
+    pub splits: Vec<DatasetSplitEntry>,
+}
+
+/// One case record of one validated dataset, as data.
+#[napi(object)]
+pub struct DatasetCaseEntry {
+    /// Line of this record inside the record file, counted from 1.
+    pub line: u32,
+    /// Stable case identifier.
+    pub id: String,
+    /// Group of related cases. One record without a group forms its own
+    /// group.
+    pub group: String,
+    /// Slice and failure-type tags.
+    pub tags: Vec<String>,
+    /// The complete input object, unchanged.
+    pub input: Value,
+    /// The input-domain content hash of the complete input object.
+    pub input_hash: String,
+    /// Reference labels and expected outcomes, when one is present.
+    pub expected: Option<Value>,
+    /// The provenance of the reference label.
+    pub label: Value,
+}
+
+/// The result of validating one dataset through the core.
+#[napi(object)]
+pub struct DatasetInfo {
+    /// The name of the definition that validated every input object.
+    pub definition_name: String,
+    /// The content hash of that definition.
+    pub definition_hash: String,
+    /// The metadata artifact, as the core validated it.
+    pub metadata: DatasetMetadataEntry,
+    /// The number of case records.
+    pub record_count: u32,
+    /// Every case record, in file order.
+    pub records: Vec<DatasetCaseEntry>,
+}
+
+/// Validates one JSONL case dataset with its metadata through the core.
+///
+/// The metadata text must pass the strict JSON gate and the dataset
+/// metadata contract. The records text holds one complete record file:
+/// every nonempty line is one case record, and one failure names its line
+/// and its field. Every input object must satisfy the input schema of the
+/// definition text. Reference labels and label provenance stay outside the
+/// input object; the run-case boundary keeps them out of every evaluator
+/// request.
+#[napi]
+pub fn validate_dataset(
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+) -> Result<DatasetInfo, napi::Error> {
+    let validated_definition = lift(definition::validate_definition_str(&definition_text))?;
+    let loaded = lift(dataset::load_dataset(&metadata_text, &records_text))?;
+    let validated = lift(dataset::validate_dataset(&loaded, &validated_definition))?;
+    let metadata = validated.metadata();
+    let mut records = Vec::with_capacity(validated.len());
+    for index in 0..validated.len() {
+        let record = validated.record(index).expect("the index is in range");
+        records.push(DatasetCaseEntry {
+            line: record.line() as u32,
+            id: record.id().to_owned(),
+            group: record.group().to_owned(),
+            tags: record.tags().to_vec(),
+            input: Value::Object(record.input().clone()),
+            input_hash: hashing::input_hash(record.input()),
+            expected: record
+                .expected()
+                .map(|expected| serde_json::to_value(expected).expect("the labels serialize")),
+            label: serde_json::to_value(record.label()).expect("the label serializes"),
+        });
+    }
+    Ok(DatasetInfo {
+        definition_name: validated_definition.as_definition().name.clone(),
+        definition_hash: hashing::definition_hash(&validated_definition),
+        metadata: DatasetMetadataEntry {
+            id: metadata.id.clone(),
+            name: metadata.name.clone(),
+            revision: metadata.revision.clone(),
+            kind: metadata.kind.as_str().to_owned(),
+            intended_population: metadata.intended_population.clone(),
+            sampling_method: metadata.sampling_method.clone(),
+            label_guidelines: metadata.label_guidelines.clone(),
+            languages: metadata.languages.clone(),
+            splits: metadata
+                .splits
+                .iter()
+                .map(|split| DatasetSplitEntry {
+                    id: split.id.clone(),
+                    purpose: split.purpose.as_str().to_owned(),
+                    groups: split.groups.clone(),
+                })
+                .collect(),
+        },
+        record_count: validated.len() as u32,
+        records,
     })
 }
 

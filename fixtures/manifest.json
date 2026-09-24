@@ -28,6 +28,13 @@
       "runner": "Validate each input object against its root schema in the Rust core. Materialize the described oversized inputs as stated in their notes."
     },
     {
+      "id": "datasets-loading",
+      "path": "datasets/loading.json",
+      "kind": "record-set",
+      "covers": ["valid records with labels, groups, tags, and provenance", "empty record file", "trailing newline", "record count agreement", "malformed lines with line numbers", "empty and blank lines", "repeated case identifiers", "oversized records", "invalid inputs against the definition", "metadata population, sampling, revision, and label guidelines", "split structure"],
+      "runner": "Load each valid dataset through the Rust core with the named definition file, then validate every input object. Reject each invalid metadata artifact or record set with the stated reason code and field path. Materialize the stated oversized record as its note describes."
+    },
+    {
       "id": "hashing-canonical",
       "path": "hashing/canonical.json",
       "kind": "hash-set",
