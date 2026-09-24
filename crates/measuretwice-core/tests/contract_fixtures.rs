@@ -3740,97 +3740,6 @@ fn qualification_request(
     request
 }
 
-/// Runs one plan of the qualification group through the fit and the frozen
-/// validation, and states the computed facts of the result.
-fn qualification_facts(report: &qualification::QualificationReport) -> Value {
-    let goals: Vec<Value> = report
-        .goals
-        .iter()
-        .map(|goal| {
-            let mut row = json!({
-                "metric": goal.metric.as_str(),
-                "met": goal.met,
-                "numerator": goal.numerator,
-                "denominator": goal.denominator,
-                "observed": goal.observed,
-                "upper_bound": goal.upper_bound,
-                "draws": goal.draws,
-                "evidence": match goal.evidence {
-                    qualification::GoalEvidence::Measured => json!("measured"),
-                    qualification::GoalEvidence::ZeroDenominator => json!("zero_denominator"),
-                    qualification::GoalEvidence::UnsupportedSampling => {
-                        json!("unsupported_sampling")
-                    }
-                    qualification::GoalEvidence::BelowMinimum { stated, measured } => {
-                        json!({"below_minimum": {"stated": stated, "measured": measured}})
-                    }
-                }
-            });
-            if let qualification::GoalEvidence::BelowMinimum { stated, measured } = goal.evidence {
-                row["stated"] = json!(stated);
-                row["measured"] = json!(measured);
-            }
-            row
-        })
-        .collect();
-    let requirements: Vec<Value> = report
-        .sample_requirements
-        .iter()
-        .map(|row| {
-            json!({
-                "denominator": row.denominator,
-                "stated": row.stated,
-                "measured": row.measured,
-                "met": row.met,
-            })
-        })
-        .collect();
-    let slices: Vec<Value> = report
-        .slices
-        .iter()
-        .map(|row| {
-            json!({
-                "tag": row.tag,
-                "met": row.met,
-                "denominators": row.denominators,
-            })
-        })
-        .collect();
-    let reasons: Vec<&str> = report.reasons.iter().map(|row| row.code.as_str()).collect();
-    json!({
-        "status": report.status.as_str(),
-        "reasons": reasons,
-        "evidence_class": report.evidence.class.as_str(),
-        "case_count": report.case_count,
-        "candidate_index": report.candidate_index,
-        "candidate": report.candidate,
-        "applied": report.applied,
-        "goals": goals,
-        "sample_requirements": requirements,
-        "slices": slices,
-        "counts": report
-            .scopes
-            .iter()
-            .find(|set| set.scope == metrics::ALL_CHECKS)
-            .map(|set| set.counts)
-            .value_or_null(),
-    })
-}
-
-/// One temporary value helper: `None` states null.
-trait ValueOrNull {
-    fn value_or_null(&self) -> Value;
-}
-
-impl ValueOrNull for Option<metrics::OutcomeCounts> {
-    fn value_or_null(&self) -> Value {
-        match self {
-            Some(counts) => serde_json::to_value(counts).expect("the counts serialize"),
-            None => Value::Null,
-        }
-    }
-}
-
 /// Runs one plan row of the qualification group through the fit and the
 /// frozen validation, with the row's stated overrides applied.
 fn qualification_row(
@@ -4135,18 +4044,15 @@ fn invalid_qualification_rows_refuse_with_their_stated_codes() {
         if let Some(limit) = row["edited_plan_limit"].as_f64() {
             artifact["constraints"][0]["limit"] = json!(limit);
         }
-        let fit_of = match row["fit_plan"].as_str() {
-            Some(id) => Some(
-                document["plans"]
-                    .as_array()
-                    .expect("a plan array")
-                    .iter()
-                    .find(|plan| plan["id"] == json!(id))
-                    .unwrap_or_else(|| panic!("{note}: the group states no plan {id}"))
-                    .clone(),
-            ),
-            None => None,
-        };
+        let fit_of = row["fit_plan"].as_str().map(|id| {
+            document["plans"]
+                .as_array()
+                .expect("a plan array")
+                .iter()
+                .find(|plan| plan["id"] == json!(id))
+                .unwrap_or_else(|| panic!("{note}: the group states no plan {id}"))
+                .clone()
+        });
 
         let error = qualification_row(
             &document,

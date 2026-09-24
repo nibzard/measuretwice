@@ -1349,6 +1349,52 @@ mod tests {
     }
 
     #[test]
+    fn the_evaluator_identity_travels_unchanged_into_the_result() {
+        // One plan that freezes one translation hash and one requested model
+        // states the evaluator identity of the measurement. The validation
+        // records it unchanged, so one changed translation, adapter, or model
+        // resolution stays one changed binding that this result no longer
+        // covers, whatever the validation data shows.
+        let mut artifact = plan_artifact(
+            "bound-evaluator-plan",
+            error_goal(0.5, "observed_value"),
+            json!({"accepted_cases": 2}),
+            json!([]),
+        );
+        artifact["evaluator"]["translation_hash"] =
+            json!("a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b");
+        artifact["evaluator"]["model_requested"] = json!("jev-1.2.0");
+        let metadata = metadata(
+            "representative_sample",
+            &[
+                "conversation-b",
+                "conversation-c",
+                "conversation-d",
+                "conversation-e",
+            ],
+        );
+        let report = calibrated(
+            &artifact,
+            &metadata,
+            &shared_records(&clean_validation()),
+            &independent(),
+            &clean_assessments(),
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(report.evaluator.evaluator, "jev-choice");
+        assert_eq!(report.evaluator.adapter_version, "0.1.0");
+        assert_eq!(
+            report.evaluator.translation_hash.as_deref(),
+            Some("a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b")
+        );
+        assert_eq!(
+            report.evaluator.model_requested.as_deref(),
+            Some("jev-1.2.0")
+        );
+        assert_eq!(report.status, Qualification::ValidatedForScope);
+    }
+
+    #[test]
     fn one_frozen_candidate_validates_for_the_declared_scope() {
         let plan = plan_artifact(
             "validated-plan",

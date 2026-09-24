@@ -207,7 +207,7 @@ Each transition maps to one implementation obligation:
 | Transition | Owner | Implementation |
 | --- | --- | --- |
 | `PublishStarter` | Rust validates | T029: an exploration profile is generated `unvalidated` with reason `starter_policy`. |
-| `Qualify` | Rust computes | T049 and T050: frozen validation computes the status. The candidate is returned, never selected. |
+| `Qualify` | Rust computes | T049, implemented: `measuretwice_core::qualification` computes the status of one frozen candidate on independent cases and returns the candidate unchanged. T050 wires the boundary into the calibrate API. |
 | `RunEvaluation` | Wrapper runs, Rust validates | T044: `evaluate` reports metrics and changes no qualification and no selection. It reuses the shadow admission of the implemented gate. |
 | `RunShadow` | Wrapper runs, Rust validates | T038: a shadow report records the outcome next to the baseline. No application action follows. |
 | `RunEnforcement` | Rust admits | T035, implemented: enforcement mode checks the complete gate before any evaluator runs. The wrapper passes the requested scope and the host-selected hash through `RunOptions.scope` and `RunOptions.selectedProfileHash`. |

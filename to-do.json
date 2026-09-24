@@ -1918,7 +1918,7 @@
       "id": "T049",
       "title": "Qualify frozen candidates on independent data",
       "priority": 3,
-      "status": "doing",
+      "status": "done",
       "details": "Compute qualification for the declared scope after candidate selection is frozen. Sources: MVP_SPEC.md sections 7-8; AGENTS.md sections 7, 9.",
       "steps": [
         "Write tests for all qualification states, small samples, empty slices, unsupported sampling, and unmet goals.",
@@ -1941,7 +1941,22 @@
         "T047",
         "T048"
       ],
-      "updated_at": "2026-09-24T18:39:18Z"
+      "updated_at": "2026-09-24T19:09:01Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/fitting.rs",
+        "crates/measuretwice-core/src/intervals.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/plan.rs",
+        "crates/measuretwice-core/src/profile.rs",
+        "crates/measuretwice-core/src/qualification.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "fixtures/README.md",
+        "fixtures/manifest.json",
+        "fixtures/qualification/validation.json",
+        "models/qualification/README.md"
+      ]
     },
     {
       "id": "T050",
