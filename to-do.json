@@ -1024,7 +1024,7 @@
         "T010",
         "T026"
       ],
-      "updated_at": "2026-09-24T05:19:32Z",
+      "updated_at": "2026-09-24T05:20:55Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -1038,8 +1038,8 @@
       "id": "T028",
       "title": "Validate profiles and evaluator compatibility",
       "priority": 2,
-      "status": "todo",
-      "details": "Bind immutable profiles to exact definitions, evaluators, policies, and declared scope. Sources: MVP_SPEC.md sections 8, 12, 15.",
+      "status": "done",
+      "details": "Bind immutable profiles to exact definitions, evaluators, policies, and declared scope. Sources: MVP_SPEC.md sections 8, 12, 15. Done: measuretwice_core::profile owns the complete profile artifact contract and the compatibility boundary, and nothing else. validate_profile checks every field of profile.schema.json plus the cross-field rules of the contracts README: artifact identifiers, hash-shaped digests, bounded strings, the execution limits, the evidence shapes, the performance records with the published metric names, the confidence levels, and the qualification reasons from the stable registry. The origin rules hold: one exploration profile stays unvalidated, one exact profile binds no evaluator and takes the exact family (the exact family belongs to the exact origin alone), and one calibration profile records its complete evidence, plan, datasets, splits, label provenance, evaluation-report references, and statistical method. Both cutoffs reuse the shared AppliedPolicy validation, one binding and one policy entry may name one check once, and the stored content_hash is verified last, so one field defect names its own field and one edited or corrupted copy fails with hash_mismatch. check_compatibility compares one validated profile against one loaded definition and the live evaluator state in one fixed order: the structural exact rule for an exact-only definition, the definition reference, then, per binding, the registered evaluator and its adapter version, the preprocessing identity, the translated question, and the resolved model version, then the binding coverage, the policy coverage and fit, then, for enforcement, the declared scope and the validated qualification. Every refusal carries one compatibility reason code of the registry before any evaluator runs; shadow compares the bindings alone and enforcement adds scope_mismatch and qualification_insufficient, exactly as the checked qualification model maps them. The live state crosses as data, one entry per bound check, because the core never sees an evaluator object, and one absent live part compares nothing. The comparison verifies content consistency and authenticates nothing: one forged dataset that states validated_for_scope passes, and the unit tests demonstrate it, because one hash binds one artifact to itself and never one label, one population claim, or one host approval. Profiles hold no credentials and no raw case content, and the field contract keeps it that way: one api_key or case body rejects with unknown_field. The Node binding exposes validateProfile and checkProfileCompatibility; load routes every supplied profile through the self-hash check, the artifact contract, and the shadow-mode compatibility check, builds the live entries from the registry, and run repeats the check in enforcement mode so the qualification clause refuses one unvalidated profile through the same boundary. One adapter that translates exposes the optional translate operation of the evaluator contract, so load compares the recorded translation against the live one; the Jev adapter exposes translateJevQuestion this way, and one changed translation now fails load with translation_mismatch at the binding. The shared compatibility rows of fixtures/profiles/states.json carry the live evaluator state and the mode and cover every compatibility family: definition_mismatch, evaluator_mismatch (unregistered, rebound, and changed version), translation_mismatch, model_resolution_changed, policy_mismatch, scope_mismatch, and qualification_insufficient, plus one loadable shadow pairing. The Rust unit tests hold the artifact rejection table and every mismatch dimension, including changed wording, schema, and projection through the definition hash; the Rust integration tests, the native boundary suite, and the repository checks run every row through the boundary. The selected-hash clause of enforcement and the per-mode wiring stay with T035.",
       "steps": [
         "Write mismatch tests for definitions, schemas, projections, preprocessing, models, adapters, translations, policies, and scope.",
         "Validate profile schema versions, IDs, content hashes, qualification states, and required evidence references.",
@@ -1060,6 +1060,28 @@
         "T022",
         "T025",
         "T027"
+      ],
+      "updated_at": "2026-09-24T06:08:16Z",
+      "files": [
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/profile.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "fixtures/README.md",
+        "fixtures/profiles/states.json",
+        "packages/measuretwice/src/evaluator.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/jev-assessment.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/evaluator.test.ts",
+        "packages/measuretwice/test/jev.test.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/run.test.ts",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
       ]
     },
     {

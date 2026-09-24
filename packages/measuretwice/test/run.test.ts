@@ -131,6 +131,9 @@ const EXACT_RULES_PATH = "definitions/valid/exact-rules.json";
 /** The shared fixture path of the ordered-scale definition. */
 const ORDERED_SCALE_PATH = "definitions/valid/ordered-scale.json";
 
+/** The shared fixture path of the categorical question definition. */
+const CATEGORICAL_QUESTION_PATH = "definitions/valid/categorical-question.json";
+
 /** One case that passes every rule of the delivery-limits definitions. */
 const PASSING_INPUT = {
   summary: "The delivery limit is 900 characters",
@@ -454,6 +457,70 @@ test("profile compatibility follows the fixture expectations", async () => {
 // ---------------------------------------------------------------------------
 // Question checks, invalid cases, and enforcement mode.
 // ---------------------------------------------------------------------------
+
+test("load validates one supplied profile through the core contract", async () => {
+  // One exploration profile that claims one qualification: the artifact
+  // breaks the cross-field origin rule, and the core names the field.
+  const claiming: Record<string, unknown> = {
+    ...EXPLORATION_PROFILE,
+    qualification: { status: "validated_for_scope", scope: "Development use.", reasons: ["starter_policy"] },
+  };
+  claiming["content_hash"] = nativeComputeSelfHash("profile", JSON.stringify(claiming));
+  const claimingPath = "profiles/claiming.json";
+  const claimingFailure = await failureOf(() =>
+    load(CATEGORICAL_QUESTION_PATH, {
+      profile: claimingPath,
+      files: memoryFiles({
+        "definitions/valid/categorical-question.json": fixtureText(CATEGORICAL_QUESTION_PATH),
+        [claimingPath]: JSON.stringify(claiming),
+      }),
+      now: () => START_MS,
+    }),
+  );
+  expect(claimingFailure.code).toBe("invalid_field_type");
+  // The artifact rules point into the artifact itself; the compatibility
+  // rules point into the pairing under /profile.
+  expect(claimingFailure.fieldPath).toBe("/qualification/status");
+
+  // One profile whose stored self-hash covers other content fails before
+  // any compatibility question, exactly as before.
+  const edited = { ...EXPLORATION_PROFILE, intended_use: "Enforcement use." };
+  const editedPath = "profiles/edited.json";
+  const editedFailure = await failureOf(() =>
+    load(CATEGORICAL_QUESTION_PATH, {
+      profile: editedPath,
+      files: memoryFiles({
+        "definitions/valid/categorical-question.json": fixtureText(CATEGORICAL_QUESTION_PATH),
+        [editedPath]: JSON.stringify(edited),
+      }),
+      now: () => START_MS,
+    }),
+  );
+  expect(editedFailure.code).toBe("hash_mismatch");
+  expect(editedFailure.fieldPath).toBe("/content_hash");
+
+  // One profile that binds no evaluator for one question check of the
+  // definition is one incompatible pairing, not one invalid artifact.
+  const unbound: Record<string, unknown> = {
+    ...EXPLORATION_PROFILE,
+    id: "message-supported-unbound",
+    bindings: [],
+  };
+  unbound["content_hash"] = nativeComputeSelfHash("profile", JSON.stringify(unbound));
+  const unboundPath = "profiles/unbound.json";
+  const unboundFailure = await failureOf(() =>
+    load(CATEGORICAL_QUESTION_PATH, {
+      profile: unboundPath,
+      files: memoryFiles({
+        "definitions/valid/categorical-question.json": fixtureText(CATEGORICAL_QUESTION_PATH),
+        [unboundPath]: JSON.stringify(unbound),
+      }),
+      now: () => START_MS,
+    }),
+  );
+  expect(unboundFailure.code).toBe("evaluator_mismatch");
+  expect(unboundFailure.fieldPath).toBe("/profile/bindings");
+});
 
 test("run rejects one question check before any work starts", async () => {
   const reviewer = await load(typedQuestions, {

@@ -1381,13 +1381,15 @@ test("profile hashes and references stay consistent with the hashing fixtures", 
   expect(splitHashes.every((hash) => publishedSplits.includes(String(hash)))).toBe(true);
 });
 
-test("compatibility fixtures pair valid profiles with the wrong definition", () => {
+test("compatibility fixtures pair profiles with definitions and live evaluator state", () => {
   const states = loadJson("profiles/states.json") as Record<string, Json | undefined>;
   const canonicalDoc = loadJson("hashing/canonical.json") as { hashes?: HashFixture[] };
   const entries = canonicalDoc.hashes ?? [];
   const byId = new Map(asObjects(states.profiles).map((profile) => [String(profile.id), profile]));
   const records = asObjects(states.compatibility);
-  expect(records.length).toBeGreaterThanOrEqual(2);
+  expect(records.length).toBeGreaterThanOrEqual(9);
+  const refused = new Set<string>();
+  const modes = new Set<string>();
   for (const record of records) {
     const profile = byId.get(String(record.profile_id));
     expect(profile, String(record.profile_id)).toBeDefined();
@@ -1395,7 +1397,12 @@ test("compatibility fixtures pair valid profiles with the wrong definition", () 
     const artifactHash = entries.find(
       (entry) => entry.domain === "definition" && deepEqualNumbers(entry.value, artifact),
     )?.content_hash;
-    const code = String((record.expected as { reason_code?: string })?.reason_code);
+    const expected = record.expected as { reason_code?: string; field_path?: string } | undefined;
+    const code = String(expected?.reason_code ?? "");
+    if (expected !== undefined) {
+      expect(REASON_CODES.has(code), String(record.note)).toBe(true);
+      refused.add(code);
+    }
     if (code === "definition_mismatch") {
       expect((profile?.definition as Record<string, Json>)?.content_hash).not.toBe(artifactHash);
     }
@@ -1404,7 +1411,56 @@ test("compatibility fixtures pair valid profiles with the wrong definition", () 
       expect(allRules, "the artifact is exact-only").toBe(true);
       expect((profile?.policy as Record<string, Json>)?.family).not.toBe("exact");
     }
+    // Rows with one live evaluator state state their mode, and every entry
+    // names one bound check and one registered evaluator with one version.
+    const live = asObjects(record.live ?? []);
+    const bindings = (profile?.bindings as Record<string, Json>[] | undefined) ?? [];
+    if (record.live !== undefined) {
+      modes.add(String(record.mode));
+      expect(["shadow", "enforcement"], String(record.note)).toContain(String(record.mode));
+      for (const entry of live) {
+        const where = `${String(record.note)}: ${String(entry.check)}`;
+        expect(ARTIFACT_ID.test(String(entry.check)), where).toBe(true);
+        expect(ARTIFACT_ID.test(String(entry.evaluator)), where).toBe(true);
+        expect(typeof entry.adapter_version === "string" && entry.adapter_version !== "", where).toBe(true);
+        if (entry.translation !== undefined) {
+          expect(HASH_PATTERN.test(String(entry.translation)), where).toBe(true);
+        }
+        expect(
+          bindings.some((binding) => String(binding.check) === String(entry.check)),
+          where,
+        ).toBe(true);
+      }
+    }
+    // Every stated field path of one refusal names one pairing under
+    // /profile, never one artifact defect.
+    if (expected?.field_path !== undefined) {
+      expect(String(expected.field_path).startsWith("/profile"), String(record.note)).toBe(true);
+    }
+    // The mismatch rows really mismatch the value that they compare.
+    if (code === "translation_mismatch") {
+      const recorded = String((bindings[0]?.translation as Record<string, Json>)?.content_hash);
+      expect(String((live[0] as Record<string, Json> | undefined)?.translation)).not.toBe(recorded);
+    }
+    if (code === "model_resolution_changed") {
+      const recorded = String(
+        ((bindings[0]?.model as Record<string, Json>)?.resolved as string | undefined) ?? "",
+      );
+      expect(String((live[0] as Record<string, Json> | undefined)?.resolved_model)).not.toBe(recorded);
+    }
+    if (record.loads !== undefined) {
+      expect(record.loads, String(record.note)).toBe(true);
+      expect(expected, `${String(record.note)}: one loadable row states no refusal`).toBeUndefined();
+    }
   }
+  // The group covers every compatibility family that one pairing can state.
+  for (const code of [
+    "definition_mismatch", "evaluator_mismatch", "translation_mismatch",
+    "model_resolution_changed", "policy_mismatch", "scope_mismatch", "qualification_insufficient",
+  ]) {
+    expect(refused.has(code), `no pairing states ${code}`).toBe(true);
+  }
+  expect([...modes].sort()).toEqual(["enforcement", "shadow"]);
 });
 
 test("runtime traces cover every execution and skip reason and stay internally consistent", () => {

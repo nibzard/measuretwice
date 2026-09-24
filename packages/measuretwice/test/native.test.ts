@@ -18,6 +18,7 @@ import {
   NativeFailure,
   nativeAssessRuleChecks,
   nativeCanonicalForm,
+  nativeCheckProfileCompatibility,
   nativeComputeSelfHash,
   nativeContentHash,
   nativeCreateRunState,
@@ -25,6 +26,7 @@ import {
   nativeSplitHash,
   nativeValidateCase,
   nativeValidateDefinition,
+  nativeValidateProfile,
   nativeVerifySelfHash,
   runAcceptResult,
   runCancel,
@@ -312,6 +314,121 @@ test("profile states verify their self hash", () => {
     expect(failure.code).toBe("hash_mismatch");
     expect(typeof id).toBe("string");
   }
+});
+
+test("profile states validate through the profile boundary", () => {
+  const document = fixtureDocument("profiles/states.json");
+  const profiles: Array<Record<string, any>> = document.profiles;
+  const statuses = new Set<string>();
+  for (const profile of profiles) {
+    const info = nativeValidateProfile(JSON.stringify(profile));
+    expect(info.id, String(profile.id)).toBe(profile.id);
+    expect(info.contentHash, String(profile.id)).toBe(profile.content_hash);
+    expect(info.definitionName, String(profile.id)).toBe(profile.definition.name);
+    expect(info.qualificationScope === undefined || typeof info.qualificationScope === "string")
+      .toBe(true);
+    statuses.add(info.qualificationStatus);
+  }
+  expect([...statuses].sort()).toEqual([
+    "criteria_not_met",
+    "insufficient_evidence",
+    "unvalidated",
+    "validated_for_scope",
+  ]);
+
+  // Every invalid artifact rejects with the stated code and path, and one
+  // edited copy fails its stored self-hash.
+  for (const record of document.invalid) {
+    const failure = failureOf(() => nativeValidateProfile(JSON.stringify(record.profile)));
+    expect(failure.code, String(record.note)).toBe(record.expected.reason_code);
+    expect(failure.fieldPath, String(record.note)).toBe(record.expected.field_path);
+  }
+  const exploration = profiles.find((profile) => profile.id === "message-supported-exploration")!;
+  const edited = { ...exploration, intended_use: "Enforcement use." };
+  const failure = failureOf(() => nativeValidateProfile(JSON.stringify(edited)));
+  expect(failure.code).toBe("hash_mismatch");
+  expect(failure.fieldPath).toBe("/content_hash");
+});
+
+test("compatibility pairings answer through the binding with the stated codes", () => {
+  const document = fixtureDocument("profiles/states.json");
+  const byId = new Map<string, Record<string, any>>(
+    document.profiles.map((profile: Record<string, any>) => [String(profile.id), profile]),
+  );
+  const records: Array<Record<string, any>> = document.compatibility;
+  expect(records.length).toBeGreaterThanOrEqual(9);
+  const refused = new Set<string>();
+  for (const row of records) {
+    const where = String(row.note);
+    const profileText = JSON.stringify(byId.get(String(row.profile_id)));
+    const definitionText = fixtureText(`definitions/valid/${String(row.against_definition)}`);
+    const mode = row.mode === "enforcement" ? "enforcement" : "shadow";
+    if (row.expected !== undefined) {
+      const failure = failureOf(() =>
+        nativeCheckProfileCompatibility(
+          profileText,
+          definitionText,
+          row.live ?? [],
+          mode,
+          row.requested_scope,
+        ),
+      );
+      expect(failure.code, where).toBe(row.expected.reason_code);
+      if (row.expected.field_path !== undefined) {
+        expect(failure.fieldPath, where).toBe(row.expected.field_path);
+      }
+      refused.add(failure.code);
+    } else {
+      expect(row.loads, where).toBe(true);
+      expect(() =>
+        nativeCheckProfileCompatibility(
+          profileText,
+          definitionText,
+          row.live ?? [],
+          mode,
+          row.requested_scope,
+        ),
+      ).not.toThrow();
+    }
+  }
+  for (const code of [
+    "definition_mismatch",
+    "policy_mismatch",
+    "evaluator_mismatch",
+    "translation_mismatch",
+    "model_resolution_changed",
+    "scope_mismatch",
+    "qualification_insufficient",
+  ]) {
+    expect(refused.has(code), `no pairing states ${code}`).toBe(true);
+  }
+
+  // One unknown mode and one malformed live entry are bridge inputs outside
+  // the contract, so they reject before any comparison runs.
+  const profileText = JSON.stringify(byId.get("message-supported-exploration"));
+  const definitionText = fixtureText("definitions/valid/categorical-question.json");
+  const mode = failureOf(() =>
+    nativeCheckProfileCompatibility(profileText, definitionText, [], "review" as "shadow"),
+  );
+  expect(mode.code).toBe("invalid_field_type");
+  expect(mode.fieldPath).toBe("/mode");
+  const live = failureOf(() =>
+    nativeCheckProfileCompatibility(
+      profileText,
+      definitionText,
+      [
+        {
+          check: "message-supported",
+          evaluator: "jev-choice",
+          adapter_version: "0.1.0",
+          client: "x",
+        } as unknown as Parameters<typeof nativeCheckProfileCompatibility>[2][number],
+      ],
+      "shadow",
+    ),
+  );
+  expect(live.code).toBe("unknown_field");
+  expect(live.fieldPath).toBe("/live/0/client");
 });
 
 /** Builds one single-rule definition and case around one string rule record. */

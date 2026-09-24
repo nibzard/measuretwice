@@ -9,17 +9,23 @@
  * accept `.json` paths only. They load no YAML and execute no TypeScript
  * source, as the reason code `unsupported_format` states.
  *
- * One bound profile may name evaluators. Every named evaluator must sit in
- * the registry that the host passed through the `evaluators` option, with
- * the adapter version of its binding. One unknown reference fails `load`
- * with `evaluator_mismatch` before any execution. One loaded file cannot
- * install one evaluator.
+ * One bound profile may name evaluators. The Rust core validates the
+ * complete profile contract, its stored self-hash, and its compatibility
+ * with the loaded definition: the evaluator references and their adapter
+ * versions, the policy family and coverage, the translated questions of the
+ * adapters that expose one, and the preprocessing identities. One unknown
+ * reference, one changed version, or one changed translation fails `load`
+ * with one compatibility reason code before any execution. One loaded file
+ * cannot install one evaluator.
  *
  * `run` assesses one case through the Rust core only: case validation with
  * input projection, the exact string rules, the run state boundary, and the
- * frozen run report. The semantic run path for question checks, through the
- * registered evaluators, arrives with its own task. Until then, `run`
- * rejects a definition with one question check before any work starts.
+ * frozen run report. One enforcement run repeats the compatibility check of
+ * the core in enforcement mode, so the qualification clause refuses an
+ * unvalidated profile before any case work starts. The semantic run path
+ * for question checks, through the registered evaluators, arrives with its
+ * own task. Until then, `run` rejects a definition with one question check
+ * before any work starts.
  *
  * The wrapper owns the boundaries that the core does not. File access, the
  * clock, and the run identifiers arrive as load options, so tests and hosts
@@ -36,19 +42,23 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { DefinedChecks, Definition, ExactRule, JSONValue } from "./define-checks.js";
 import type { EvaluatorRegistry } from "./evaluator.js";
+import { validatedQuestion } from "./evaluator.js";
 import { ValidationError } from "./error.js";
 import {
   NativeFailure,
   nativeAssessRuleChecks,
+  nativeCheckProfileCompatibility,
   nativeComputeSelfHash,
   nativeCreateRunState,
   nativeValidateCase,
   nativeValidateDefinition,
+  nativeValidateProfile,
   nativeVerifySelfHash,
   runAcceptResult,
   runComplete,
   runStartAttempt,
   type DefinitionInfo,
+  type LiveBindingEntry,
 } from "./native.js";
 
 // ---------------------------------------------------------------------------
@@ -247,8 +257,9 @@ export interface ProfileBinding {
  * One profile artifact that a reviewer bound.
  *
  * The type states the fields that the wrapper reads and writes. The stored
- * artifact keeps every field it holds. Full profile validation belongs to
- * the Rust core and arrives with its own task.
+ * artifact keeps every field it holds, and the Rust core owns its complete
+ * validation: every field rule, the cross-field origin rules, and the
+ * stored self-hash.
  */
 export interface Profile {
   /** The portable contract schema version. */
@@ -353,97 +364,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   }
   const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
-}
-
-/** Reads one own field of one plain object. */
-function field(object: Record<string, unknown>, name: string): unknown {
-  return Object.prototype.hasOwnProperty.call(object, name) ? object[name] : undefined;
-}
-
-/** Reads one required field and reports its pointer on absence. */
-function requiredField(object: Record<string, unknown>, name: string, base: string): unknown {
-  if (!Object.prototype.hasOwnProperty.call(object, name)) {
-    throw new ValidationError(
-      "missing_field",
-      `The artifact omits the field ${base}/${name}.`,
-      `${base}/${name}`,
-    );
-  }
-  return object[name];
-}
-
-/** Reads one required nonempty string. */
-function requiredString(object: Record<string, unknown>, name: string, base: string): string {
-  const value = requiredField(object, name, base);
-  if (typeof value !== "string" || value === "") {
-    throw new ValidationError(
-      "invalid_field_type",
-      `The field ${base}/${name} must hold one nonempty string.`,
-      `${base}/${name}`,
-    );
-  }
-  return value;
-}
-
-/** Reads one required string that must name one word of one fixed set. */
-function requiredWord<T extends string>(
-  object: Record<string, unknown>,
-  name: string,
-  base: string,
-  words: readonly T[],
-): T {
-  const value = requiredString(object, name, base);
-  if (!words.includes(value as T)) {
-    throw new ValidationError(
-      "invalid_field_type",
-      `The field ${base}/${name} must hold one of ${words.join(", ")}.`,
-      `${base}/${name}`,
-    );
-  }
-  return value as T;
-}
-
-/** Reads one required object. */
-function requiredObject(
-  object: Record<string, unknown>,
-  name: string,
-  base: string,
-): Record<string, unknown> {
-  const value = requiredField(object, name, base);
-  if (!isPlainObject(value)) {
-    throw new ValidationError(
-      "invalid_field_type",
-      `The field ${base}/${name} must hold one object.`,
-      `${base}/${name}`,
-    );
-  }
-  return value;
-}
-
-/** Reads one required whole number inside its bounds. */
-function requiredWholeNumber(
-  object: Record<string, unknown>,
-  name: string,
-  base: string,
-  minimum: number,
-  maximum?: number,
-): number {
-  const value = requiredField(object, name, base);
-  const within =
-    typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= minimum &&
-    (maximum === undefined || value <= maximum);
-  if (!within) {
-    throw new ValidationError(
-      "invalid_field_type",
-      `The field ${base}/${name} must hold one whole number ${
-        maximum === undefined ? `of at least ${minimum}` : `from ${minimum} to ${maximum}`
-      }.`,
-      `${base}/${name}`,
-    );
-  }
-  return value;
 }
 
 /** Rejects one path that names no JSON file. */
@@ -553,9 +473,10 @@ function synthesizeExactProfile(info: DefinitionInfo): Profile {
 /**
  * Reads one bound profile artifact.
  *
- * The wrapper verifies the self-hash through the core first, so the text is
- * the artifact that its generator signed. This reader then checks only the
- * fields of the binding. Full profile validation belongs to the Rust core.
+ * The wrapper verifies the self-hash and the complete profile contract
+ * through the core first, so the text is one artifact that its generator
+ * signed and that no edit changed. This reader parses the validated text
+ * and freezes it: the stored artifact keeps every field it holds.
  */
 function readProfileArtifact(text: string): Profile {
   const value: unknown = JSON.parse(text);
@@ -566,142 +487,50 @@ function readProfileArtifact(text: string): Profile {
       "/profile",
     );
   }
-  if (value["schema_version"] !== 1) {
-    throw new ValidationError(
-      "unsupported_schema_version",
-      "The profile states one schema version that this package does not support. The v0 contracts use version 1.",
-      "/profile/schema_version",
-    );
-  }
-  requiredString(value, "id", "/profile");
-  requiredWord(value, "origin", "/profile", ["exploration", "calibration", "exact"] as const);
-  requiredString(value, "intended_use", "/profile");
-  const bound = requiredObject(value, "definition", "/profile");
-  requiredString(bound, "name", "/profile/definition");
-  requiredString(bound, "content_hash", "/profile/definition");
-  const policyMap = requiredObject(value, "policy", "/profile");
-  requiredWord(policyMap, "family", "/profile/policy", ["probability_mass_v0", "exact"] as const);
-  const executionMap = requiredObject(value, "execution", "/profile");
-  requiredWholeNumber(executionMap, "max_active", "/profile/execution", 1);
-  requiredWholeNumber(executionMap, "max_pending", "/profile/execution", 0);
-  requiredWholeNumber(executionMap, "deadline_ms", "/profile/execution", 1);
-  requiredWholeNumber(executionMap, "max_attempts", "/profile/execution", 1, 10);
-  requiredWholeNumber(executionMap, "backoff_ms", "/profile/execution", 0);
-  const qualificationMap = requiredObject(value, "qualification", "/profile");
-  requiredWord(qualificationMap, "status", "/profile/qualification", [
-    "unvalidated",
-    "insufficient_evidence",
-    "criteria_not_met",
-    "validated_for_scope",
-  ] as const);
-  requiredString(value, "content_hash", "/profile");
-  const rawBindings = field(value, "bindings");
-  if (rawBindings !== undefined) {
-    if (!Array.isArray(rawBindings)) {
-      throw new ValidationError(
-        "invalid_field_type",
-        "The field /profile/bindings must hold one array.",
-        "/profile/bindings",
-      );
-    }
-    for (const [index, entry] of rawBindings.entries()) {
-      const base = `/profile/bindings/${index}`;
-      if (!isPlainObject(entry)) {
-        throw new ValidationError(
-          "invalid_field_type",
-          `Every entry of /profile/bindings must hold one object.`,
-          base,
-        );
-      }
-      requiredString(entry, "check", base);
-      requiredString(entry, "evaluator", base);
-    }
-  }
-  // The stored artifact keeps every field. The reads above check the fields
-  // of the binding; full profile validation belongs to the Rust core.
   deepFreeze(value);
   return value as unknown as Profile;
 }
 
-/** Builds the failure of one profile that binds another definition. */
-function definitionMismatch(profile: Profile, info: DefinitionInfo): ValidationError {
-  if (profile.definition.name !== info.name) {
-    return new ValidationError(
-      "definition_mismatch",
-      `The profile binds the definition ${JSON.stringify(profile.definition.name)}, but the loaded definition is ${JSON.stringify(info.name)}. Bind the profile that this definition produced.`,
-      "/profile/definition",
-    );
-  }
-  return new ValidationError(
-    "definition_mismatch",
-    `The profile binds another content revision of the definition ${JSON.stringify(info.name)}: the content hash differs from the loaded definition. Bind the profile of this revision.`,
-    "/profile/definition",
-  );
-}
-
 /**
- * Checks the structural compatibility of one bound profile.
+ * Builds the live evaluator state of one bound profile.
  *
- * The order matches the compatibility fixtures of the shared states: an
- * exact-only definition checks the policy family first; a definition with
- * question checks verifies the definition binding first. Every evaluator
- * reference must name one registered evaluator with the bound adapter
- * version. One loaded file cannot install one evaluator, so one reference
- * outside the registry fails here before any execution.
+ * One entry per bound check that one registered evaluator serves, so the
+ * core can compare the binding: the registered identifier, the adapter
+ * version, and the live translated question of every adapter that exposes
+ * the optional `translate` operation. One changed translation then fails
+ * with `translation_mismatch` before any execution. One loaded file cannot
+ * install one evaluator, so one reference outside the registry supplies no
+ * entry and the core reports it.
  */
-function checkCompatibility(
+function liveEvaluatorBindings(
   profile: Profile,
   info: DefinitionInfo,
+  artifact: Definition,
   evaluators: EvaluatorRegistry | undefined,
-): void {
-  const binds =
-    profile.definition.name === info.name &&
-    profile.definition.content_hash === info.definitionHash;
-  if (info.isExactOnly) {
-    const structural =
-      profile.policy.family === "exact" &&
-      profile.origin === "exact" &&
-      profile.bindings.length === 0;
-    if (!structural) {
-      throw new ValidationError(
-        "policy_mismatch",
-        "An exact-only definition takes the structural exact profile: origin exact, policy family exact, and no evaluator bindings.",
-        "/profile/policy",
-      );
-    }
-    if (!binds) {
-      throw definitionMismatch(profile, info);
-    }
-    return;
-  }
-  if (!binds) {
-    throw definitionMismatch(profile, info);
-  }
-  if (profile.policy.family === "exact" || profile.origin === "exact") {
-    throw new ValidationError(
-      "policy_mismatch",
-      "One definition with question checks takes one profile with evaluator bindings, not the exact policy family.",
-      "/profile/policy",
-    );
-  }
-  for (const [index, binding] of profile.bindings.entries()) {
-    const base = `/profile/bindings/${index}`;
+): LiveBindingEntry[] {
+  const live: LiveBindingEntry[] = [];
+  for (const binding of profile.bindings ?? []) {
     const evaluator = evaluators?.get(binding.evaluator);
     if (evaluator === undefined) {
-      throw new ValidationError(
-        "evaluator_mismatch",
-        `The profile binds the evaluator ${JSON.stringify(binding.evaluator)} for the check ${JSON.stringify(binding.check)}, but the load options registered no evaluator with that identifier. Pass one registry from registerEvaluators that holds it. One loaded file cannot install one evaluator.`,
-        `${base}/evaluator`,
-      );
+      // The core reports the unregistered reference with its field path.
+      continue;
     }
-    if (binding.adapter_version !== evaluator.adapter_version) {
-      throw new ValidationError(
-        "evaluator_mismatch",
-        `The profile binds the adapter version ${JSON.stringify(binding.adapter_version)} of the evaluator ${JSON.stringify(binding.evaluator)}, but the registered adapter states the version ${JSON.stringify(evaluator.adapter_version)}. Register the bound version or bind the registered adapter. One changed version needs new qualification.`,
-        `${base}/adapter_version`,
-      );
+    const entry: LiveBindingEntry = {
+      check: binding.check,
+      evaluator: evaluator.id,
+      adapter_version: evaluator.adapter_version,
+    };
+    const kind = info.checkKinds.find((named) => named.id === binding.check);
+    const check =
+      kind !== undefined && kind.kind !== "rule"
+        ? artifact.checks.find((named) => named.id === binding.check)
+        : undefined;
+    if (check !== undefined && typeof evaluator.translate === "function") {
+      entry.translation = evaluator.translate(validatedQuestion(kind!.kind, check)).content_hash;
     }
+    live.push(entry);
   }
+  return live;
 }
 
 // ---------------------------------------------------------------------------
@@ -756,14 +585,32 @@ export async function load(
   }
 
   let profile: Profile | undefined;
+  let profileText: string | undefined;
   if (options.profile !== undefined) {
     requireJsonPath(options.profile, "/profile");
-    const profileText = await readText(files, options.profile);
-    throughCore(() => nativeVerifySelfHash("profile", profileText));
-    profile = readProfileArtifact(profileText);
-    checkCompatibility(profile, info, options.evaluators);
+    const text = await readText(files, options.profile);
+    // The core is the one validation authority: the stored self-hash first,
+    // then the complete profile contract, then the compatibility of the
+    // binding. Every failure crosses before any execution.
+    throughCore(() => nativeVerifySelfHash("profile", text));
+    throughCore(() => nativeValidateProfile(text));
+    profile = readProfileArtifact(text);
+    profileText = text;
   } else if (info.isExactOnly) {
     profile = synthesizeExactProfile(info);
+    profileText = JSON.stringify(profile);
+  }
+  // The live evaluator state of the binding, reused by the enforcement gate
+  // of `run`.
+  const liveBindings: LiveBindingEntry[] = [];
+  const boundProfileText = profileText;
+  if (profile !== undefined && boundProfileText !== undefined) {
+    liveBindings.push(
+      ...liveEvaluatorBindings(profile, info, artifact, options.evaluators),
+    );
+    throughCore(() =>
+      nativeCheckProfileCompatibility(boundProfileText, definitionText, liveBindings, "shadow"),
+    );
   }
 
   return Object.freeze({
@@ -792,13 +639,15 @@ export async function load(
         );
       }
       // Every exact-only definition holds one profile, and the gate above
-      // returned for every other definition.
+      // returned for every other definition. Enforcement runs the complete
+      // compatibility gate of the core again, in enforcement mode: the
+      // bindings, then the qualification clause. One unvalidated profile
+      // refuses here, before any case work starts.
       const bound = profile as Profile;
-      if (mode === "enforcement" && bound.qualification.status !== "validated_for_scope") {
-        throw new ValidationError(
-          "qualification_insufficient",
-          `The profile ${JSON.stringify(bound.id)} holds the qualification ${bound.qualification.status}. Enforcement needs one profile validated for the declared scope.`,
-          "/profile/qualification/status",
+      const boundText = profileText as string;
+      if (mode === "enforcement") {
+        throughCore(() =>
+          nativeCheckProfileCompatibility(boundText, definitionText, liveBindings, "enforcement"),
         );
       }
 

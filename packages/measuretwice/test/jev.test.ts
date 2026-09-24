@@ -13,8 +13,10 @@
  * `evidence` key, so one label, one label explanation, one baseline
  * decision, and the case identifier never reach the provider. One changed
  * translated question changes the digest and the profile binding that
- * records it, while the definition stays unchanged. Every test stays
- * offline: no SDK import, no credential, no network access.
+ * records it, while the definition stays unchanged: `load` compares the
+ * recorded translation against the live one of one translating adapter
+ * and refuses one changed binding with `translation_mismatch`. Every test
+ * stays offline: no SDK import, no credential, no network access.
  */
 import { test, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -99,6 +101,19 @@ const CASE_ID = "translation-case-1";
 function failureOf(operation: () => unknown): ValidationError {
   try {
     operation();
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return error;
+    }
+    throw error;
+  }
+  throw new Error("the operation was accepted");
+}
+
+/** Awaits one operation and returns the public failure it must reject with. */
+async function asyncFailureOf(operation: () => Promise<unknown>): Promise<ValidationError> {
+  try {
+    await operation();
   } catch (error) {
     if (error instanceof ValidationError) {
       return error;
@@ -292,8 +307,8 @@ test("one changed translation changes the evaluator binding while the definition
 
   // Both bindings load through the public path against the registered
   // evaluator, each with its own content hash. One binding that records the
-  // other translation is a different profile, and the compatibility check
-  // of the translated question arrives with the profile validation task.
+  // other translation is a different profile. The evaluator states no live
+  // translation, so the recorded ones compare against nothing here.
   const access = {
     async read(filePath: string): Promise<string> {
       const text = files[filePath];
@@ -313,6 +328,34 @@ test("one changed translation changes the evaluator binding while the definition
   expect(loadedSecond.profile?.content_hash).toBe(second.content_hash);
   expect(loadedFirst.profile?.bindings[0]?.translation.content_hash).toBe(categorical.content_hash);
   expect(loadedSecond.profile?.bindings[0]?.translation.content_hash).toBe(reframed.content_hash);
+
+  // One evaluator that translates states the live translated question, so
+  // load compares the recorded translation against the live one. The base
+  // translation loads; the reframed one fails with translation_mismatch
+  // before any execution.
+  const translating: Evaluator = {
+    id: evaluator.id,
+    adapter_version: evaluator.adapter_version,
+    translate: translateJevQuestion,
+    async assess(request: EvaluatorRequest) {
+      return { assessment: answerOf(request.question) };
+    },
+  };
+  const translatingRegistry = registerEvaluators(translating);
+  const dispatched = await dispatchedRequest(categorical);
+  const liveTranslation = translating.translate!(dispatched.question);
+  expect(liveTranslation.content_hash).toBe(categorical.content_hash);
+  const reloaded = await load(artifact, {
+    profile: "/first.json",
+    evaluators: translatingRegistry,
+    files: access,
+  });
+  expect(reloaded.profile?.bindings[0]?.translation.content_hash).toBe(categorical.content_hash);
+  const failure = await asyncFailureOf(() =>
+    load(artifact, { profile: "/second.json", evaluators: translatingRegistry, files: access }),
+  );
+  expect(failure.code).toBe("translation_mismatch");
+  expect(failure.fieldPath).toBe("/profile/bindings/0/translation/content_hash");
 });
 
 // ---------------------------------------------------------------------------

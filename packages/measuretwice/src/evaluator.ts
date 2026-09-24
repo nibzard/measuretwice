@@ -221,6 +221,19 @@ export interface EvaluatorRequest {
 }
 
 /**
+ * The offline translation of one validated question, stated by one adapter
+ * that puts a translated question to its provider.
+ *
+ * The hash covers the complete translated question that the adapter sends.
+ * `load` compares it with the recorded translation of one bound profile, so
+ * one changed translation fails before any execution.
+ */
+export interface EvaluatorTranslation {
+  /** The content hash of the complete translated question. */
+  readonly content_hash: string;
+}
+
+/**
  * One evaluator adapter that the host registered.
  *
  * The adapter owns its provider. It holds the client, reads the host
@@ -235,6 +248,15 @@ export interface Evaluator {
   readonly adapter_version: string;
   /** Assesses one request. */
   assess(request: EvaluatorRequest): Promise<EvaluatorExecution>;
+  /**
+   * Translates one validated question offline. Optional.
+   *
+   * One adapter that puts one translated question to its provider exposes
+   * this operation, so `load` can compare the recorded translation of one
+   * bound profile against the live one. One absent operation states that
+   * the adapter translates nothing, and no comparison happens.
+   */
+  readonly translate?: (question: ValidatedQuestion) => EvaluatorTranslation;
 }
 
 /** The host allowlist of registered evaluators. One profile refers only to it. */
@@ -254,12 +276,14 @@ export interface EvaluatorRegistry {
  *
  * Pass the registry to `load` through its `evaluators` option. Registration
  * is explicit host code, so one loaded profile cannot install one evaluator.
- * The registry reads only `id`, `adapter_version`, and `assess`. One adapter
- * may hold any other field, such as its client, because it never serializes.
+ * The registry reads only `id`, `adapter_version`, `assess`, and the
+ * optional `translate`. One adapter may hold any other field, such as its
+ * client, because it never serializes.
  *
  * @throws {ValidationError} when one evaluator states one identifier or one
  * adapter version outside the contract, implements no `assess` operation,
- * or shares one identifier with one earlier registration.
+ * states one `translate` that is not one function, or shares one identifier
+ * with one earlier registration.
  */
 export function registerEvaluators(...evaluators: readonly Evaluator[]): EvaluatorRegistry {
   const registered = new Map<string, Evaluator>();
@@ -297,6 +321,14 @@ export function registerEvaluators(...evaluators: readonly Evaluator[]): Evaluat
         "invalid_field_type",
         `The evaluator ${JSON.stringify(id)} implements no assess operation. One evaluator receives one request and returns one assessment or one failure.`,
         `${base}/assess`,
+      );
+    }
+    const translate = (evaluator as { readonly translate?: unknown }).translate;
+    if (translate !== undefined && typeof translate !== "function") {
+      throw new ValidationError(
+        "invalid_field_type",
+        `The evaluator ${JSON.stringify(id)} states one translate operation that is not one function. The operation is optional: one adapter that translates nothing omits it.`,
+        `${base}/translate`,
       );
     }
     if (registered.has(id)) {
@@ -506,8 +538,15 @@ function readMeasurements(
   return { measurements: Object.freeze(record) as ExecutionMeasurements };
 }
 
-/** Builds the validated question of one check from its validated artifact. */
-function validatedQuestion(kind: string, check: CheckDefinition): ValidatedQuestion {
+/**
+ * Builds the validated question of one check from its validated artifact.
+ *
+ * `load` uses this builder to translate one bound question offline, so the
+ * recorded translation of one bound profile compares against the live one.
+ * The core validated the artifact and the caller chose one question check,
+ * so one inconsistent artifact throws one ordinary `Error`.
+ */
+export function validatedQuestion(kind: string, check: CheckDefinition): ValidatedQuestion {
   if (check.question === undefined) {
     throw new Error(
       `The check ${JSON.stringify(check.id)} states no question. The core validated the definition, so this is one internal inconsistency.`,

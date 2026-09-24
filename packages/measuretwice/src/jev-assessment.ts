@@ -60,7 +60,7 @@ import type {
   ValidatedQuestion,
 } from "./evaluator.js";
 import { jevEvidenceState, translateJevQuestion } from "./jev.js";
-import type { JevEvidenceState, JevQuestionValue } from "./jev.js";
+import type { JevEvidenceState, JevQuestionValue, JevTranslation } from "./jev.js";
 
 /**
  * The version of the Jev adapter. One changed normalization or translation
@@ -629,6 +629,8 @@ export interface JevEvaluatorOptions {
 export interface JevEvaluator extends Evaluator {
   /** Assesses one request through one Jev call and one normalization. */
   assess(request: EvaluatorRequest): Promise<JevExecution>;
+  /** Translates one validated question into its Jev wire question, offline. */
+  translate(question: ValidatedQuestion): JevTranslation;
 }
 
 /**
@@ -641,6 +643,11 @@ export interface JevEvaluator extends Evaluator {
  * total budget of their own. The wrapper scheduler owns the attempts, the
  * backoff, and the total deadline. The adapter stores nothing, reads no
  * credential, and takes no application action.
+ *
+ * The adapter exposes its translation through the optional `translate`
+ * operation of the evaluator contract, so `load` compares the recorded
+ * translation of one bound profile against the live one. The operation is
+ * offline: it calls no provider and reads no credential.
  */
 export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
   const now = options.now ?? (() => Date.now());
@@ -648,6 +655,7 @@ export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
   return {
     id: options.id ?? "jev",
     adapter_version: options.adapter_version ?? JEV_ADAPTER_VERSION,
+    translate: translateJevQuestion,
     async assess(request: EvaluatorRequest): Promise<JevExecution> {
       if (request.signal.aborted) {
         return {

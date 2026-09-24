@@ -42,6 +42,8 @@ pub mod input_schema;
 pub mod json;
 /// The `probability_mass_v0` decision policy family for question checks.
 pub mod policy;
+/// Profile validation and evaluator compatibility.
+pub mod profile;
 /// Component outcomes, the aggregate, completion, and the immutable run
 /// report record.
 pub mod report;

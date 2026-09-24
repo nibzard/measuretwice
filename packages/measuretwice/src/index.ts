@@ -5,7 +5,9 @@
  * `defineChecks` authors one check definition with a TypeBox input schema
  * and returns the validated, serializable portable definition. `load` binds
  * one definition to one profile and returns the reviewer whose `run`
- * operation assesses one case and returns the frozen run report. The exact
+ * operation assesses one case and returns the frozen run report. The Rust
+ * core validates the complete profile contract, its stored self-hash, and
+ * the compatibility of every binding before any execution. The exact
  * rules run in the Rust core today; question checks run through evaluators
  * that the host registers with `registerEvaluators`. The package also ships
  * two test adapters, `createScriptedEvaluator` and
@@ -46,6 +48,7 @@ export type {
   DistributionMass,
   Evaluator,
   EvaluatorExecution,
+  EvaluatorTranslation,
   EvaluatorFailure,
   EvaluatorFailureCode,
   EvaluatorRegistry,

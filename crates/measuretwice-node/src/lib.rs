@@ -28,7 +28,9 @@ extern crate napi_derive;
 use measuretwice_core::error::{ReasonCode, ValidationError};
 use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
-use measuretwice_core::{assessment, case, definition, hashing, json, report, rule, run_state};
+use measuretwice_core::{
+    assessment, case, definition, hashing, json, profile, report, rule, run_state,
+};
 use serde_json::Value;
 
 // Every exported signature states `Result<T, napi::Error>` in full. The
@@ -253,6 +255,107 @@ pub fn validate_assessment(
 pub fn canonical_form(text: String) -> Result<String, napi::Error> {
     let value = strict(&text)?;
     Ok(hashing::canonical_form(&value))
+}
+
+/// The result of validating one profile artifact.
+#[napi(object)]
+pub struct ProfileInfo {
+    /// Stable profile identifier.
+    pub id: String,
+    /// The profile origin: exploration, calibration, or exact.
+    pub origin: String,
+    /// The name of the bound definition.
+    pub definition_name: String,
+    /// The content hash of the bound definition.
+    pub definition_hash: String,
+    /// The decision-rule family: probability_mass_v0 or exact.
+    pub policy_family: String,
+    /// The qualification status of the profile.
+    pub qualification_status: String,
+    /// The scope that the status covers, when stated.
+    pub qualification_scope: Option<String>,
+    /// The verified self-hash of the artifact.
+    pub content_hash: String,
+}
+
+/// Validates one profile artifact through the complete contract check.
+///
+/// The artifact must pass the strict JSON gate, every field rule, the
+/// cross-field origin rules, and the stored self-hash. One field defect
+/// names its field; one edited or corrupted copy fails with `hash_mismatch`.
+#[napi]
+pub fn validate_profile(profile_text: String) -> Result<ProfileInfo, napi::Error> {
+    let validated = lift(profile::validate_profile_str(&profile_text))?;
+    Ok(ProfileInfo {
+        id: validated.id().to_owned(),
+        origin: validated.origin().as_str().to_owned(),
+        definition_name: validated.definition_name().to_owned(),
+        definition_hash: validated.definition_hash().to_owned(),
+        policy_family: validated.family().as_str().to_owned(),
+        qualification_status: validated.qualification().as_str().to_owned(),
+        qualification_scope: validated.qualification_scope().map(str::to_owned),
+        content_hash: validated.content_hash().to_owned(),
+    })
+}
+
+/// Checks one profile artifact against one definition and the live
+/// evaluator state of the requested mode.
+///
+/// The profile text must validate through `validateProfile`. The definition
+/// text must pass the definition contract. The live text holds one array of
+/// `{ check, evaluator, adapter_version, translation?, resolved_model?,
+/// preprocessing? }` entries, one per bound check that one registered
+/// evaluator serves. The mode is shadow or enforcement. Shadow compares the
+/// bindings alone; enforcement adds the scope and the qualification
+/// clauses. Every material mismatch throws one compatibility reason code
+/// before any evaluator runs.
+#[napi]
+pub fn check_profile_compatibility(
+    profile_text: String,
+    definition_text: String,
+    live_text: String,
+    mode: String,
+    requested_scope: Option<String>,
+) -> Result<(), napi::Error> {
+    let validated_profile = lift(profile::validate_profile_str(&profile_text))?;
+    let validated = lift(definition::validate_definition_str(&definition_text))?;
+    let live = strict(&live_text)?;
+    let live = lift(profile::parse_live_bindings(&live, "/live"))?;
+    let mode = report::RunMode::from_word(&mode).ok_or_else(|| {
+        failure(ValidationError::invalid_field_type(
+            "/mode",
+            "The run mode must be shadow or enforcement.",
+        ))
+    })?;
+    let requested_scope = match requested_scope.as_deref() {
+        None => None,
+        Some("") => {
+            return lift(Err(ValidationError::invalid_field_type(
+                "/requested_scope",
+                "The requested scope must hold 1 to 2000 characters.",
+            )));
+        }
+        Some(scope) => {
+            if scope.chars().count() > 2000 {
+                return lift(Err(ValidationError::invalid_field_type(
+                    "/requested_scope",
+                    "The requested scope must hold 1 to 2000 characters.",
+                )));
+            }
+            Some(scope.to_owned())
+        }
+    };
+    let request = profile::CompatibilityRequest {
+        mode,
+        requested_scope,
+    };
+    lift(profile::check_compatibility(
+        &validated_profile,
+        &validated,
+        &live,
+        &request,
+        "/profile",
+    ))
 }
 
 /// Reads one hash domain from its contract tag, or rejects the text.

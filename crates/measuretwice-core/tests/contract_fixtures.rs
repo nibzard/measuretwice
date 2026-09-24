@@ -16,6 +16,9 @@
 use measuretwice_core::definition::{CheckKind, WhenUncertain};
 use measuretwice_core::error::ReasonCode;
 use measuretwice_core::hashing::{self, Domain};
+use measuretwice_core::profile::{
+    self, CompatibilityRequest, LiveBinding, ProfileOrigin, Qualification,
+};
 use measuretwice_core::run_state::{AttemptResolution, CheckPlace, Phase, RunLimits, RunState};
 use measuretwice_core::testing::SplitMix64;
 use measuretwice_core::{case, definition, json, report, rule};
@@ -804,6 +807,181 @@ fn profile_state_artifacts_verify_their_self_hash() {
         .err()
         .unwrap_or_else(|| panic!("the moved digest was accepted"));
     assert_eq!(error.code, ReasonCode::HashMismatch);
+}
+
+/// Reads one stated profile of the states group by its identifier.
+fn stated_profile(document: &Value, id: &str) -> Value {
+    document["profiles"]
+        .as_array()
+        .expect("a profile array")
+        .iter()
+        .find(|profile| profile["id"].as_str() == Some(id))
+        .cloned()
+        .unwrap_or_else(|| panic!("no stated profile holds the identifier {id}"))
+}
+
+#[test]
+fn profile_state_artifacts_validate_through_the_profile_boundary() {
+    let document = fixture_document("profiles/states.json");
+    let profiles = document["profiles"].as_array().expect("a profile array");
+
+    // Every valid artifact passes the complete contract check. The group
+    // covers every qualification status, both stochastic origins, and the
+    // exact origin.
+    let mut statuses = BTreeSet::new();
+    for profile in profiles {
+        let id = profile["id"].as_str().expect("an identifier");
+        let validated =
+            profile::validate_profile(profile).unwrap_or_else(|error| panic!("{id}: {error}"));
+        assert_eq!(validated.id(), id);
+        assert_eq!(
+            validated.content_hash(),
+            profile["content_hash"].as_str().expect("a digest"),
+            "{id}: the verified self-hash equals the stored digest"
+        );
+        statuses.insert(validated.qualification().as_str().to_owned());
+        // The accessors agree with the artifact on every read field.
+        assert_eq!(
+            validated.definition_name(),
+            profile["definition"]["name"].as_str().expect("a name"),
+            "{id}"
+        );
+    }
+    assert_eq!(
+        statuses,
+        BTreeSet::from([
+            "unvalidated".to_owned(),
+            "insufficient_evidence".to_owned(),
+            "criteria_not_met".to_owned(),
+            "validated_for_scope".to_owned(),
+        ]),
+        "every qualification status appears at least once"
+    );
+    let exploration =
+        profile::validate_profile(&stated_profile(&document, "message-supported-exploration"))
+            .expect("the exploration artifact");
+    assert_eq!(exploration.origin(), ProfileOrigin::Exploration);
+    assert_eq!(exploration.qualification(), Qualification::Unvalidated);
+    assert_eq!(exploration.bindings().len(), 1);
+
+    // Every invalid artifact rejects with the stated code and path, before
+    // any self-hash complaint: the defect names its own field.
+    for record in document["invalid"].as_array().expect("an invalid array") {
+        let expected = &record["expected"];
+        let error = profile::validate_profile(&record["profile"])
+            .err()
+            .unwrap_or_else(|| panic!("{}: the artifact was accepted", record["note"]));
+        assert_eq!(
+            error.code.as_str(),
+            expected["reason_code"].as_str().expect("a code"),
+            "{}: {error}",
+            record["note"]
+        );
+        assert_eq!(
+            error.field_path,
+            expected["field_path"].as_str().expect("a path"),
+            "{}: {error}",
+            record["note"]
+        );
+    }
+
+    // An edited copy of one valid artifact keeps its fields but fails its
+    // stored self-hash, and one stripped copy loses the digest field.
+    let mut edited = stated_profile(&document, "message-supported-exploration");
+    edited["intended_use"] = Value::String("Edited after hashing.".to_owned());
+    let error = profile::validate_profile(&edited).expect_err("the edited copy fails");
+    assert_eq!(error.code, ReasonCode::HashMismatch);
+    assert_eq!(error.field_path, "/content_hash");
+}
+
+/// Reads one live binding of one compatibility row.
+fn live_binding(row: &Value) -> Vec<LiveBinding> {
+    match row.get("live") {
+        None => Vec::new(),
+        Some(entries) => profile::parse_live_bindings(entries, "/live")
+            .unwrap_or_else(|error| panic!("{}: {error}", row["note"])),
+    }
+}
+
+#[test]
+fn compatibility_pairings_fail_or_load_with_the_stated_codes() {
+    let document = fixture_document("profiles/states.json");
+    let records = document["compatibility"]
+        .as_array()
+        .expect("a compatibility array");
+    assert!(records.len() >= 9, "the fixture group lost pairings");
+
+    let mut refused = BTreeSet::new();
+    for row in records {
+        let note = row["note"].as_str().expect("a note");
+        let artifact = stated_profile(&document, row["profile_id"].as_str().expect("an id"));
+        let validated =
+            profile::validate_profile(&artifact).unwrap_or_else(|error| panic!("{note}: {error}"));
+        let definition_text = fs::read_to_string(fixture(&format!(
+            "definitions/valid/{}",
+            row["against_definition"]
+                .as_str()
+                .expect("a definition file")
+        )))
+        .expect("the definition file reads");
+        let definition = definition::validate_definition_str(&definition_text)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let request = CompatibilityRequest {
+            mode: match row.get("mode").and_then(Value::as_str) {
+                Some("enforcement") => report::RunMode::Enforcement,
+                _ => report::RunMode::Shadow,
+            },
+            requested_scope: row
+                .get("requested_scope")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+        };
+        let outcome = profile::check_compatibility(
+            &validated,
+            &definition,
+            &live_binding(row),
+            &request,
+            "/profile",
+        );
+        match row.get("expected") {
+            Some(expected) => {
+                let error = outcome.err().unwrap_or_else(|| {
+                    panic!("{note}: the pairing was accepted where one refusal was stated")
+                });
+                assert_eq!(
+                    error.code.as_str(),
+                    expected["reason_code"].as_str().expect("a code"),
+                    "{note}: {error}"
+                );
+                if let Some(path) = expected["field_path"].as_str() {
+                    assert_eq!(error.field_path, path, "{note}: {error}");
+                }
+                refused.insert(error.code.as_str().to_owned());
+            }
+            None => {
+                assert!(
+                    row["loads"].as_bool().unwrap_or(false),
+                    "{note}: one row without one refusal must state that it loads"
+                );
+                outcome.unwrap_or_else(|error| panic!("{note}: {error}"));
+            }
+        }
+    }
+
+    // The group covers every compatibility family of the registry that one
+    // pairing can state: the definition, the policy, the evaluator, the
+    // translation, the model, the scope, and the qualification.
+    for code in [
+        "definition_mismatch",
+        "policy_mismatch",
+        "evaluator_mismatch",
+        "translation_mismatch",
+        "model_resolution_changed",
+        "scope_mismatch",
+        "qualification_insufficient",
+    ] {
+        assert!(refused.contains(code), "no pairing states {code}");
+    }
 }
 
 /// One question record with the stated outcome. Error and skipped outcomes

@@ -19,13 +19,13 @@ layout.
 | --- | --- | --- | --- |
 | Rust unit tests | next to the code in `crates/` | `cargo test` | Core behavior and invariants. |
 | Package tests | `packages/measuretwice/test/` | Vitest | Public package behavior, the CLI, and the test support itself. |
-| Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, the runtime traces replayed through the run state class, and the clear loading error outside the declared targets. |
+| Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, the profile validation and compatibility operations, the runtime traces replayed through the run state class, and the clear loading error outside the declared targets. |
 | Authoring | `packages/measuretwice/test/define-checks.test.ts` | Vitest | The `defineChecks` boundary: inferred case-input types and `using` names at compile time, the documented TypeBox conversion, rejection of nonportable values and unsupported forms, and the shared TypeBox pairs executed through the built package with their published hashes. |
-| Evaluator contract | `packages/measuretwice/test/evaluator.test.ts` | Vitest | The registration and execution contract: stable evaluator and adapter identities, the frozen registry, and every registration rejection. The dispatched request of each question kind: the validated question, only the projected inputs of `using`, the budget, and the cancellation signal. Label-only assessments with absent optionals preserved, operational failures, malformed adapter answers, and profile bindings against the registered evaluators. |
+| Evaluator contract | `packages/measuretwice/test/evaluator.test.ts` | Vitest | The registration and execution contract: stable evaluator and adapter identities, the optional `translate` operation, the frozen registry, and every registration rejection. The dispatched request of each question kind: the validated question, only the projected inputs of `using`, the budget, and the cancellation signal. Label-only assessments with absent optionals preserved, operational failures, malformed adapter answers, and profile bindings against the registered evaluators. |
 | Test evaluators | `packages/measuretwice/test/test-evaluator.test.ts` | Vitest | The shipped test adapters and the adapter conformance cases of `fixtures/adapters/conformance.json`: every scripted control with success, review, malformed, error, and delayed responses; the label-only answers with no invented confidence, distribution, usage, or evidence; the separately specified decision rule for label-only assessments; identical requests and one definition hash across evaluators; and independent profile bindings when evaluator behavior changes. |
-| Jev translation | `packages/measuretwice/test/jev.test.ts` | Vitest | The versioned translation of one question check into one Jev question: every translation case of `fixtures/translations/jev.json` through the dispatched request and the public translation, with the canonical text and the translation-domain digest computed by the Rust core; the evidence state with exactly the projected inputs of `using`; the identity variants that change the digest and the evaluator binding while the definition stays; the state rejections that keep labels and baselines out; and the wire shapes tied to the pinned SDK record. |
+| Jev translation | `packages/measuretwice/test/jev.test.ts` | Vitest | The versioned translation of one question check into one Jev question: every translation case of `fixtures/translations/jev.json` through the dispatched request and the public translation, with the canonical text and the translation-domain digest computed by the Rust core; the evidence state with exactly the projected inputs of `using`; the identity variants that change the digest and the evaluator binding while the definition stays, and the load-time translation comparison that refuses one changed binding with `translation_mismatch`; the state rejections that keep labels and baselines out; and the wire shapes tied to the pinned SDK record. |
 | Jev normalization | `packages/measuretwice/test/jev-assessment.test.ts` | Vitest | The normalization of one Jev answer into one typed assessment: every case of `fixtures/adapters/jev-normalization.json` through the Jev adapter and the dispatch contract with one injected clock and one fake call boundary, so the Rust core validates each assessment against its check; the operational record with the resolved model, the per-request usage, and the adapter-measured latency; the sanitized provider errors that keep the class, the status, and the request identifier without one echoed body; and the abort and deadline paths that stop the adapter before one call. |
-| Run path | `packages/measuretwice/test/run.test.ts` | Vitest | The `load` and `run` boundary: the typed import and the explicit JSON path, injected file access, clocks, and identifiers, YAML and TypeScript path rejection, profile self-hash verification and structural exact compatibility, case validation failures, the evaluator gate for question checks, enforcement qualification, and report determinism and immutability. |
+| Run path | `packages/measuretwice/test/run.test.ts` | Vitest | The `load` and `run` boundary: the typed import and the explicit JSON path, injected file access, clocks, and identifiers, YAML and TypeScript path rejection, profile self-hash verification, the complete profile contract and compatibility through the Rust core, case validation failures, the evaluator gate for question checks, the enforcement gate of the core, and report determinism and immutability. |
 | Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, the project name, and the prebuilt packages. |
 | Packaging | `tests/repo/packaging.test.ts` | Vitest | The published shape: the three declared-target lists stay equal, the public manifest ships the built package without private content, every platform package carries its target fields and the license, the staged manifest selects the native artifact, and the packed tarballs hold the required content only. The suite runs the assembly script, so `npm run build` must run first. |
@@ -180,7 +180,10 @@ its runner rule.
   `packages/measuretwice/test/native.test.ts` runs the definition,
   input-validation, canonical-hash, hashing-rejection, string-rule,
   profile-state, and runtime-trace groups through the NAPI-RS binding, so
-  the boundary itself answers the same fixtures. One child-process check
+  the boundary itself answers the same fixtures. The profile-state group
+  crosses through `validateProfile` and `checkProfileCompatibility`, so
+  every artifact rejection and every compatibility pairing, live evaluator
+  state and mode included, answers identically across the boundary. One child-process check
   proves that loading and exercising the binding makes no provider calls
   and writes no application storage.
 - The authoring suite in
@@ -198,12 +201,16 @@ its runner rule.
   validation records through the complete case path, the hashing rejection
   records, the canonical hash fixtures across every domain, the exact
   string rule records through the Rust rules, the serialization round
-  trips, the TypeBox pair hashes, the profile self-hash verification, the
-  outcome, check record, and completion samples through the report
-  builder and parser, and the runtime traces replayed event by event
-  through the run state boundary, compared on every expected record, the
-  aggregate, the completion, and the rejected events. Each validation task
-  adds its own groups when its boundary lands.
+  trips, the TypeBox pair hashes, the profile artifacts through the
+  profile boundary (every valid artifact validates, every invalid record
+  rejects with its stated code and path, one edited copy fails its stored
+  self-hash), the compatibility pairings of the states group through
+  `profile::check_compatibility` with the stated live evaluator state and
+  mode, the outcome, check record, and completion samples through the
+  report builder and parser, and the runtime traces replayed event by
+  event through the run state boundary, compared on every expected record,
+  the aggregate, the completion, and the rejected events. Each validation
+  task adds its own groups when its boundary lands.
 - Every wrapper runs every group through the Rust core. A wrapper never
   recomputes a rule, a canonical form, or a hash.
 - The test evaluator suite in

@@ -499,13 +499,29 @@ const EXPLORATION_PROFILE = JSON.parse(
   unknown
 >;
 
-/** Builds one exploration profile that binds the question definition. */
+/** Builds one exploration profile that binds every question check. */
 function boundProfile(): Record<string, unknown> {
   const info = nativeValidateDefinition(questionText());
   const artifact: Record<string, unknown> = {
     ...EXPLORATION_PROFILE,
     id: "typed-evaluator-questions-exploration",
     definition: { name: "typed-evaluator-questions", content_hash: info.definitionHash },
+    // One binding and one policy entry per question check: the core refuses
+    // one profile that covers only part of one definition.
+    bindings: info.checkKinds.map((entry) => ({
+      check: entry.id,
+      evaluator: "jev-choice",
+      adapter_version: "0.1.0",
+      translation: { content_hash: "0".repeat(64), question: "One translated question." },
+    })),
+    policy: {
+      family: "probability_mass_v0",
+      checks: info.checkKinds.map((entry) => ({
+        check: entry.id,
+        accept_cutoff: 0.75,
+        rejection_cutoff: 0.65,
+      })),
+    },
   };
   artifact["content_hash"] = nativeComputeSelfHash("profile", JSON.stringify(artifact));
   return artifact;

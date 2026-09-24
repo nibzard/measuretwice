@@ -176,6 +176,72 @@ export function nativeCanonicalForm(text: string): string {
   return call(() => binding.canonicalForm(text));
 }
 
+/** The result of validating one profile artifact through the core. */
+export interface ProfileInfo {
+  /** Stable profile identifier. */
+  id: string;
+  /** The profile origin: exploration, calibration, or exact. */
+  origin: string;
+  /** The name of the bound definition. */
+  definitionName: string;
+  /** The content hash of the bound definition. */
+  definitionHash: string;
+  /** The decision-rule family: probability_mass_v0 or exact. */
+  policyFamily: string;
+  /** The qualification status of the profile. */
+  qualificationStatus: string;
+  /** The scope that the status covers, when stated. */
+  qualificationScope?: string | null;
+  /** The verified self-hash of the artifact. */
+  contentHash: string;
+}
+
+/** Validates one profile artifact through the complete core contract. */
+export function nativeValidateProfile(profileText: string): ProfileInfo {
+  return call(() => binding.validateProfile(profileText));
+}
+
+/** One live evaluator binding of one compatibility check, as data. */
+export interface LiveBindingEntry {
+  /** The bound check that the registered evaluator serves. */
+  check: string;
+  /** The registered evaluator identifier. */
+  evaluator: string;
+  /** The adapter version of the registered evaluator. */
+  adapter_version: string;
+  /** The live translated-question hash, when the adapter states one. */
+  translation?: string;
+  /** The resolved model version, when the host states one. */
+  resolved_model?: string;
+  /** The preprocessing identity, when one applies. */
+  preprocessing?: string;
+}
+
+/**
+ * Checks one profile against one definition and the live evaluator state.
+ *
+ * Every material mismatch throws one compatibility failure with a stable
+ * reason code, before any evaluator runs. Shadow mode compares the bindings
+ * alone; enforcement adds the scope and qualification clauses.
+ */
+export function nativeCheckProfileCompatibility(
+  profileText: string,
+  definitionText: string,
+  live: readonly LiveBindingEntry[],
+  mode: "shadow" | "enforcement",
+  requestedScope?: string,
+): void {
+  call(() =>
+    binding.checkProfileCompatibility(
+      profileText,
+      definitionText,
+      JSON.stringify(live),
+      mode,
+      requestedScope ?? null,
+    ),
+  );
+}
+
 /** Computes the content hash of one strict JSON document in one domain. */
 export function nativeContentHash(domain: string, text: string): string {
   return call(() => binding.contentHash(domain, text));

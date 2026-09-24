@@ -11,7 +11,7 @@ records the test suites and the verification commands. The task list is
 
 | Path | Content |
 | --- | --- |
-| `crates/measuretwice-core` | Shared Rust library. It owns contract validation, input projection, exact string rules, decision policy, outcome aggregation, canonical content hashes, and statistics. |
+| `crates/measuretwice-core` | Shared Rust library. It owns contract validation, input projection, exact string rules, decision policy, profile validation and evaluator compatibility, outcome aggregation, canonical content hashes, and statistics. |
 | `crates/measuretwice-node` | Thin NAPI-RS binding. It exposes serializable core operations to Node. The `npm/` directory below it holds the generated platform packages. |
 | `packages/measuretwice` | The one public TypeScript package, with the CLI entry point. |
 | `contracts/v0` | The frozen portable artifact contracts. |
@@ -453,8 +453,8 @@ one fixed `evidence` key that holds exactly the projected inputs of
 identifier never reach the provider. One changed translated question
 changes the digest, so the profile binding that records the digest and
 the complete question changes and the prior qualification no longer
-applies; the profile compatibility check that compares a recorded
-translation arrives with task T028. The shared cases live in
+applies; the profile compatibility check of task T028 compares one
+recorded translation against the live one at load. The shared cases live in
 `fixtures/translations/jev.json` with the manifest group
 `translations-jev`; the package suite in
 `packages/measuretwice/test/jev.test.ts`, the repository checks in
@@ -517,6 +517,41 @@ integration tests decide the assessment samples and reproduce the frozen
 review record of `fixtures/reports/outcomes.json` through the same
 boundary. The run path that applies the family to scheduled executions is
 task T034.
+
+Decided in T028: profile validation and evaluator compatibility are one
+Rust module and one wrapper call. `measuretwice_core::profile` owns the
+complete artifact contract: every field rule, the cross-field origin rules
+(an exploration profile stays `unvalidated`, an exact profile binds no
+evaluator and takes the `exact` family, one calibration profile records
+its complete evidence), the cutoff bounds through the shared
+`AppliedPolicy` validation, and the stored self-hash, which is verified
+last so one field defect names its own field and one edited copy fails
+with `hash_mismatch`. `profile::check_compatibility` compares one
+validated profile against one loaded definition and the live evaluator
+state in one fixed order: the definition reference (or, for one exact-only
+definition, the structural exact rule first), the registered evaluator and
+its adapter version, the preprocessing identity, the translated question,
+the resolved model version, the binding coverage, the policy coverage and
+fit, then, for enforcement, the declared scope and the qualification. The
+live state crosses as data, one entry per bound check, because the core
+never sees an evaluator object. Shadow mode compares the bindings alone;
+enforcement adds the scope and qualification clauses of the checked
+qualification model. The comparison verifies content consistency and
+authenticates nothing: one forged dataset that states
+`validated_for_scope` passes, and the host review owns that trust. The
+Node binding exposes `validateProfile` and `checkProfileCompatibility`;
+`load` in the wrapper routes every supplied profile through both and
+builds the live entries from the registry. One adapter that translates
+exposes the optional `translate` operation of the evaluator contract, so
+`load` compares the recorded translation of one bound profile against the
+live one; the Jev adapter exposes `translateJevQuestion` this way. The
+`run` repeats the
+check in enforcement mode, so the qualification clause refuses one
+unvalidated profile through the same boundary. The selected-hash clause of
+enforcement stays with task T035. The shared
+`fixtures/profiles/states.json` compatibility rows carry the live state
+and the mode, and the Rust, native-boundary, and repository suites run
+every row through the boundary.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

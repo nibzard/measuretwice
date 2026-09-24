@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Profile state fixtures. The profiles array holds valid artifacts with their computed self-hash in the profile domain: the artifact with its own content_hash field removed. The invalid array holds artifacts that Rust must reject. The compatibility array holds valid profiles paired with the wrong definition: that failure is a compatibility failure before execution, not an artifact error. Every qualification status appears at least once. A qualification flag is not an authenticated approval.",
+  "description": "Profile state fixtures. The profiles array holds valid artifacts with their computed self-hash in the profile domain: the artifact with its own content_hash field removed. The invalid array holds artifacts that Rust must reject. The compatibility array holds valid profiles paired with one loaded definition and, where one applies, the live evaluator state of the requested mode: that failure is a compatibility failure before execution, not an artifact error. Every qualification status appears at least once. A qualification flag is not an authenticated approval, and one content-consistent pairing authenticates no label and no population claim.",
   "profiles": [
     {
       "schema_version": 1,
@@ -633,6 +633,127 @@
       "against_definition": "exact-rules.json",
       "expected": {
         "reason_code": "policy_mismatch"
+      }
+    },
+    {
+      "note": "The exploration profile loads in shadow mode when the registered evaluator matches the binding: the adapter version, the translated question, and the resolved model all agree.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "categorical-question.json",
+      "mode": "shadow",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "resolved_model": "jev-1.13-2026-09-01"
+        }
+      ],
+      "loads": true
+    },
+    {
+      "note": "The registry holds another evaluator under another identifier, so the bound evaluator is registered nowhere. Load refuses before any execution.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "categorical-question.json",
+      "mode": "shadow",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "label-only-test",
+          "adapter_version": "0.1.0"
+        }
+      ],
+      "expected": {
+        "reason_code": "evaluator_mismatch",
+        "field_path": "/profile/bindings/0/evaluator"
+      }
+    },
+    {
+      "note": "The registered adapter states another version than the binding. One changed adapter version needs new qualification.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "categorical-question.json",
+      "mode": "shadow",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.2.0"
+        }
+      ],
+      "expected": {
+        "reason_code": "evaluator_mismatch",
+        "field_path": "/profile/bindings/0/adapter_version"
+      }
+    },
+    {
+      "note": "The live translation of the check hashes to another value than the recorded one. One changed translated question changes the binding.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "categorical-question.json",
+      "mode": "shadow",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation": "88c86b66dd45adbd34e4a409dd3a37a2cbe6f94990fefb35c7f0d97dcaf94970"
+        }
+      ],
+      "expected": {
+        "reason_code": "translation_mismatch",
+        "field_path": "/profile/bindings/0/translation/content_hash"
+      }
+    },
+    {
+      "note": "The requested model alias resolves to another version today. A changed resolution invalidates the qualification, in shadow mode as in enforcement.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "categorical-question.json",
+      "mode": "shadow",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "resolved_model": "jev-1.14-2026-10-01"
+        }
+      ],
+      "expected": {
+        "reason_code": "model_resolution_changed",
+        "field_path": "/profile/bindings/0/model/resolved"
+      }
+    },
+    {
+      "note": "Enforcement asks for one population that the validated profile does not declare. A hash cannot detect population drift, so the declared scope must match the request.",
+      "profile_id": "message-supported-validated",
+      "against_definition": "categorical-question.json",
+      "mode": "enforcement",
+      "requested_scope": "Development traffic of one other application.",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        }
+      ],
+      "expected": {
+        "reason_code": "scope_mismatch",
+        "field_path": "/profile/qualification/scope"
+      }
+    },
+    {
+      "note": "Enforcement needs one profile validated for the declared scope. The starter policy of an exploration profile carries no qualification evidence, whatever its bindings.",
+      "profile_id": "message-supported-exploration",
+      "against_definition": "categorical-question.json",
+      "mode": "enforcement",
+      "live": [
+        {
+          "check": "message-supported",
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        }
+      ],
+      "expected": {
+        "reason_code": "qualification_insufficient",
+        "field_path": "/profile/qualification/status"
       }
     }
   ]
