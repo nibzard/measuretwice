@@ -203,6 +203,29 @@ type alias would return the failure as a value instead of throwing it. The
 core reference parsers became public so a run binding offered from
 TypeScript meets the same rules as one stored inside a report.
 
+Decided in T017: `defineChecks` in
+`packages/measuretwice/src/define-checks.ts` owns the TypeBox authoring
+conversion and nothing else. The conversion walks the authored schema,
+drops the TypeBox markers and the annotation keywords `title`,
+`description`, and `examples`, renames `version` to `schema_version`, and
+copies every other keyword as it is. It adds no keyword, so an
+unsupported keyword reaches the Rust core and fails with the same code and
+field path as the equivalent JSON authoring; TypeBox and JSON cannot drift
+apart. Before serialization the wrapper rejects what JSON would silently
+lose: Refine checks and codec transforms hold callbacks, and values such as
+regular expressions, class instances, `NaN`, big integers, symbols, and
+`undefined` never cross. Those failures carry `nonportable_value`. An
+`Unsafe` type and the optional modifier outside one object property carry
+`unsupported_keyword`, because the subset cannot state them. The Rust core
+then validates the complete artifact, and its `NativeFailure` becomes the
+public `ValidationError` of `src/error.ts`; field paths use the contract
+names. The return value is the definition artifact itself, deep-copied and
+frozen, so `JSON.stringify` writes the portable contract and no native
+type leaks. Inference stays TypeScript-only: `DefinedChecks` carries the
+case-input type in one phantom property that the implementation never
+sets, and the `using` names constrain to the declared input names, while
+the Rust core re-checks both rules for values that arrived by cast.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

@@ -20,6 +20,7 @@ layout.
 | Rust unit tests | next to the code in `crates/` | `cargo test` | Core behavior and invariants. |
 | Package tests | `packages/measuretwice/test/` | Vitest | Public package behavior, the CLI, and the test support itself. |
 | Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, and the runtime traces replayed through the run state class. |
+| Authoring | `packages/measuretwice/test/define-checks.test.ts` | Vitest | The `defineChecks` boundary: inferred case-input types and `using` names at compile time, the documented TypeBox conversion, rejection of nonportable values and unsupported forms, and the shared TypeBox pairs executed through the built package with their published hashes. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, and the project name. |
 | Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
@@ -94,6 +95,14 @@ its runner rule.
   the boundary itself answers the same fixtures. One child-process check
   proves that loading and exercising the binding makes no provider calls
   and writes no application storage.
+- The authoring suite in
+  `packages/measuretwice/test/define-checks.test.ts` executes the
+  TypeScript source of every TypeBox pair through the built package, then
+  compares the converted artifact and the definition-domain hash with the
+  fixture records. The source is plain JavaScript, so the test rewrites
+  its two imports to the pinned TypeBox entry and the built package entry,
+  writes one temporary module, and imports it. The fixture stays the one
+  source of truth for both sides.
 - The Rust integration tests in
   `crates/measuretwice-core/tests/contract_fixtures.rs` run the fixture
   groups that the core owns so far: the valid definition artifacts with

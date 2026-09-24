@@ -603,8 +603,9 @@
         "T014",
         "T015"
       ],
-      "updated_at": "2026-09-24T01:40:22Z",
+      "updated_at": "2026-09-24T01:41:31Z",
       "files": [
+        "Cargo.lock",
         "Cargo.toml",
         "DEVELOPING.md",
         "TESTING.md",
@@ -620,7 +621,7 @@
       "id": "T017",
       "title": "Implement TypeBox defineChecks authoring",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Return validated, serializable definitions with inferred case inputs and using names. Sources: MVP_SPEC.md sections 4-5, 15.",
       "steps": [
         "Write type tests for inferred inputs and unknown names in using.",
@@ -640,6 +641,17 @@
         "T006",
         "T010",
         "T016"
+      ],
+      "updated_at": "2026-09-24T02:00:44Z",
+      "files": [
+        "contracts/v0/input-schema.md",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/src/define-checks.ts",
+        "packages/measuretwice/src/error.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "to-do.json"
       ]
     },
     {

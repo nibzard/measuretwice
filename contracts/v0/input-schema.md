@@ -213,8 +213,9 @@ Examples of field paths:
 `defineChecks` accepts a TypeBox object schema. The conversion produces the
 portable subset. It removes only these items:
 
-- TypeBox markers that TypeBox holds in symbol properties. JSON serialization
-  cannot carry symbols. The markers are not constraints.
+- TypeBox markers, such as the kind flag and the property modifiers. The
+  pinned TypeBox holds them in hidden, non-enumerable properties. JSON
+  serialization does not carry them. The markers are not constraints.
 - The TypeBox optional modifier. At the root, an optional input is an error,
   because every top-level input is required. In a nested object, the modifier
   removes the property from `required`.
