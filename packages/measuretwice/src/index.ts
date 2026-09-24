@@ -22,7 +22,13 @@
  * stay outside every evaluator request, one conflicting reference loads
  * with one flagged finding, and the returned `labels` review counts the
  * provenance that keeps human judgments apart from model proposals. The
- * package also ships
+ * same load computes the grouped splits: one group appears in one split
+ * only, the returned `identity` records the revision, the population
+ * statement, the sampling provenance, the content hashes, and the group
+ * assignments, and `detectSplitOverlap`, `requireSeparatedSplits`, and
+ * `classifyValidationEvidence` keep fitting data apart from independent
+ * validation data, so one reused holdout is marked as development data that
+ * supports no new qualification claim. The package also ships
  * two test adapters, `createScriptedEvaluator` and
  * `createLabelOnlyEvaluator`, that stay offline and prove the contract
  * needs no Jev response shape, `translateJevQuestion`, the versioned
@@ -34,9 +40,28 @@
  * artifact into terminal text or Markdown, with one summary view and one
  * detailed view. One shadow run states the existing decision of the host
  * through the `baseline` option of `run`, and the report records it beside
- * the new outcome without merging the two facts. The public operations
- * `calibrate`, `evaluate`, and `compare` are specified in MVP_SPEC.md and
- * arrive with their tasks.
+ * the new outcome without merging the two facts. `evaluate` runs every
+ * record of one dataset through the same validated execution path, measures
+ * the outcomes against the reference labels in the Rust core, and returns
+ * the evaluation report artifact beside one run report per case, with the
+ * label coverage, the population limits, and the unevaluated records kept
+ * visible, and with no qualification and no host selection changed.
+ * `exportShadowReviews` selects the stored shadow reports that need one
+ * human review: every disagreement, every report without one baseline,
+ * every candidate error, and one reproducible seeded sample of the
+ * agreements. It returns JSON Lines review records with their sampling
+ * provenance and no raw case content, so baseline passes and silent
+ * baseline cases stay auditable. `validateReviewLabels` checks the
+ * returned human labels against the meaning of their checks, without
+ * treating baseline agreement as correctness. `compare` compares two
+ * stored evaluation reports on their matching cases: one case matches
+ * only when its identifier and its input hash agree, the changed, the
+ * missing, the errored, and the skipped cases stay listed, and every
+ * metric row keeps the counts and the denominators of both sides, with
+ * the evidence class derived from the declared purposes and the cost
+ * tradeoff computed only when the recorded usage and the declared cost
+ * inputs support it. The public operation `calibrate` is specified in
+ * MVP_SPEC.md and arrives with its task.
  *
  * This package never exposes provider SDK types or native binding types.
  * Invalid data fails with one {@link ValidationError} before execution.
@@ -128,16 +153,25 @@ export type {
   JevUsage,
 } from "./jev-assessment.js";
 export { load } from "./run.js";
-export { loadDataset } from "./dataset.js";
+export {
+  classifyValidationEvidence,
+  detectSplitOverlap,
+  loadDataset,
+  requireSeparatedSplits,
+} from "./dataset.js";
 export type {
   Dataset,
   DatasetCase,
+  DatasetIdentity,
   DatasetKind,
   DatasetMetadata,
   DatasetSplit,
+  DatasetSplitIdentity,
+  EvidenceClass,
   ExpectedCheckLabel,
   ExpectedLabels,
   ExpectedOutcome,
+  GroupAssignment,
   LabelAuthorType,
   LabelFinding,
   LabelFindingKind,
@@ -146,7 +180,11 @@ export type {
   LabelReview,
   LabelSummary,
   LoadDatasetOptions,
+  PopulationStatement,
+  SplitOverlap,
   SplitPurpose,
+  UnassignedGroup,
+  ValidationEvidence,
 } from "./dataset.js";
 export type {
   AggregateOutcome,
@@ -176,6 +214,58 @@ export type {
   SanitizedReason,
   ShadowBaseline,
 } from "./run.js";
+export { evaluate } from "./evaluate.js";
+export type {
+  EvaluatedCase,
+  EvaluateOptions,
+  Evaluation,
+  EvaluationCounts,
+  EvaluationInterval,
+  EvaluationIntervalSet,
+  EvaluationIntervals,
+  EvaluationMetricSet,
+  EvaluationOperational,
+  EvaluationPopulation,
+  EvaluationPurpose,
+  EvaluationRate,
+  EvaluationReport,
+  EvaluationSlice,
+  EvaluationSliceIntervals,
+  IntervalOptions,
+} from "./evaluate.js";
+export { exportShadowReviews, validateReviewLabels } from "./review.js";
+export type {
+  AgreementSample,
+  BaselineMeaning,
+  BaselineMeanings,
+  CandidateOutcomes,
+  ExportShadowReviewsOptions,
+  RecordedBaseline,
+  ReturnedReviewLabel,
+  ReviewLabelSummary,
+  ReviewLabelValidation,
+  ReviewSamplingProvenance,
+  SelectionReason,
+  ShadowReviewExport,
+  ShadowReviewRecord,
+  ShadowReviewSummary,
+  ValidateReviewLabelsOptions,
+} from "./review.js";
+export { compare } from "./compare.js";
+export type {
+  ChangedCase,
+  ChangedCheckPair,
+  Comparison,
+  ComparisonArtifact,
+  ComparisonMatching,
+  ComparisonMetric,
+  ComparisonRate,
+  ComparisonTradeoffs,
+  CompareOptions,
+  ComparisonEvidenceClass,
+  MetricTradeoffRow,
+  ReportSetReference,
+} from "./compare.js";
 export {
   renderProfileSummary,
   renderProfileSummaryMarkdown,

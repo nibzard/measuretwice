@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `loadDataset` and the versioned JSONL case records it returns.
+ * `loadDataset`, the versioned JSONL case records it returns, and the
+ * grouped splits that keep fitting data apart from validation data.
  *
  * A dataset is one JSONL record file plus one metadata file, as the
  * contracts README states. `loadDataset` reads both through explicit
@@ -22,6 +23,20 @@
  * One failure throws one public {@link ValidationError} whose field path
  * names the line and the field, `/records/<line>/<field>`.
  *
+ * The same load computes the grouped splits. One group appears in one
+ * split only, so related conversations stay inside one split, and one
+ * group that two splits declare fails the metadata contract. `identity`
+ * records the revision, the kind, the population statement, the sampling
+ * provenance, the record count, the dataset content hash, and the group
+ * assignments; `splits` records each split with its record count, its
+ * content hash, and its case identifiers. One stored dataset or split hash
+ * that differs from the computed digest fails with `hash_mismatch`, so one
+ * changed input cannot hide inside one revision. `detectSplitOverlap`
+ * finds shared groups and duplicated cases between one fitting selection
+ * and one validation selection, `requireSeparatedSplits` refuses one
+ * overlap, and `classifyValidationEvidence` marks one reused holdout as
+ * development data that supports no new qualification claim.
+ *
  * Reference labels, expected outcomes, and label provenance stay outside
  * the input object. `runCase` copies one identifier and one input object
  * alone, so no label field can reach the `run` boundary, which validates
@@ -35,7 +50,14 @@
  */
 import type { Definition, JSONValue } from "./define-checks.js";
 import { ValidationError } from "./error.js";
-import { nativeValidateDataset } from "./native.js";
+import {
+  nativeRequireSeparatedSplits,
+  nativeSplitOverlap,
+  nativeValidateDataset,
+  nativeValidationEvidence,
+  type DatasetInfo,
+  type NativeSplitIdentity,
+} from "./native.js";
 import {
   deepFreeze,
   defaultFiles,
@@ -56,6 +78,17 @@ export type DatasetKind =
 /** The purpose of one split: candidate tuning or independent evidence. */
 export type SplitPurpose = "fitting" | "validation";
 
+/**
+ * What the kind of one dataset states about the population it samples.
+ *
+ * A targeted challenge set and a development fixture state no prevalence
+ * and support no qualification claim. Only a representative sample does.
+ */
+export type PopulationStatement =
+  | "development_fixture"
+  | "targeted_challenge_set"
+  | "representative_sample";
+
 /** Who produced one reference label. A coding agent counts as a model. */
 export type LabelAuthorType = "human" | "model";
 
@@ -73,6 +106,112 @@ export interface DatasetSplit {
   readonly purpose: SplitPurpose;
   /** Groups assigned to this split. One group appears in one split only. */
   readonly groups: readonly string[];
+}
+
+/** One group of related cases and the split that holds it. */
+export interface GroupAssignment {
+  /** Group of related cases, as the records state it. */
+  readonly group: string;
+  /** Split that the metadata assigns to this group. */
+  readonly split_id: string;
+  /** Records of this group. */
+  readonly record_count: number;
+}
+
+/** One group of records that no declared split covers. */
+export interface UnassignedGroup {
+  /** Group of related cases that no split declares. */
+  readonly group: string;
+  /** Records of this group. */
+  readonly record_count: number;
+  /** Line of the first record of this group, counted from 1. */
+  readonly first_line: number;
+}
+
+/** The identity of one dataset: what a plan, a profile, or a report binds to. */
+export interface DatasetIdentity {
+  /** Stable dataset identifier. */
+  readonly dataset_id: string;
+  /** Dataset revision. Changed content needs one new revision. */
+  readonly revision: string;
+  /** Dataset kind, as the metadata states it. */
+  readonly kind: DatasetKind;
+  /** What the kind states about the sampled population. */
+  readonly population: PopulationStatement;
+  /** True when one qualification claim may rest on data of this kind. */
+  readonly supports_qualification: boolean;
+  /** True when data of this kind states one production prevalence. */
+  readonly states_prevalence: boolean;
+  /** Population that the sampling procedure targets. */
+  readonly intended_population: string;
+  /** How the cases were selected. */
+  readonly sampling_method: string;
+  /** Number of case records. */
+  readonly record_count: number;
+  /** Computed hash of the canonical case records. */
+  readonly content_hash: string;
+  /** Group assignments, ordered by group. */
+  readonly group_assignments: readonly GroupAssignment[];
+  /** Groups of records that no declared split covers, ordered by group. */
+  readonly unassigned_groups: readonly UnassignedGroup[];
+}
+
+/**
+ * The identity of one split of one dataset.
+ *
+ * The field names follow one dataset selection of a calibration plan, so
+ * the value a loaded dataset returns states the reference that a plan
+ * states. Pass it to `detectSplitOverlap`, `requireSeparatedSplits`, and
+ * `classifyValidationEvidence`.
+ */
+export interface DatasetSplitIdentity {
+  /** Stable dataset identifier. */
+  readonly dataset: string;
+  /** Dataset revision of this split. */
+  readonly revision: string;
+  /** Stable split identifier. */
+  readonly split: string;
+  /** Fitting or validation. */
+  readonly purpose: SplitPurpose;
+  /** Groups assigned to this split, in the declared order. */
+  readonly groups: readonly string[];
+  /** Records of this split. */
+  readonly record_count: number;
+  /** Computed hash of the canonical records of this split. */
+  readonly content_hash: string;
+  /** Case identifiers of this split, ordered by identifier. */
+  readonly case_ids: readonly string[];
+}
+
+/** The overlap between one fitting selection and one validation selection. */
+export interface SplitOverlap {
+  /** True when both selections name one dataset revision. */
+  readonly same_dataset: boolean;
+  /** Groups that both splits declare, ordered by group. */
+  readonly shared_groups: readonly string[];
+  /** Case identifiers that both splits hold, ordered by identifier. */
+  readonly shared_cases: readonly string[];
+  /** True when the two selections share no group and no case. */
+  readonly separated: boolean;
+}
+
+/** The class of evidence that one validation split supports. */
+export type EvidenceClass = "independent_validation" | "development";
+
+/** The evidence classification of one validation split. */
+export interface ValidationEvidence {
+  /** The class this split supports. */
+  readonly class: EvidenceClass;
+  /** True when the dataset kind states one representative sample. */
+  readonly representative_sample: boolean;
+  /** Records of the split. */
+  readonly record_count: number;
+  /** References of the earlier uses that hold the same validation content. */
+  readonly reused_from: readonly string[];
+  /** True when one new qualification claim needs fresh validation evidence. */
+  readonly needs_fresh_evidence: boolean;
+  /** Plain statement of the classification, linked to the facts above. */
+  readonly statement: string;
 }
 
 /** The metadata of one dataset. */
@@ -222,6 +361,14 @@ export interface DatasetCase {
 export interface Dataset {
   /** The metadata artifact, as the core validated it. */
   readonly metadata: DatasetMetadata;
+  /**
+   * The identity of the dataset: revision, kind, population statement,
+   * sampling provenance, record count, content hash, and group
+   * assignments.
+   */
+  readonly identity: DatasetIdentity;
+  /** Every declared split with its identity, in the declared order. */
+  readonly splits: readonly DatasetSplitIdentity[];
   /** Every case record, in file order. */
   readonly cases: readonly DatasetCase[];
   /** The definition that validated every input object. */
@@ -293,25 +440,64 @@ function requireJsonlPath(filePath: string, fieldPath: string): void {
  */
 export async function loadDataset(options: LoadDatasetOptions): Promise<Dataset> {
   const files = options.files ?? defaultFiles;
+  const definitionText = await definitionTextOf(options.definition, files);
+  const source = await readDatasetTexts(options.metadata, options.records, files);
+  return datasetOf(source, definitionText);
+}
 
-  let definitionText: string;
-  if (typeof options.definition === "string") {
-    requireJsonPath(options.definition, "/definition");
-    definitionText = await readText(files, options.definition);
-  } else {
-    definitionText = jsonText(options.definition, "");
+/** The read source of one dataset: its metadata text and its records text. */
+export interface DatasetSource {
+  /** The complete metadata file text, as read. */
+  readonly metadataText: string;
+  /** The complete record file text, as read. */
+  readonly recordsText: string;
+}
+
+/** Reads the definition text of one dataset load: one path or one artifact. */
+async function definitionTextOf(
+  definition: Definition | string,
+  files: FileAccess,
+): Promise<string> {
+  if (typeof definition === "string") {
+    requireJsonPath(definition, "/definition");
+    return readText(files, definition);
   }
+  return jsonText(definition, "");
+}
 
-  requireJsonPath(options.metadata, "/metadata");
-  const metadataText = await readText(files, options.metadata);
-  requireJsonlPath(options.records, "/records");
-  const recordsText = await readText(files, options.records);
+/**
+ * Reads one dataset source through one file access.
+ *
+ * The paths keep the rules of `loadDataset`: one `.json` metadata path and
+ * one `.jsonl` records path, checked before one read. The evaluation path
+ * of `evaluate.ts` reads once and validates through the same boundary.
+ */
+export async function readDatasetTexts(
+  metadata: string,
+  records: string,
+  files: FileAccess,
+): Promise<DatasetSource> {
+  requireJsonPath(metadata, "/metadata");
+  const metadataText = await readText(files, metadata);
+  requireJsonlPath(records, "/records");
+  const recordsText = await readText(files, records);
+  return { metadataText, recordsText };
+}
 
+/**
+ * Validates one dataset source against one definition text and builds the
+ * public dataset.
+ *
+ * The Rust core stays the one validation authority, so the value that
+ * `loadDataset` returns and the value one evaluation runs come from the
+ * same boundary.
+ */
+export function datasetOf(source: DatasetSource, definitionText: string): Dataset {
   const info = throughCore(() =>
-    nativeValidateDataset(metadataText, recordsText, definitionText),
+    nativeValidateDataset(source.metadataText, source.recordsText, definitionText),
   );
 
-  const metadata: unknown = JSON.parse(metadataText);
+  const metadata: unknown = JSON.parse(source.metadataText);
   deepFreeze(metadata);
   const cases = info.records.map((record) => {
     const value = {
@@ -364,6 +550,21 @@ export async function loadDataset(options: LoadDatasetOptions): Promise<Dataset>
 
   const dataset: Dataset = {
     metadata: metadata as DatasetMetadata,
+    identity: identityOf(info),
+    splits: info.metadata.splits.map((split) => {
+      const value = {
+        dataset: info.identity.datasetId,
+        revision: info.identity.revision,
+        split: split.id,
+        purpose: split.purpose as SplitPurpose,
+        groups: Object.freeze([...split.groups]),
+        record_count: split.recordCount,
+        content_hash: split.contentHash,
+        case_ids: Object.freeze([...split.caseIds]),
+      };
+      deepFreeze(value);
+      return value as DatasetSplitIdentity;
+    }),
     cases,
     definition: { name: info.definitionName, content_hash: info.definitionHash },
     labels,
@@ -375,6 +576,147 @@ export async function loadDataset(options: LoadDatasetOptions): Promise<Dataset>
       return runCase;
     },
   };
+  Object.freeze(dataset.splits);
   deepFreeze(dataset);
   return dataset;
+}
+
+/** Builds the frozen identity of one dataset from the core result. */
+function identityOf(info: DatasetInfo): DatasetIdentity {
+  const identity: DatasetIdentity = {
+    dataset_id: info.identity.datasetId,
+    revision: info.identity.revision,
+    kind: info.identity.kind as DatasetKind,
+    population: info.identity.population as PopulationStatement,
+    supports_qualification: info.identity.supportsQualification,
+    states_prevalence: info.identity.statesPrevalence,
+    intended_population: info.identity.intendedPopulation,
+    sampling_method: info.identity.samplingMethod,
+    record_count: info.identity.recordCount,
+    content_hash: info.identity.contentHash,
+    group_assignments: info.identity.groupAssignments.map((assignment) => {
+      const value = {
+        group: assignment.group,
+        split_id: assignment.splitId,
+        record_count: assignment.recordCount,
+      };
+      deepFreeze(value);
+      return value as GroupAssignment;
+    }),
+    unassigned_groups: info.identity.unassignedGroups.map((unassigned) => {
+      const value = {
+        group: unassigned.group,
+        record_count: unassigned.recordCount,
+        first_line: unassigned.firstLine,
+      };
+      deepFreeze(value);
+      return value as UnassignedGroup;
+    }),
+  };
+  Object.freeze(identity.group_assignments);
+  Object.freeze(identity.unassigned_groups);
+  deepFreeze(identity);
+  return identity;
+}
+
+/** Moves one public split identity into the boundary shape of the core. */
+function splitIdentityOf(split: DatasetSplitIdentity): NativeSplitIdentity {
+  return {
+    dataset: split.dataset,
+    revision: split.revision,
+    split: split.split,
+    purpose: split.purpose,
+    groups: [...split.groups],
+    record_count: split.record_count,
+    content_hash: split.content_hash,
+    case_ids: [...split.case_ids],
+  };
+}
+
+/**
+ * Detects fitting and validation overlap between two split selections.
+ *
+ * Shared groups break the declared grouping strategy. Shared case
+ * identifiers are duplicated cases: the same case supplied fitting and
+ * validation evidence. The Rust core computes the facts; nothing is
+ * changed and no rate is computed.
+ *
+ * @param fitting The fitting split selection of one calibration.
+ * @param validation The validation split selection of one calibration.
+ * @returns The overlap facts of the two selections.
+ */
+export function detectSplitOverlap(
+  fitting: DatasetSplitIdentity,
+  validation: DatasetSplitIdentity,
+): SplitOverlap {
+  const overlap = throughCore(() =>
+    nativeSplitOverlap(splitIdentityOf(fitting), splitIdentityOf(validation)),
+  );
+  return {
+    same_dataset: overlap.sameDataset,
+    shared_groups: Object.freeze([...overlap.sharedGroups]),
+    shared_cases: Object.freeze([...overlap.sharedCases]),
+    separated: overlap.separated,
+  };
+}
+
+/**
+ * Requires fitting and validation selections that share no group and no
+ * case.
+ *
+ * One overlap throws one {@link ValidationError} with `duplicate_id` at
+ * `/datasets/validation`, because the validation data is the one that loses
+ * its independence. A calibration plan states this rule for its two dataset
+ * selections.
+ *
+ * @param fitting The fitting split selection of one calibration.
+ * @param validation The validation split selection of one calibration.
+ * @throws {ValidationError} when the two selections share one group or one
+ * case.
+ */
+export function requireSeparatedSplits(
+  fitting: DatasetSplitIdentity,
+  validation: DatasetSplitIdentity,
+): void {
+  throughCore(() =>
+    nativeRequireSeparatedSplits(splitIdentityOf(fitting), splitIdentityOf(validation)),
+  );
+}
+
+/**
+ * Classifies the validation evidence of one split selection.
+ *
+ * One reused holdout is development data however it is renamed, because the
+ * content hash decides; a new qualification claim then needs fresh
+ * validation evidence. One challenge set or one development fixture
+ * supports no claim, and one empty split holds no evidence. The host states
+ * which validation splits its earlier claims consumed, because the library
+ * holds no clock and no storage.
+ *
+ * @param validation The validation split selection to classify.
+ * @param dataset The identity of the dataset that holds the split.
+ * @param previouslyUsed The validation splits that earlier qualification
+ * claims consumed.
+ * @returns The evidence classification with its plain statement.
+ */
+export function classifyValidationEvidence(
+  validation: DatasetSplitIdentity,
+  dataset: DatasetIdentity,
+  previouslyUsed: readonly DatasetSplitIdentity[] = [],
+): ValidationEvidence {
+  const evidence = throughCore(() =>
+    nativeValidationEvidence(
+      splitIdentityOf(validation),
+      dataset.population,
+      previouslyUsed.map(splitIdentityOf),
+    ),
+  );
+  return {
+    class: evidence.class as EvidenceClass,
+    representative_sample: evidence.representativeSample,
+    record_count: evidence.recordCount,
+    reused_from: Object.freeze([...evidence.reusedFrom]),
+    needs_fresh_evidence: evidence.needsFreshEvidence,
+    statement: evidence.statement,
+  };
 }

@@ -248,6 +248,89 @@ export function nativeValidateDataset(
   return call(() => binding.validateDataset(metadataText, recordsText, definitionText));
 }
 
+/** One split identity that crosses the boundary as strict JSON text. */
+export interface NativeSplitIdentity {
+  /** Stable dataset identifier. */
+  dataset: string;
+  /** Dataset revision of this split. */
+  revision: string;
+  /** Stable split identifier. */
+  split: string;
+  /** Fitting or validation. */
+  purpose: string;
+  /** Groups assigned to this split. */
+  groups: string[];
+  /** Records of this split. */
+  record_count: number;
+  /** Computed hash of the canonical records of this split. */
+  content_hash: string;
+  /** Case identifiers of this split, ordered by identifier. */
+  case_ids: string[];
+}
+
+/** The overlap between one fitting selection and one validation selection. */
+export interface NativeSplitOverlap {
+  /** True when both selections name one dataset revision. */
+  sameDataset: boolean;
+  /** Groups that both splits declare. */
+  sharedGroups: string[];
+  /** Case identifiers that both splits hold. */
+  sharedCases: string[];
+  /** True when the two selections share no group and no case. */
+  separated: boolean;
+}
+
+/** Detects fitting and validation overlap between two split selections. */
+export function nativeSplitOverlap(
+  fitting: NativeSplitIdentity,
+  validation: NativeSplitIdentity,
+): NativeSplitOverlap {
+  return call(() =>
+    binding.splitOverlap(JSON.stringify(fitting), JSON.stringify(validation)),
+  );
+}
+
+/** Requires fitting and validation selections that share no group and no case. */
+export function nativeRequireSeparatedSplits(
+  fitting: NativeSplitIdentity,
+  validation: NativeSplitIdentity,
+): void {
+  call(() =>
+    binding.requireSeparatedSplits(JSON.stringify(fitting), JSON.stringify(validation)),
+  );
+}
+
+/** The evidence classification of one validation split. */
+export interface NativeValidationEvidence {
+  /** The evidence class: independent_validation or development. */
+  class: string;
+  /** True when the dataset kind states one representative sample. */
+  representativeSample: boolean;
+  /** Records of the split. */
+  recordCount: number;
+  /** References of the earlier uses that hold the same validation content. */
+  reusedFrom: string[];
+  /** True when one new qualification claim needs fresh validation evidence. */
+  needsFreshEvidence: boolean;
+  /** Plain statement of the classification. */
+  statement: string;
+}
+
+/** Classifies the validation evidence of one split selection. */
+export function nativeValidationEvidence(
+  validation: NativeSplitIdentity,
+  datasetKind: string,
+  previouslyUsed: readonly NativeSplitIdentity[],
+): NativeValidationEvidence {
+  return call(() =>
+    binding.validationEvidence(
+      JSON.stringify(validation),
+      datasetKind,
+      JSON.stringify(previouslyUsed),
+    ),
+  );
+}
+
 /** One live evaluator binding of one compatibility check, as data. */
 export interface LiveBindingEntry {
   /** The bound check that the registered evaluator serves. */
@@ -316,6 +399,130 @@ export function nativeDatasetHash(recordsText: string): string {
 /** Computes the split-domain content hash of one record-set array. */
 export function nativeSplitHash(recordsText: string): string {
   return call(() => binding.splitHash(recordsText));
+}
+
+/**
+ * Measures one dataset against the stored run reports of its evaluated
+ * cases.
+ *
+ * Each report text is one stored run report. The core rebuilds every report
+ * through the run report contract, reads each evaluated case out of it, and
+ * measures the outcomes against the reference labels of the records. The
+ * result is the complete measurement as one JSON document: the metric sets,
+ * the slices, and the operational totals under `metrics`, and one entry per
+ * evaluated case under `cases` with its resolved references and matches.
+ */
+export function nativeEvaluateDataset(
+  metadataText: string,
+  recordsText: string,
+  definitionText: string,
+  reportsText: readonly string[],
+): string {
+  return call(() =>
+    binding.evaluateDataset(metadataText, recordsText, definitionText, [...reportsText]),
+  );
+}
+
+/**
+ * Validates one interval request.
+ *
+ * The core parses the request alone, so one wrapper checks it before it
+ * reads one dataset or runs one case. The result is the parsed request as
+ * one JSON document.
+ */
+export function nativeParseIntervalRequest(requestText: string): string {
+  return call(() => binding.parseIntervalRequest(requestText));
+}
+
+/**
+ * Computes the uncertainty intervals of one measured evaluation.
+ *
+ * The texts follow the rules of `nativeEvaluateDataset`, which the core runs
+ * first, and the request text holds one interval request object. The result
+ * is the complete interval report as one JSON document.
+ */
+export function nativeUncertaintyIntervals(
+  metadataText: string,
+  recordsText: string,
+  definitionText: string,
+  reportsText: readonly string[],
+  requestText: string,
+): string {
+  return call(() =>
+    binding.uncertaintyIntervals(
+      metadataText,
+      recordsText,
+      definitionText,
+      [...reportsText],
+      requestText,
+    ),
+  );
+}
+
+/**
+ * Exports the stored shadow reports that need one human review.
+ *
+ * Each report text is one stored run report, rebuilt through the run report
+ * contract. The meanings text holds one object that maps every word of the
+ * host decision vocabulary to one meaning word. The core classifies every
+ * report, samples the agreements by the seeded rank, and returns the
+ * complete export as one JSON document.
+ */
+export function nativeExportShadowReviews(
+  reports: readonly string[],
+  meanings: string,
+  seed: string,
+  agreementSample: number,
+): string {
+  return call(() =>
+    binding.exportShadowReviews([...reports], meanings, seed, agreementSample),
+  );
+}
+
+/**
+ * Validates the labels one human returned for one review export.
+ *
+ * The exported text holds one JSON array of the case identifiers of one
+ * review export. The labels text holds one complete JSONL return. The core
+ * validates every reference against the meaning of its check and returns
+ * the complete validation as one JSON document. It reads no baseline,
+ * because baseline agreement is not correctness.
+ */
+export function nativeValidateReviewLabels(
+  definitionText: string,
+  exported: string,
+  labelsText: string,
+): string {
+  return call(() => binding.validateReviewLabels(definitionText, exported, labelsText));
+}
+
+/**
+ * Compares two stored evaluation reports on their matching cases.
+ *
+ * Each report text is one stored evaluation report artifact, rebuilt
+ * through the evaluation report contract; one edited report fails with its
+ * field path under `/baseline` or `/candidate`. The two reference strings
+ * name where the host stored the reports. The optional costs text maps one
+ * usage key to its unit cost. The result is the complete comparison as one
+ * JSON document: the comparison artifact fields, the metric rows with the
+ * counts and the denominators of both sides, and the standing limits.
+ */
+export function nativeCompareEvaluations(
+  baselineText: string,
+  candidateText: string,
+  baselineReport: string,
+  candidateReport: string,
+  costsText: string | null,
+): string {
+  return call(() =>
+    binding.compareEvaluations(
+      baselineText,
+      candidateText,
+      baselineReport,
+      candidateReport,
+      costsText,
+    ),
+  );
 }
 
 /**

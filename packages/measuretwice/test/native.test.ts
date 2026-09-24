@@ -19,15 +19,21 @@ import {
   nativeAssessRuleChecks,
   nativeCanonicalForm,
   nativeCheckProfileCompatibility,
+  nativeCompareEvaluations,
   nativeComputeSelfHash,
   nativeContentHash,
   nativeCreateRunState,
   nativeDatasetHash,
   nativeDecideQuestionCheck,
+  nativeExportShadowReviews,
+  nativeEvaluateDataset,
+  nativeParseIntervalRequest,
   nativeSplitHash,
+  nativeUncertaintyIntervals,
   nativeValidateCase,
   nativeValidateDefinition,
   nativeValidateProfile,
+  nativeValidateReviewLabels,
   nativeVerifySelfHash,
   runAcceptResult,
   runCancel,
@@ -1086,6 +1092,625 @@ test("run creation records one shadow baseline and refuses one enforcement basel
     );
     expect(failure.code, row.baseline).toBe(row.code);
     expect(failure.fieldPath, row.baseline).toBe(row.path);
+  }
+});
+
+test("the review export selects disagreements and one seeded sample through the boundary", () => {
+  const definitionText = fixtureText("definitions/valid/exact-rules.json");
+  const caseText = JSON.stringify({
+    id: "review-case",
+    input: { summary: "The delivery limit is 900 characters", notice: "One notice." },
+  });
+  const caseInfo = nativeValidateCase(definitionText, caseText);
+  const rules = new Map(
+    nativeAssessRuleChecks(definitionText, caseText).map((result) => [result.check, result]),
+  );
+  const meanings = JSON.stringify({ send: "pass", silent: "silent" });
+
+  /**
+   * Builds one stored report: every rule passes, or every check records one
+   * queue-full skip.
+   */
+  const reportOf = (runId: string, caseId: string, baseline: string | null, pass: boolean): string => {
+    const reference = JSON.stringify({ id: caseId, input_hash: caseInfo.inputHash });
+    const run = nativeCreateRunState(
+      definitionText,
+      reference,
+      TRACE_PROFILE,
+      runId,
+      "shadow",
+      1,
+      baseline,
+    );
+    for (const check of run.checkIds()) {
+      if (pass) {
+        runStartAttempt(run, check, reference, TRACE_PROFILE);
+        runAcceptResult(run, check, rules.get(check)?.record ?? "");
+      } else {
+        runSkipQueueFull(run, check);
+      }
+    }
+    runComplete(run, null);
+    return run.reportText() ?? "";
+  };
+
+  // The skips aggregate to review, so the stated pass baseline disagrees.
+  // One report without one baseline cannot be compared, and one agreement
+  // enters through the seeded sample.
+  const disagreeing = reportOf(
+    "run-1",
+    "review-case",
+    JSON.stringify({ outcome: "send", revision: "r1" }),
+    false,
+  );
+  const missing = reportOf("run-2", "review-missing", null, false);
+  const agreeing = reportOf(
+    "run-3",
+    "review-agreement",
+    JSON.stringify({ outcome: "send", revision: "r1" }),
+    true,
+  );
+  expect(JSON.parse(agreeing).aggregate.outcome).toBe("pass");
+
+  const exportText = nativeExportShadowReviews(
+    [disagreeing, missing, agreeing],
+    meanings,
+    "boundary-seed",
+    1,
+  );
+  const exported = JSON.parse(exportText);
+  expect(exported.schema_version).toBe(1);
+  expect(exported.sampling.algorithm).toBe("sha256_rank");
+  expect(exported.summary).toMatchObject({ reports: 3, disagreements: 1, missing_baselines: 1, agreements: 1 });
+  expect(exported.records).toHaveLength(3);
+  const reasons = exported.records.map((record: { selection_reason: string }) => record.selection_reason);
+  expect(reasons).toEqual(["disagreement", "missing_baseline", "sampled_agreement"]);
+  expect(exported.records[0].candidate.aggregate).toBe("review");
+  expect(exported.records[0].candidate.checks["summary-length"]).toBe("skipped");
+  expect(exported.records[2].case_id).toBe("review-agreement");
+
+  // The boundary refusals keep their stable codes and paths.
+  const rows: readonly { note: string; operation: () => unknown; code: string; path: string }[] = [
+    {
+      note: "one batch with no report",
+      operation: () => nativeExportShadowReviews([], meanings, "s", 1),
+      code: "insufficient_evidence",
+      path: "/reports",
+    },
+    {
+      note: "one meaning word outside the vocabulary",
+      operation: () =>
+        nativeExportShadowReviews([disagreeing], JSON.stringify({ send: "accept" }), "s", 1),
+      code: "invalid_field_type",
+      path: "/baselineMeanings/send",
+    },
+    {
+      note: "one baseline word with no stated meaning",
+      operation: () =>
+        nativeExportShadowReviews([disagreeing], JSON.stringify({ block: "fail" }), "s", 1),
+      code: "unknown_field",
+      path: "/reports/0/baseline/outcome",
+    },
+    {
+      note: "one malformed report",
+      operation: () => nativeExportShadowReviews(["{}"], meanings, "s", 1),
+      code: "missing_field",
+      path: "/reports/0/schema_version",
+    },
+    {
+      note: "one fractional sample size",
+      operation: () => nativeExportShadowReviews([disagreeing], meanings, "s", 1.5),
+      code: "invalid_field_type",
+      path: "/sample/agreements",
+    },
+    {
+      note: "one seed above the bound",
+      operation: () => nativeExportShadowReviews([disagreeing], meanings, "s".repeat(129), 1),
+      code: "invalid_field_type",
+      path: "/sample/seed",
+    },
+  ];
+  for (const row of rows) {
+    const failure = failureOf(row.operation);
+    expect(failure.code, row.note).toBe(row.code);
+    expect(failure.fieldPath, row.note).toBe(row.path);
+  }
+});
+
+test("the label validation crosses the boundary with its line paths", () => {
+  const definitionText = fixtureText("definitions/valid/categorical-question.json");
+  const questionCheck = "message-supported";
+  const good = JSON.stringify({
+    case_id: "review-case",
+    expected: { checks: { [questionCheck]: { answer: "supported" } } },
+    label: { author_type: "human", reviewed: true, reviewer: "dana" },
+  });
+  const validated = JSON.parse(
+    nativeValidateReviewLabels(definitionText, JSON.stringify(["review-case"]), `${good}\n`),
+  );
+  expect(validated.summary).toMatchObject({ lines: 1, human_reviewed: 1 });
+  expect(validated.labels[0].case_id).toBe("review-case");
+  expect(validated.limitations).toHaveLength(2);
+
+  const rows: readonly { note: string; labels: string; code: string; path: string }[] = [
+    {
+      note: "no line at all",
+      labels: "",
+      code: "insufficient_evidence",
+      path: "/labels",
+    },
+    {
+      note: "one case outside the export",
+      labels: `${JSON.stringify({
+        case_id: "unknown-case",
+        expected: { outcome: "pass" },
+        label: { author_type: "human", reviewed: false },
+      })}\n`,
+      code: "unknown_field",
+      path: "/labels/1/case_id",
+    },
+    {
+      note: "one answer outside the declared labels",
+      labels: `${JSON.stringify({
+        case_id: "review-case",
+        expected: { checks: { [questionCheck]: { answer: "unknown" } } },
+        label: { author_type: "human", reviewed: false },
+      })}\n`,
+      code: "unknown_label",
+      path: `/labels/1/expected/checks/${questionCheck}/answer`,
+    },
+  ];
+  for (const row of rows) {
+    const failure = failureOf(() =>
+      nativeValidateReviewLabels(definitionText, JSON.stringify(["review-case"]), row.labels),
+    );
+    expect(failure.code, row.note).toBe(row.code);
+    expect(failure.fieldPath, row.note).toBe(row.path);
+  }
+
+  // The exported identifiers must cross as one array of strings.
+  expect(
+    failureOf(() => nativeValidateReviewLabels(definitionText, JSON.stringify("review-case"), `${good}\n`))
+      .fieldPath,
+  ).toBe("/exported");
+});
+
+test("the dataset measurement refuses broken reports and empty evaluations", () => {
+  const definitionText = fixtureText("definitions/valid/all-input-types.json");
+  const metadataText = JSON.stringify({
+    schema_version: 1,
+    id: "boundary-cases",
+    revision: "2026-09-24.1",
+    kind: "development_fixture",
+    intended_population: "Release notes of one product area.",
+    sampling_method: "Selected from reviewed development work. No prevalence claim.",
+    label_guidelines: "See docs/labeling.md revision 3.",
+    splits: [{ id: "all", purpose: "fitting", groups: ["notes"] }],
+  });
+  const record = {
+    id: "boundary-cases-1",
+    group: "notes",
+    input: {
+      summary: "The search index now refreshes nightly.",
+      severity: 2,
+      confidence: 0.9,
+      breaking: false,
+      tickets: ["SRCH-101"],
+      metadata: { team: "search" },
+    },
+    label: { author_type: "human", reviewed: false },
+  };
+  const recordsText = JSON.stringify(record);
+
+  // One report that fails the strict JSON gate.
+  const malformed = failureOf(() =>
+    nativeEvaluateDataset(metadataText, recordsText, definitionText, ["{"]),
+  );
+  expect(malformed.code).toBe("invalid_json");
+
+  // One strict JSON document that is no run report.
+  const notReport = failureOf(() =>
+    nativeEvaluateDataset(metadataText, recordsText, definitionText, ['{"schema_version":1}']),
+  );
+  expect(notReport.code).toBe("missing_field");
+  expect(notReport.fieldPath).toBe("/run_id");
+
+  // One evaluation with no report holds no denominator.
+  const empty = failureOf(() =>
+    nativeEvaluateDataset(metadataText, recordsText, definitionText, []),
+  );
+  expect(empty.code).toBe("insufficient_evidence");
+  expect(empty.fieldPath).toBe("/cases");
+
+  // One report of one case the dataset never held.
+  const absent = failureOf(() =>
+    nativeEvaluateDataset(
+      metadataText,
+      recordsText,
+      definitionText,
+      [
+        JSON.stringify({
+          schema_version: 1,
+          run_id: "run-000001",
+          mode: "shadow",
+          definition: { name: "all-input-types", content_hash: "0a".repeat(32) },
+          profile: { id: "boundary-profile", content_hash: "0b".repeat(32) },
+          case: { id: "absent-case", input_hash: "0c".repeat(32) },
+          checks: [
+            {
+              check: "notes-complete",
+              kind: "question",
+              outcome: "pass",
+              reason: undefined,
+            },
+          ],
+          aggregate: { outcome: "pass" },
+          completion: { status: "completed" },
+        }),
+      ],
+    ),
+  );
+  expect(absent.code).toBe("unknown_field");
+  expect(absent.fieldPath).toBe("/cases/0/id");
+});
+
+test("the interval boundary computes bounds and refuses broken requests", () => {
+  const definitionText = fixtureText("definitions/valid/exact-rules.json");
+  const metadataText = JSON.stringify({
+    schema_version: 1,
+    id: "boundary-cases",
+    revision: "2026-09-24.1",
+    kind: "development_fixture",
+    intended_population: "Release notes of one product area.",
+    sampling_method: "Selected from reviewed development work. No prevalence claim.",
+    label_guidelines: "See docs/labeling.md revision 3.",
+    splits: [{ id: "all", purpose: "fitting", groups: ["thread-1", "thread-2"] }],
+  });
+  /** One labeled record of one stated group. */
+  const record = (id: string, group: string, summary: string): string =>
+    JSON.stringify({
+      id,
+      group,
+      input: { summary, notice: "One notice." },
+      label: { author_type: "human", reviewed: false },
+      expected: {
+        checks: {
+          "summary-length": { outcome: "pass" },
+          "summary-mentions-limit": { outcome: "pass" },
+          "notice-hides-secrets": { outcome: "pass" },
+        },
+        outcome: "pass",
+      },
+    });
+  // The second summary breaks the delivery limit, so its first rule fails.
+  const recordsText = [
+    record("interval-cases-1", "thread-1", "The delivery limit is 900 characters"),
+    record(
+      "interval-cases-2",
+      "thread-2",
+      "The delivery limit is 900 characters and this long summary repeats the same fact a third time to pass the limit",
+    ),
+  ].join("\n");
+
+  /** Builds one stored report of one evaluated case: every rule runs. */
+  const reportOf = (runId: string, caseId: string, summary: string): string => {
+    const caseText = JSON.stringify({ id: caseId, input: { summary, notice: "One notice." } });
+    const caseInfo = nativeValidateCase(definitionText, caseText);
+    const reference = JSON.stringify({ id: caseId, input_hash: caseInfo.inputHash });
+    const run = nativeCreateRunState(
+      definitionText,
+      reference,
+      TRACE_PROFILE,
+      runId,
+      "shadow",
+      1,
+      null,
+    );
+    const rules = new Map(
+      nativeAssessRuleChecks(definitionText, caseText).map((result) => [result.check, result]),
+    );
+    for (const check of run.checkIds()) {
+      runStartAttempt(run, check, reference, TRACE_PROFILE);
+      runAcceptResult(run, check, rules.get(check)?.record ?? "");
+    }
+    runComplete(run, null);
+    return run.reportText() ?? "";
+  };
+  const reports = [
+    reportOf("run-1", "interval-cases-1", "The delivery limit is 900 characters"),
+    reportOf(
+      "run-2",
+      "interval-cases-2",
+      "The delivery limit is 900 characters and this long summary repeats the same fact a third time to pass the limit",
+    ),
+  ];
+  const request = {
+    sampling: "independent_cases",
+    confidence_level: 0.95,
+    minimum_samples: 2,
+  };
+
+  // The request boundary parses alone, so one wrapper checks one request
+  // before it reads one dataset.
+  const parsed = JSON.parse(nativeParseIntervalRequest(JSON.stringify(request)));
+  expect(parsed).toEqual(request);
+
+  // The interval report states one row per metric of every scope.
+  const intervalReport = JSON.parse(
+    nativeUncertaintyIntervals(
+      metadataText,
+      recordsText,
+      definitionText,
+      reports,
+      JSON.stringify(request),
+    ),
+  );
+  expect(intervalReport.method).toBe("wilson_score");
+  expect(intervalReport.confidence_level).toBe(0.95);
+  expect(intervalReport.sampling).toBe("independent_cases");
+  expect(intervalReport.scopes.map((set: { scope: string }) => set.scope)).toEqual([
+    "summary-length",
+    "summary-mentions-limit",
+    "notice-hides-secrets",
+    "all_checks",
+  ]);
+  // One predicted failure among two reference pass cases, over two
+  // independent draws, against the bound of one independent implementation.
+  const first = intervalReport.scopes[0].intervals;
+  const rejection = first.find(
+    (row: { metric: string }) => row.metric === "false_rejection_rate",
+  );
+  expect(rejection).toMatchObject({
+    scope: "summary-length",
+    method: "wilson_score",
+    numerator: 1,
+    denominator: 2,
+    draws: 2,
+    event_draws: 1,
+    reason: null,
+  });
+  expect(rejection.upper).toBeCloseTo(0.9054687942657693, 12);
+  // The false acceptance rate holds no denominator at all.
+  expect(
+    first.find((row: { metric: string }) => row.metric === "false_acceptance_rate"),
+  ).toMatchObject({ denominator: 0, reason: "insufficient_evidence" });
+  // The complete check set counts the aggregates: one pass, one fail.
+  const complete = intervalReport.scopes[3].intervals;
+  expect(
+    complete.find((row: { metric: string }) => row.metric === "automatic_coverage"),
+  ).toMatchObject({ numerator: 2, denominator: 2, draws: 2, reason: null });
+
+  // One evaluation with no report holds no denominator, and one malformed
+  // report fails the strict gate before any interval computes.
+  const empty = failureOf(() =>
+    nativeUncertaintyIntervals(
+      metadataText,
+      recordsText,
+      definitionText,
+      [],
+      JSON.stringify(request),
+    ),
+  );
+  expect(empty.code).toBe("insufficient_evidence");
+  expect(empty.fieldPath).toBe("/cases");
+  const malformed = failureOf(() =>
+    nativeUncertaintyIntervals(metadataText, recordsText, definitionText, ["{"], JSON.stringify(request)),
+  );
+  expect(malformed.code).toBe("invalid_json");
+
+  // One broken request names its field, through both boundaries.
+  const rows: readonly { note: string; request: Record<string, unknown>; code: string; path: string }[] = [
+    {
+      note: "one unsupported confidence level",
+      request: { sampling: "independent_cases", confidence_level: 0.8, minimum_samples: 2 },
+      code: "invalid_field_type",
+      path: "/confidence_level",
+    },
+    {
+      note: "one unsupported sampling word",
+      request: { sampling: "cluster", confidence_level: 0.95, minimum_samples: 2 },
+      code: "unsupported_sampling",
+      path: "/sampling",
+    },
+    {
+      note: "one fractional minimum",
+      request: { sampling: "grouped_cases", confidence_level: 0.95, minimum_samples: 1.5 },
+      code: "invalid_field_type",
+      path: "/minimum_samples",
+    },
+  ];
+  for (const row of rows) {
+    const requestText = JSON.stringify(row.request);
+    const parsed1 = failureOf(() => nativeParseIntervalRequest(requestText));
+    expect(parsed1.code, row.note).toBe(row.code);
+    expect(parsed1.fieldPath, row.note).toBe(row.path);
+    const parsed2 = failureOf(() =>
+      nativeUncertaintyIntervals(
+        metadataText,
+        recordsText,
+        definitionText,
+        reports,
+        requestText,
+      ),
+    );
+    expect(parsed2.code, row.note).toBe(row.code);
+    expect(parsed2.fieldPath, row.note).toBe(row.path);
+  }
+});
+
+test("the comparison matches two stored evaluation reports through the boundary", () => {
+  /** One stored evaluation report with one check and two cases. */
+  const reportText = (
+    purpose: string,
+    outcomes: readonly [string, string],
+    usage: Record<string, number> | null,
+  ): string => {
+    const counts = { pass: 0, fail: 0, review: 0, error: 0, skipped: 0 };
+    for (const outcome of outcomes) {
+      counts[outcome as "pass" | "fail"] += 1;
+    }
+    const rates = [
+      { metric: "false_acceptance_rate", numerator: 0, denominator: 0, value: null },
+      { metric: "error_among_accepted", numerator: 0, denominator: 2, value: 0 },
+      { metric: "false_rejection_rate", numerator: 0, denominator: 0, value: null },
+      { metric: "review_rate", numerator: 0, denominator: 2, value: 0 },
+      { metric: "automatic_coverage", numerator: 2, denominator: 2, value: 1 },
+      { metric: "label_coverage", numerator: 2, denominator: 2, value: 1 },
+    ];
+    const metricSet = (scope: string) => ({ scope, counts, rates });
+    return JSON.stringify({
+      schema_version: 1,
+      definition: { name: "message-review", content_hash: "a".repeat(64) },
+      profile: { id: "message-profile", content_hash: "b".repeat(64) },
+      dataset: { id: "message-cases", revision: "2026-09-24.1", content_hash: "c".repeat(64) },
+      purpose,
+      cases: outcomes.map((outcome, index) => ({
+        id: `case-${index + 1}`,
+        input_hash: String(index + 1).repeat(64),
+        outcomes: { "message-supported": outcome },
+        aggregate: outcome,
+        completion: "completed",
+        reference_match: { "message-supported": true },
+      })),
+      metrics: [metricSet("message-supported"), metricSet("all_checks")],
+      operational: { errors: [], attempts: 2, ...(usage === null ? {} : { usage }) },
+    });
+  };
+
+  const baseline = reportText("fitting", ["pass", "fail"], { input_tokens: 10 });
+  const candidate = reportText("independent_validation", ["fail", "pass"], {
+    input_tokens: 20,
+  });
+  const comparison = JSON.parse(
+    nativeCompareEvaluations(
+      baseline,
+      candidate,
+      "reports/baseline.json",
+      "reports/candidate.json",
+      JSON.stringify({ input_tokens: 2 }),
+    ),
+  );
+  expect(comparison.schema_version).toBe(1);
+  expect(comparison.evidence_class).toBe("fitting");
+  expect(comparison.matching).toEqual({
+    matched_cases: 2,
+    changed_input_cases: [],
+    missing_in_candidate: [],
+    missing_in_baseline: [],
+    errored_cases: [],
+    skipped_cases: [],
+  });
+  expect(comparison.changed).toEqual([
+    {
+      id: "case-1",
+      checks: [{ check: "message-supported", baseline: "pass", candidate: "fail" }],
+      baseline_aggregate: "pass",
+      candidate_aggregate: "fail",
+    },
+    {
+      id: "case-2",
+      checks: [{ check: "message-supported", baseline: "fail", candidate: "pass" }],
+      baseline_aggregate: "fail",
+      candidate_aggregate: "pass",
+    },
+  ]);
+  // The cost appears only when the declared inputs price every recorded
+  // usage key, and the metric rows keep both denominators.
+  expect(comparison.tradeoffs.cost).toEqual({ baseline: 20, candidate: 40 });
+  const coverage = comparison.metrics.find(
+    (row: { scope: string; metric: string }) =>
+      row.scope === "message-supported" && row.metric === "label_coverage",
+  );
+  expect(coverage.baseline).toEqual({
+    metric: "label_coverage",
+    numerator: 2,
+    denominator: 2,
+    value: 1,
+  });
+
+  // The boundary refusals keep their stable codes and side paths.
+  const rows: readonly { note: string; operation: () => unknown; code: string; path: string }[] = [
+    {
+      note: "one malformed baseline report",
+      operation: () =>
+        nativeCompareEvaluations("{", candidate, "r/b.json", "r/c.json", null),
+      code: "invalid_json",
+      path: "/baseline",
+    },
+    {
+      note: "one candidate report without its schema version",
+      operation: () => nativeCompareEvaluations(baseline, "{}", "r/b.json", "r/c.json", null),
+      code: "missing_field",
+      path: "/candidate/schema_version",
+    },
+    {
+      note: "one stored count that disagrees with the cases",
+      operation: () => {
+        const edited = JSON.parse(baseline);
+        edited.metrics[0].counts.pass = 9;
+        return nativeCompareEvaluations(
+          JSON.stringify(edited),
+          candidate,
+          "r/b.json",
+          "r/c.json",
+          null,
+        );
+      },
+      code: "invalid_field_type",
+      path: "/baseline/metrics/0/counts",
+    },
+    {
+      note: "one report of another definition",
+      operation: () => {
+        const foreign = JSON.parse(candidate);
+        foreign.definition.content_hash = "d".repeat(64);
+        return nativeCompareEvaluations(
+          baseline,
+          JSON.stringify(foreign),
+          "r/b.json",
+          "r/c.json",
+          null,
+        );
+      },
+      code: "definition_mismatch",
+      path: "/candidate/definition/content_hash",
+    },
+    {
+      note: "no case matches",
+      operation: () => {
+        const disjoint = JSON.parse(candidate);
+        for (const [index, one] of disjoint.cases.entries()) {
+          one.input_hash = (index + 7).toString().repeat(64);
+        }
+        return nativeCompareEvaluations(
+          baseline,
+          JSON.stringify(disjoint),
+          "r/b.json",
+          "r/c.json",
+          null,
+        );
+      },
+      code: "insufficient_evidence",
+      path: "/matching",
+    },
+    {
+      note: "one empty stored-report reference",
+      operation: () => nativeCompareEvaluations(baseline, candidate, "", "r/c.json", null),
+      code: "invalid_field_type",
+      path: "/baselineReport",
+    },
+    {
+      note: "one negative cost",
+      operation: () =>
+        nativeCompareEvaluations(baseline, candidate, "r/b.json", "r/c.json", JSON.stringify({ input_tokens: -1 })),
+      code: "invalid_field_type",
+      path: "/costs/input_tokens",
+    },
+  ];
+  for (const row of rows) {
+    const failure = failureOf(row.operation);
+    expect(failure.code, row.note).toBe(row.code);
+    expect(failure.fieldPath, row.note).toBe(row.path);
   }
 });
 

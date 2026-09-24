@@ -614,6 +614,8 @@ test("the package entry point exposes the authoring and run API without native t
     "JEV_STATE_BUDGET_BYTES",
     "JEV_TRANSLATION_VERSION",
     "ValidationError",
+    "classifyValidationEvidence",
+    "compare",
     "contractVersion",
     "createExplorationProfile",
     "createJevEvaluator",
@@ -621,6 +623,9 @@ test("the package entry point exposes the authoring and run API without native t
     "createScriptedEvaluator",
     "decideLabelOnly",
     "defineChecks",
+    "detectSplitOverlap",
+    "evaluate",
+    "exportShadowReviews",
     "jevEvidenceState",
     "labelRuleChecks",
     "load",
@@ -632,7 +637,9 @@ test("the package entry point exposes the authoring and run API without native t
     "renderProfileSummaryMarkdown",
     "renderRunReport",
     "renderRunReportMarkdown",
+    "requireSeparatedSplits",
     "translateJevQuestion",
+    "validateReviewLabels",
   ]);
   expect(publicApi.contractVersion()).toBe(1);
 });
