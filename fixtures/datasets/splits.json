@@ -1,0 +1,591 @@
+{
+  "schema_version": 1,
+  "description": "Grouped splits and dataset identities of task T041. Every valid row states the identity, the group assignments, and the split identities that the Rust core computes, with the content hashes of the dataset domain and the split domain. Every invalid row states the reason code and the field path of its rejection. The evidence rows state the validation evidence classification, and the overlap rows state the fitting and validation overlap, under the declared grouping strategy.",
+  "definition": "categorical-question.json",
+  "metadata": {
+    "schema_version": 1,
+    "id": "split-cases",
+    "name": "Grouped split cases",
+    "revision": "2026-09-24.1",
+    "kind": "representative_sample",
+    "intended_population": "Proposed messages in support conversations.",
+    "sampling_method": "Sampled at random from reviewed traffic of one week.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "fit",
+        "purpose": "fitting",
+        "groups": [
+          "dates"
+        ]
+      },
+      {
+        "id": "holdout",
+        "purpose": "validation",
+        "groups": [
+          "limits"
+        ]
+      }
+    ]
+  },
+  "valid": [
+    {
+      "note": "Two groups of two records. The fitting split holds the group dates, the validation split holds the group limits, and one group appears in one split only.",
+      "records": "{\"id\":\"split-cases-101\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"split-cases-102\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-103\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 3.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-104\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 4.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "expected": {
+        "population": "representative_sample",
+        "supports_qualification": true,
+        "states_prevalence": true,
+        "record_count": 4,
+        "content_hash": "af89fe8cbd24bf2fceaac5f66b7d24ece8606f03f51e3a3e18ca14d91cbb2c08",
+        "group_assignments": [
+          {
+            "group": "dates",
+            "split_id": "fit",
+            "record_count": 2
+          },
+          {
+            "group": "limits",
+            "split_id": "holdout",
+            "record_count": 2
+          }
+        ],
+        "unassigned_groups": [],
+        "splits": [
+          {
+            "split": "fit",
+            "purpose": "fitting",
+            "record_count": 2,
+            "case_ids": [
+              "split-cases-101",
+              "split-cases-102"
+            ],
+            "content_hash": "5d37842f1087557db2b3a8e00a119f67afff4e9939a17e1f8fdd78c249baf38c"
+          },
+          {
+            "split": "holdout",
+            "purpose": "validation",
+            "record_count": 2,
+            "case_ids": [
+              "split-cases-103",
+              "split-cases-104"
+            ],
+            "content_hash": "87631ffee89de9ef9ae559fe879e0d9fba4a8d4861b69ce82370988ed320302f"
+          }
+        ]
+      }
+    },
+    {
+      "note": "One record without a group forms its own group that no split declares, and the declared group limits holds no record.",
+      "records": "{\"id\":\"split-cases-101\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-201\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 9.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}",
+      "expected": {
+        "population": "representative_sample",
+        "supports_qualification": true,
+        "states_prevalence": true,
+        "record_count": 2,
+        "content_hash": "273753080488a97c80f508696f360b62365c3ce18ebb4bb1f153dc97c004dcc1",
+        "group_assignments": [
+          {
+            "group": "dates",
+            "split_id": "fit",
+            "record_count": 0
+          },
+          {
+            "group": "limits",
+            "split_id": "holdout",
+            "record_count": 0
+          }
+        ],
+        "unassigned_groups": [
+          {
+            "group": "split-cases-101",
+            "record_count": 1,
+            "first_line": 1
+          },
+          {
+            "group": "split-cases-201",
+            "record_count": 1,
+            "first_line": 2
+          }
+        ],
+        "splits": [
+          {
+            "split": "fit",
+            "purpose": "fitting",
+            "record_count": 0,
+            "case_ids": [],
+            "content_hash": "05ac6479883a9a520928b5874b8ef6fe8c3f4b2dba30f76148b3843fe3a4d5c4"
+          },
+          {
+            "split": "holdout",
+            "purpose": "validation",
+            "record_count": 0,
+            "case_ids": [],
+            "content_hash": "05ac6479883a9a520928b5874b8ef6fe8c3f4b2dba30f76148b3843fe3a4d5c4"
+          }
+        ]
+      }
+    },
+    {
+      "note": "The same records in another file order. The dataset hash and both split hashes stay, because the hashes order records by case identifier.",
+      "records": "{\"id\":\"split-cases-104\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 4.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"split-cases-102\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-103\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 3.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-101\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "expected": {
+        "population": "representative_sample",
+        "supports_qualification": true,
+        "states_prevalence": true,
+        "record_count": 4,
+        "content_hash": "af89fe8cbd24bf2fceaac5f66b7d24ece8606f03f51e3a3e18ca14d91cbb2c08",
+        "group_assignments": [
+          {
+            "group": "dates",
+            "split_id": "fit",
+            "record_count": 2
+          },
+          {
+            "group": "limits",
+            "split_id": "holdout",
+            "record_count": 2
+          }
+        ],
+        "unassigned_groups": [],
+        "splits": [
+          {
+            "split": "fit",
+            "content_hash": "5d37842f1087557db2b3a8e00a119f67afff4e9939a17e1f8fdd78c249baf38c"
+          },
+          {
+            "split": "holdout",
+            "content_hash": "87631ffee89de9ef9ae559fe879e0d9fba4a8d4861b69ce82370988ed320302f"
+          }
+        ]
+      }
+    },
+    {
+      "note": "One changed input in the validation group. The dataset hash and the validation hash change, and the fitting hash stays.",
+      "records": "{\"id\":\"split-cases-101\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"split-cases-102\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-103\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Wednesday. Note 3.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-104\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 4.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "expected": {
+        "population": "representative_sample",
+        "supports_qualification": true,
+        "states_prevalence": true,
+        "record_count": 4,
+        "content_hash": "8150e64c8d933475c03a8e31f892db848e1ba90551762163f738e6cd20e5c61e",
+        "group_assignments": [
+          {
+            "group": "dates",
+            "split_id": "fit",
+            "record_count": 2
+          },
+          {
+            "group": "limits",
+            "split_id": "holdout",
+            "record_count": 2
+          }
+        ],
+        "unassigned_groups": [],
+        "splits": [
+          {
+            "split": "fit",
+            "purpose": "fitting",
+            "record_count": 2,
+            "case_ids": [
+              "split-cases-101",
+              "split-cases-102"
+            ],
+            "content_hash": "5d37842f1087557db2b3a8e00a119f67afff4e9939a17e1f8fdd78c249baf38c"
+          },
+          {
+            "split": "holdout",
+            "purpose": "validation",
+            "record_count": 2,
+            "case_ids": [
+              "split-cases-103",
+              "split-cases-104"
+            ],
+            "content_hash": "e9347b0599576dfef3a75c456282fe3a36d377972e448ef0bedc9638023627e8"
+          }
+        ],
+        "fitting_hash_unchanged": true
+      }
+    },
+    {
+      "note": "One second dataset of another revision whose validation split declares the group dates of the first dataset.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "split-cases-b",
+        "name": "Grouped split cases",
+        "revision": "2026-09-24.2",
+        "kind": "representative_sample",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Sampled at random from reviewed traffic of one week.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "notices"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "dates"
+            ]
+          }
+        ]
+      },
+      "records": "{\"id\":\"split-cases-301\",\"group\":\"notices\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 5.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-302\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 6.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}",
+      "expected": {
+        "population": "representative_sample",
+        "supports_qualification": true,
+        "states_prevalence": true,
+        "record_count": 2,
+        "content_hash": "34baf481f5903139d201a02ddf3399d5df6bb975b415e2327213e8b38a27c7c8",
+        "group_assignments": [
+          {
+            "group": "dates",
+            "split_id": "holdout",
+            "record_count": 1
+          },
+          {
+            "group": "notices",
+            "split_id": "fit",
+            "record_count": 1
+          }
+        ],
+        "unassigned_groups": [],
+        "splits": [
+          {
+            "split": "fit",
+            "purpose": "fitting",
+            "record_count": 1,
+            "case_ids": [
+              "split-cases-301"
+            ],
+            "content_hash": "78c3d13b6f15ad9c39bd511c923287f3906149def4990f6c8d3c79afaf010e9d"
+          },
+          {
+            "split": "holdout",
+            "purpose": "validation",
+            "record_count": 1,
+            "case_ids": [
+              "split-cases-302"
+            ],
+            "content_hash": "e8a8b8e82004638db0858d3d6ce797a9c28327e57abcf9583708349b7a14f2d0"
+          }
+        ]
+      }
+    },
+    {
+      "note": "One third dataset that holds one case identifier of the first dataset under its validation group.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "split-cases-c",
+        "name": "Grouped split cases",
+        "revision": "2026-09-24.3",
+        "kind": "representative_sample",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Sampled at random from reviewed traffic of one week.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "records": "{\"id\":\"split-cases-102\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-401\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 7.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}",
+      "expected": {
+        "population": "representative_sample",
+        "supports_qualification": true,
+        "states_prevalence": true,
+        "record_count": 2,
+        "content_hash": "dd98bddc991056038dd543334031283819db39e51b786e510cfae54f37139541",
+        "group_assignments": [
+          {
+            "group": "limits",
+            "split_id": "holdout",
+            "record_count": 2
+          }
+        ],
+        "unassigned_groups": [],
+        "splits": [
+          {
+            "split": "holdout",
+            "purpose": "validation",
+            "record_count": 2,
+            "case_ids": [
+              "split-cases-102",
+              "split-cases-401"
+            ],
+            "content_hash": "904a710348669a5de2d532311e76ce899c62b6603a7e5e8c4b9f83db9abae18b"
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "note": "One group that two splits declare. Related conversations must stay inside one split.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "split-cases",
+        "name": "Grouped split cases",
+        "revision": "2026-09-24.1",
+        "kind": "representative_sample",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Sampled at random from reviewed traffic of one week.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates",
+              "limits"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "records": "{\"id\":\"split-cases-101\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"split-cases-102\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-103\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 3.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-104\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 4.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/splits/1/groups/0"
+      }
+    },
+    {
+      "note": "One stored dataset hash that differs from the computed digest of the records. The revision no longer covers the records.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "split-cases",
+        "name": "Grouped split cases",
+        "revision": "2026-09-24.1",
+        "kind": "representative_sample",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Sampled at random from reviewed traffic of one week.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ]
+          }
+        ],
+        "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "records": "{\"id\":\"split-cases-101\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"split-cases-102\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-103\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 3.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-104\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 4.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "expected": {
+        "reason_code": "hash_mismatch",
+        "field_path": "/content_hash"
+      }
+    },
+    {
+      "note": "One stored split hash that differs from the computed digest of its records.",
+      "metadata": {
+        "schema_version": 1,
+        "id": "split-cases",
+        "name": "Grouped split cases",
+        "revision": "2026-09-24.1",
+        "kind": "representative_sample",
+        "intended_population": "Proposed messages in support conversations.",
+        "sampling_method": "Sampled at random from reviewed traffic of one week.",
+        "label_guidelines": "See docs/labeling.md revision 3.",
+        "languages": [
+          "en"
+        ],
+        "splits": [
+          {
+            "id": "fit",
+            "purpose": "fitting",
+            "groups": [
+              "dates"
+            ]
+          },
+          {
+            "id": "holdout",
+            "purpose": "validation",
+            "groups": [
+              "limits"
+            ],
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "records": "{\"id\":\"split-cases-101\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 1.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"split-cases-102\",\"group\":\"dates\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 2.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-103\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 3.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false}}\n{\"id\":\"split-cases-104\",\"group\":\"limits\",\"input\":{\"prior_decision\":\"Ship on Friday.\",\"conversation\":\"We agreed to ship on Thursday. Note 4.\",\"proposed_message\":\"We now ship on Thursday.\"},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":true,\"reviewer\":\"Reviewer One\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\",\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "expected": {
+        "reason_code": "hash_mismatch",
+        "field_path": "/splits/1/content_hash"
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "note": "One fresh validation split of one representative sample is independent validation evidence.",
+      "dataset": 0,
+      "split": "holdout",
+      "used": [],
+      "expected": {
+        "class": "independent_validation",
+        "representative_sample": true,
+        "needs_fresh_evidence": false,
+        "reused_from": []
+      }
+    },
+    {
+      "note": "The same holdout that one earlier claim consumed is development data, and one new claim needs fresh validation evidence.",
+      "dataset": 0,
+      "split": "holdout",
+      "used": [
+        {
+          "from": "base",
+          "split": "holdout"
+        }
+      ],
+      "expected": {
+        "class": "development",
+        "representative_sample": true,
+        "needs_fresh_evidence": true,
+        "reused_from": [
+          "split-cases revision 2026-09-24.1 split holdout"
+        ]
+      }
+    },
+    {
+      "note": "One renamed split of one other dataset that holds the same records is the same holdout: the content hash decides, not the names.",
+      "dataset": 0,
+      "split": "holdout",
+      "used": [
+        {
+          "from": "base",
+          "split": "holdout",
+          "rename": {
+            "dataset": "other-cases",
+            "revision": "2026-09-25.1",
+            "split": "holdout-2"
+          }
+        }
+      ],
+      "expected": {
+        "class": "development",
+        "needs_fresh_evidence": true,
+        "reused_from": [
+          "other-cases revision 2026-09-25.1 split holdout-2"
+        ]
+      }
+    },
+    {
+      "note": "One targeted synthetic challenge set supports no qualification claim and states no prevalence, whatever its size.",
+      "dataset": 0,
+      "split": "holdout",
+      "population": "targeted_challenge_set",
+      "used": [],
+      "expected": {
+        "class": "development",
+        "representative_sample": false,
+        "needs_fresh_evidence": true
+      }
+    },
+    {
+      "note": "One split without records carries no evidence.",
+      "dataset": 1,
+      "split": "holdout",
+      "used": [],
+      "expected": {
+        "class": "development",
+        "needs_fresh_evidence": true
+      }
+    }
+  ],
+  "overlap": [
+    {
+      "note": "The two splits of one dataset share no group and no case.",
+      "fitting": {
+        "dataset": 0,
+        "split": "fit"
+      },
+      "validation": {
+        "dataset": 0,
+        "split": "holdout"
+      },
+      "expected": {
+        "same_dataset": true,
+        "shared_groups": [],
+        "shared_cases": [],
+        "separated": true
+      }
+    },
+    {
+      "note": "One group name that two datasets declare is overlap of the declared grouping strategy.",
+      "fitting": {
+        "dataset": 0,
+        "split": "fit"
+      },
+      "validation": {
+        "dataset": 4,
+        "split": "holdout"
+      },
+      "expected": {
+        "same_dataset": false,
+        "shared_groups": [
+          "dates"
+        ],
+        "shared_cases": [],
+        "separated": false
+      }
+    },
+    {
+      "note": "One case identifier that two datasets hold is one duplicated case that supplied fitting and validation evidence.",
+      "fitting": {
+        "dataset": 0,
+        "split": "fit"
+      },
+      "validation": {
+        "dataset": 5,
+        "split": "holdout"
+      },
+      "expected": {
+        "same_dataset": false,
+        "shared_groups": [],
+        "shared_cases": [
+          "split-cases-102"
+        ],
+        "separated": false
+      }
+    }
+  ]
+}

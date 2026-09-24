@@ -30,30 +30,46 @@ pub mod artifact;
 pub mod assessment;
 /// The run-case envelope, input validation, and authorized input projection.
 pub mod case;
+/// The comparison of two evaluation reports on matching cases.
+pub mod comparison;
 /// Versioned JSONL case datasets and their metadata.
 pub mod dataset;
 /// The portable check definition contract.
 pub mod definition;
 /// Stable typed validation errors.
 pub mod error;
+/// The bounded fitting search of one calibration plan.
+pub mod fitting;
 /// Canonical content hashes for every portable artifact.
 pub mod hashing;
 /// The supported input schema subset of a definition.
 pub mod input_schema;
+/// Uncertainty intervals with their method, assumptions, and evidence.
+pub mod intervals;
 /// The strict JSON gate for external artifact text.
 pub mod json;
+/// Evaluation metrics with explicit counts and denominators.
+pub mod metrics;
+/// The versioned calibration plan contract.
+pub mod plan;
 /// The `probability_mass_v0` decision policy family for question checks.
 pub mod policy;
 /// Profile validation and evaluator compatibility.
 pub mod profile;
+/// The frozen validation of one selected candidate on independent data.
+pub mod qualification;
 /// Component outcomes, the aggregate, completion, and the immutable run
 /// report record.
 pub mod report;
+/// The shadow review export and the validation of returned human labels.
+pub mod review;
 /// The exact string rules: maxLength, includes, and excludes.
 pub mod rule;
 /// Deterministic run state transitions, checked against the TLA+ execution
 /// model.
 pub mod run_state;
+/// Grouped splits and dataset identities.
+pub mod splits;
 /// Deterministic test utilities. See the module documentation for the rules.
 pub mod testing;
 

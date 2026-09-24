@@ -1798,7 +1798,7 @@ fn check_usage(map: &Map<String, Value>, base: &str) -> Result<(), ValidationErr
 }
 
 /// Parses one sanitized reason at `base`.
-fn parse_reason(value: &Value, base: &str) -> Result<SanitizedReason, ValidationError> {
+pub(crate) fn parse_reason(value: &Value, base: &str) -> Result<SanitizedReason, ValidationError> {
     let map = expect_object(value, base)?;
     reject_unknown_fields(map, REASON_FIELDS, base)?;
     let code = match map.get("code") {
@@ -1838,7 +1838,11 @@ fn parse_reason(value: &Value, base: &str) -> Result<SanitizedReason, Validation
 }
 
 /// Parses one artifact reference at `base`.
-fn parse_artifact_reference(
+///
+/// The comparison boundary reads the definition identity of one stored
+/// evaluation report through this parser, so one reference that crosses a
+/// language boundary meets the same rules as one stored inside a report.
+pub(crate) fn parse_artifact_reference(
     value: Option<&Value>,
     base: &str,
 ) -> Result<ArtifactReference, ValidationError> {
@@ -2028,7 +2032,7 @@ fn parse_totals(value: &Value, base: &str) -> Result<Totals, ValidationError> {
 }
 
 /// Reads one required contract word through its parser.
-fn parse_word<T>(
+pub(crate) fn parse_word<T>(
     value: Option<&Value>,
     path: &str,
     words: fn(&str) -> Option<T>,

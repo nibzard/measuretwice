@@ -46,6 +46,7 @@ use crate::error::{fragment, ReasonCode, ValidationError};
 use crate::hashing::{self, Domain};
 use crate::policy;
 use crate::report::{AppliedPolicy, RunMode};
+use serde::Serialize;
 use serde_json::{Map, Value};
 
 /// Fields of one profile artifact, from the schema file.
@@ -149,7 +150,12 @@ impl ProfileOrigin {
 }
 
 /// The qualification status of one profile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// The words are the four contract statuses. The frozen validation of
+/// [`crate::qualification`] returns the same value, so one candidate result
+/// and the profile it becomes state one status through one type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Qualification {
     /// Starter thresholds without qualification evidence.
     Unvalidated,

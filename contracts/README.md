@@ -112,6 +112,13 @@ holds exactly one case record. An empty line is invalid.
 - The metadata file declares population, sampling method, revision, label
   guidelines, and splits. A synthetic challenge set is not a representative
   sample. Dataset kind states which one it is.
+- The loader computes the dataset identity and the split identities:
+  revision, kind, population statement, sampling provenance, record counts,
+  content hashes, group assignments, and the case identifiers of each split.
+  One stored dataset or split hash that differs from the computed digest of
+  the loaded records fails with `hash_mismatch`. One reused validation
+  split is development data, so one new qualification claim needs fresh
+  validation evidence.
 - The loader rejects malformed lines with the line number and a field path.
   It reports limits for record size, dataset size, and retained results.
 - The published dataset limits: one record line holds at most 8,388,608
@@ -151,18 +158,103 @@ permitted candidate grid and the fitting and validation splits.
 
 Rust enforces these cross-field invariants beyond the schema file:
 
-1. Both cutoff families in `candidate_grid` exceed 0.5 for every value. This
-   prevents simultaneous acceptance and rejection.
+1. Both cutoff families in `candidate_grid` exceed 0.5 for every value and
+   stay at or below 1. This prevents simultaneous acceptance and rejection.
 2. The fitting and validation selections use different splits of the declared
-   datasets. The splits do not share a group.
-3. Every constraint names a metric with an explicit denominator.
+   datasets. The splits do not share a group. The core checks each selection
+   against the loaded split identity: the dataset, the revision, the split,
+   the declared purpose of the role, and one stored split hash. One shared
+   group or one shared case fails the validation selection.
+3. Every constraint names a metric with an explicit denominator. The metric
+   word comes from the published set, so it carries its denominator. One plan
+   that constrains one error metric states the minimum sample count of that
+   denominator, because one small denominator bounds no goal.
 4. False acceptance rate and error among accepted cases are different metrics.
-   The plan must state which one it constrains.
-5. The referenced evaluator is registered and its configuration is complete.
+   The plan must state which one it constrains. One metric appears in one
+   constraint alone, so no goal stays ambiguous.
+5. The referenced evaluator is registered and its configuration is complete:
+   one evaluator identifier and one adapter version. One loaded file installs
+   no evaluator.
+6. The minimum sample counts key by denominator name. The published names are
+   `accepted_cases`, `evaluated_cases`, `labeled_cases`,
+   `reference_fail_or_review_cases`, and `reference_pass_cases`. One count
+   outside the set states one requirement that no evaluation reads.
+7. The objective pairs with its improving direction: one plan minimizes the
+   review rate or maximizes the automatic coverage. The opposite direction
+   works against the owner goal.
+8. One `at_least` limit takes the `observed_value` basis alone, because the
+   upper bound of one rate cannot establish one minimum.
 
 Candidate enumeration follows the declared array order. The accept dimension is
-the outer loop. The first candidate that meets all constraints and optimizes the
-objective wins a tie. No feasible candidate is a valid result.
+the outer loop, the rejection dimension is the inner loop, and the confidence
+floor is the innermost dimension with no floor first. The first candidate that
+meets all constraints and optimizes the objective wins a tie. No feasible
+candidate is a valid result.
+
+An exact-only definition takes no plan: exact rules have no measured error
+source, so no cutoff family fits. One plan binds one definition by name and
+content hash, and one changed definition fails the pairing before any data is
+read. One stored plan `content_hash` equals the computed self-hash of the plan
+domain; one plan without a stored digest still states its computed identity,
+which the calibration output records.
+
+## Uncertainty intervals
+
+One observed rate states one number over one denominator. The Rust core also
+states what that number still allows, with one named method, one confidence
+level, one sampling model, and one evidence requirement. The method is the
+Wilson score interval of one binomial proportion, named `wilson_score` in the
+interval blocks of profiles.
+
+With `p = numerator / denominator`, `z` the two-sided standard normal quantile
+of the level, and `f = z² / denominator`:
+
+```text
+center = (p + f / 2) / (1 + f)
+half   = z / (1 + f) * sqrt(p * (1 - p) / denominator + f / (4 * denominator))
+lower  = clamp(center - half), upper = clamp(center + half)
+```
+
+The bounds clamp to `[0, 1]`, so one observed zero states the lower bound zero
+and one observed all states the upper bound one. Zero observed errors is not
+proof of zero risk: the upper bound stays above zero at every denominator.
+
+- Confidence levels are 0.9, 0.95, and 0.99 alone, with the quantiles
+  1.6448536269514726, 1.9599639845400543, and 2.575829303548901. Every other
+  number rejects with `invalid_field_type` at `/confidence_level`.
+- The sampling model states what counts as one draw. `independent_cases`
+  declares that every case of the denominator is one independent draw. The
+  dataset groups contradict that declaration when one group holds two cases of
+  the same denominator, and the row states `unsupported_sampling` instead of
+  one bound computed from an assumption the data breaks. `grouped_cases` makes
+  the group the draw: the interval bounds the share of groups that hold at
+  least one counted event, and the row keeps the case counts beside it. One
+  sampling word outside the two models rejects with `unsupported_sampling` at
+  `/sampling`.
+- Evidence comes before arithmetic. One metric without one denominator, and one
+  denominator below the declared minimum of draws, states
+  `insufficient_evidence` with its counts, because a small sample states no
+  bound worth citing.
+- One numerator above its own denominator rejects with `invalid_field_type` at
+  `/numerator`, and one count must be one whole number inside the dataset
+  record limit, the largest denominator one evaluation may hold. One interval
+  request holds exactly `sampling`, `confidence_level`, and `minimum_samples`.
+- Every row states the metric, the numerator and the denominator of its rate,
+  the draws and the event draws behind the interval, the method, the confidence
+  level, the sampling model, and either the bounds or the reason no bound
+  computes. The fields `scope`, `metric`, `method`, `confidence_level`,
+  `lower`, and `upper` are the fields of the interval block of the profile
+  contract. Qualification compares the `upper` bound with the declared limit
+  under the `upper_confidence_bound` basis, not the observed rate alone, and a
+  missing bound satisfies no constraint.
+- One evaluation report that carries intervals cites the complete method
+  statement in its `method` field, and one profile records it in
+  `statistical_method`.
+
+The bounds are validated against the independent reference fixtures of
+[fixtures/metrics/intervals.json](../fixtures/metrics/intervals.json), which an
+implementation of the documented formula outside the Rust core computed,
+including the zero counts, the small denominators, and the observed-all counts.
 
 ## Profiles and qualification
 
@@ -244,6 +336,34 @@ denominators, per-slice results, and operational failures over all attempts.
   coverage is reported.
 - A zero denominator gives no value. The rate value is null.
 - Errors and skips stay visible in every metric set.
+- The reference of one case is the stated expected outcome, or the outcome
+  that the acceptance meaning of its answer, level, or review marker
+  implies. The overall reference is the stated overall outcome, or the
+  aggregate of its check references: any fail, then any review, then pass.
+- The metric names of `common.schema.json` carry these numerators and
+  denominators:
+  - `false_acceptance_rate`: predicted passes among reference fail and
+    reference review cases, over every labeled case whose reference states
+    fail or review.
+  - `error_among_accepted`: reference fail and reference review cases among
+    predicted passes, over the labeled predicted passes. The numerator is
+    the one of the false acceptance rate. The denominators differ.
+  - `false_rejection_rate`: predicted failures among reference pass cases,
+    over every labeled case whose reference states pass.
+  - `review_rate`: predicted review and predicted skipped cases, over all
+    evaluated cases. One skip needs one human decision the same way one
+    review outcome does.
+  - `automatic_coverage`: predicted passes and predicted failures, over all
+    evaluated cases.
+  - `label_coverage`: evaluated cases with a reference outcome, over all
+    evaluated cases of the scope.
+- One case that errored or was skipped stays in the denominator of every
+  rate whose population holds it, so an operational failure never improves
+  a rate.
+- Every metric set of one evaluation covers the same cases. The complete
+  check set is one measurement, and multiple apparently good checks do not
+  establish aggregate reliability. No metric set states independence
+  between checks.
 - An evaluation never changes a qualification status or a host profile
   selection.
 
@@ -460,6 +580,44 @@ Related contracts published after this freeze:
   `check_outcome_conflict` and `overall_outcome_conflict`, and states that
   the loader reports the provenance counts that keep human judgments apart
   from model proposals.
+- The grouped splits and dataset identities of task T041, published on 24
+  September 2026. States that the metadata parser rejects one group that
+  two splits declare with `duplicate_id`, that one stored dataset or split
+  `content_hash` that differs from the computed digest of the loaded
+  records fails with `hash_mismatch`, that the loader reports the group
+  assignments and the groups that no split covers, and that the split
+  identity boundary names the population statement, the split hashes, and
+  the case identifiers of each split. Records the evidence classes of one
+  validation split: one reused holdout is development data, and one new
+  qualification claim needs fresh validation evidence. Adds no reason code.
+- The metric definitions of task T042, published on 24 September 2026.
+  Records the numerator and the denominator of every metric name of
+  `common.schema.json`, the resolution of one reference outcome from the
+  stated expected outcome or the acceptance meaning of its answer, level,
+  or review marker, the aggregate of the overall reference, the rule that
+  one error or one skip stays in the denominator of every rate whose
+  population holds it, and the standing statement that no metric set of one
+  evaluation states independence between checks. Adds no reason code and no
+  schema field. The machine-checkable companion is
+  [metrics/evaluation.json](../fixtures/metrics/evaluation.json).
+- The shadow review export of task T045, published on 24 September 2026.
+  Records that the export of stored shadow reports for human review states
+  one meaning for every word of the host decision vocabulary (`pass`,
+  `fail`, `review`, or `silent`, where `silent` names one absent decision),
+  always exports every disagreement, every report without one baseline,
+  and every report whose candidate aggregate outcome is an error, and
+  selects the agreements through one reproducible seeded SHA-256 rank; that
+  every review record states the case identifier, the input hash, the run
+  identifier, the host snapshot reference when one exists, the recorded
+  baseline with its meaning, the candidate outcomes, and its selection
+  reason; that the export holds no raw case content and retains the seed,
+  the algorithm, the sizes, the inclusion rules, and the stated meanings;
+  that one baseline word with no stated meaning fails with `unknown_field`
+  instead of one silent drop; and that returned human labels follow the
+  case-record reference and provenance rules without reading one baseline,
+  because baseline agreement is not correctness. Adds no reason code and no
+  schema field: the review export is derived data of the run reports, and
+  the shared core owns its shape.
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.

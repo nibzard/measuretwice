@@ -1,0 +1,2703 @@
+{
+  "schema_version": 1,
+  "description": "Evaluation metrics of task T042. Every valid row states one dataset, the evaluated outcomes, and the metric sets the Rust core computes: predicted outcome counts, the confusion matrix over the reference categories, and the six contract rates with their numerators, denominators, and values. A null value states one zero denominator. Every invalid row states the reason code and the field path of its rejection.",
+  "definition": "all-input-types.json",
+  "metadata": {
+    "schema_version": 1,
+    "id": "metric-cases",
+    "name": "Evaluation metric cases",
+    "revision": "2026-09-24.1",
+    "kind": "development_fixture",
+    "intended_population": "Release notes of one product area. No prevalence claim.",
+    "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "all",
+        "purpose": "fitting",
+        "groups": [
+          "notes"
+        ]
+      }
+    ]
+  },
+  "valid": [
+    {
+      "note": "One pair for every reference category and every predicted outcome that the contracts state, with slices over the record tags. The false acceptance rate and the error among accepted cases share their numerator and state different denominators.",
+      "records": "{\"id\":\"metric-cases-101\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"metric-cases-102\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}}}}\n{\"id\":\"metric-cases-103\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"],\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}}}}\n{\"id\":\"metric-cases-104\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"],\"expected\":{\"checks\":{\"notes-complete\":{\"review\":true},\"summary-free-of-todos\":{\"outcome\":\"pass\"}}}}\n{\"id\":\"metric-cases-105\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"],\"expected\":{\"checks\":{\"notes-complete\":{\"review\":true},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"review\"}}\n{\"id\":\"metric-cases-106\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}}}}\n{\"id\":\"metric-cases-107\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"metric-cases-108\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-101",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 2,
+          "elapsed_ms": 1500,
+          "usage": {
+            "input_tokens": 120,
+            "output_tokens": 30
+          }
+        },
+        {
+          "id": "metric-cases-102",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 750,
+          "usage": {
+            "input_tokens": 120
+          }
+        },
+        {
+          "id": "metric-cases-103",
+          "checks": {
+            "notes-complete": "error",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "error",
+          "completion": "completed",
+          "attempts": 3,
+          "usage": {
+            "input_tokens": 90
+          }
+        },
+        {
+          "id": "metric-cases-104",
+          "checks": {
+            "notes-complete": "review",
+            "summary-free-of-todos": "review"
+          },
+          "aggregate": "review",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 300
+        },
+        {
+          "id": "metric-cases-105",
+          "checks": {
+            "notes-complete": "skipped",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "review",
+          "completion": "deadline_exceeded",
+          "attempts": 0
+        },
+        {
+          "id": "metric-cases-106",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 620,
+          "usage": {
+            "input_tokens": 120
+          }
+        },
+        {
+          "id": "metric-cases-107",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 480,
+          "usage": {
+            "input_tokens": 120
+          }
+        },
+        {
+          "id": "metric-cases-108",
+          "checks": {
+            "notes-complete": "review",
+            "summary-free-of-todos": "error"
+          },
+          "aggregate": "error",
+          "completion": "completed",
+          "attempts": 2,
+          "elapsed_ms": 100,
+          "usage": {
+            "input_tokens": 50
+          }
+        }
+      ],
+      "expected": {
+        "case_count": 8,
+        "unevaluated_records": 0,
+        "attempts": 11,
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "counts": {
+              "pass": 2,
+              "fail": 2,
+              "review": 2,
+              "error": 1,
+              "skipped": 1
+            },
+            "confusion": {
+              "pass": {
+                "pass": 1,
+                "fail": 1,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 1,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 1,
+                "error": 0,
+                "skipped": 1
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 5,
+                "value": 0.2
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 3,
+                "denominator": 8,
+                "value": 0.375
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 8,
+                "value": 0.5
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 7,
+                "denominator": 8,
+                "value": 0.875
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "counts": {
+              "pass": 6,
+              "fail": 0,
+              "review": 1,
+              "error": 1,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 6,
+                "fail": 0,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 6,
+                "value": 0.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 7,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 8,
+                "value": 0.125
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 6,
+                "denominator": 8,
+                "value": 0.75
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 7,
+                "denominator": 8,
+                "value": 0.875
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "pass": 2,
+              "fail": 2,
+              "review": 2,
+              "error": 2,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 1,
+                "fail": 1,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 1,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 2,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 5,
+                "value": 0.2
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 2,
+                "denominator": 8,
+                "value": 0.25
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 8,
+                "value": 0.5
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 7,
+                "denominator": 8,
+                "value": 0.875
+              }
+            ]
+          }
+        ],
+        "latency_cases": 6,
+        "elapsed_ms": 3750.0,
+        "usage": {
+          "input_tokens": 620.0,
+          "output_tokens": 30.0
+        },
+        "slices": [
+          {
+            "tag": "dates",
+            "metrics": [
+              {
+                "scope": "notes-complete",
+                "counts": {
+                  "pass": 2,
+                  "fail": 2,
+                  "review": 0,
+                  "error": 0,
+                  "skipped": 0
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "value": 0.5
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "value": 0.5
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "value": 0.5
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "value": 1.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "value": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "counts": {
+                  "pass": 4,
+                  "fail": 0,
+                  "review": 0,
+                  "error": 0,
+                  "skipped": 0
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 4,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "value": 1.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "value": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "counts": {
+                  "pass": 2,
+                  "fail": 2,
+                  "review": 0,
+                  "error": 0,
+                  "skipped": 0
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "value": 0.5
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "value": 0.5
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "value": 0.5
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "value": 1.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "value": 1.0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "limits",
+            "metrics": [
+              {
+                "scope": "notes-complete",
+                "counts": {
+                  "pass": 0,
+                  "fail": 0,
+                  "review": 1,
+                  "error": 1,
+                  "skipped": 1
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 1,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 1,
+                    "error": 0,
+                    "skipped": 1
+                  },
+                  "unlabeled": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 3,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 2,
+                    "denominator": 3,
+                    "value": 0.6666666666666666
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 0,
+                    "denominator": 3,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 3,
+                    "denominator": 3,
+                    "value": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "counts": {
+                  "pass": 2,
+                  "fail": 0,
+                  "review": 1,
+                  "error": 0,
+                  "skipped": 0
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 2,
+                    "fail": 0,
+                    "review": 1,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 3,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 1,
+                    "denominator": 3,
+                    "value": 0.3333333333333333
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 3,
+                    "value": 0.6666666666666666
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 3,
+                    "denominator": 3,
+                    "value": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "counts": {
+                  "pass": 0,
+                  "fail": 0,
+                  "review": 2,
+                  "error": 1,
+                  "skipped": 0
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 1,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 2,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 3,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 2,
+                    "denominator": 3,
+                    "value": 0.6666666666666666
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 0,
+                    "denominator": 3,
+                    "value": 0.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 3,
+                    "denominator": 3,
+                    "value": 1.0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "note": "One dataset without any reference label. The review rate and the automatic coverage measure every evaluated case, the label coverage states zero, and the three error rates hold no denominator.",
+      "records": "{\"id\":\"metric-cases-201\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"quiet\"]}\n{\"id\":\"metric-cases-202\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"quiet\"]}\n{\"id\":\"metric-cases-203\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"quiet\"]}\n{\"id\":\"metric-cases-204\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"quiet\"]}\n{\"id\":\"metric-cases-205\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"quiet\"]}",
+      "outcomes": [
+        {
+          "id": "metric-cases-201",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 200
+        },
+        {
+          "id": "metric-cases-202",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1,
+          "usage": {
+            "requests": 1
+          }
+        },
+        {
+          "id": "metric-cases-203",
+          "checks": {
+            "notes-complete": "review",
+            "summary-free-of-todos": "review"
+          },
+          "aggregate": "review",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-204",
+          "checks": {
+            "notes-complete": "error",
+            "summary-free-of-todos": "error"
+          },
+          "aggregate": "error",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-205",
+          "checks": {
+            "notes-complete": "skipped",
+            "summary-free-of-todos": "skipped"
+          },
+          "aggregate": "review",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "expected": {
+        "case_count": 5,
+        "unevaluated_records": 0,
+        "attempts": 5,
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "counts": {
+              "pass": 1,
+              "fail": 1,
+              "review": 1,
+              "error": 1,
+              "skipped": 1
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 1,
+                "review": 1,
+                "error": 1,
+                "skipped": 1
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 2,
+                "denominator": 5,
+                "value": 0.4
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 2,
+                "denominator": 5,
+                "value": 0.4
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 0,
+                "denominator": 5,
+                "value": 0.0
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "counts": {
+              "pass": 1,
+              "fail": 1,
+              "review": 1,
+              "error": 1,
+              "skipped": 1
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 1,
+                "review": 1,
+                "error": 1,
+                "skipped": 1
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 2,
+                "denominator": 5,
+                "value": 0.4
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 2,
+                "denominator": 5,
+                "value": 0.4
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 0,
+                "denominator": 5,
+                "value": 0.0
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "pass": 1,
+              "fail": 1,
+              "review": 2,
+              "error": 1,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 1,
+                "review": 2,
+                "error": 1,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 2,
+                "denominator": 5,
+                "value": 0.4
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 2,
+                "denominator": 5,
+                "value": 0.4
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 0,
+                "denominator": 5,
+                "value": 0.0
+              }
+            ]
+          }
+        ],
+        "latency_cases": 1,
+        "elapsed_ms": 200.0,
+        "usage": {
+          "requests": 1.0
+        },
+        "slices": [
+          {
+            "tag": "quiet",
+            "metrics": [
+              {
+                "scope": "notes-complete",
+                "counts": {
+                  "pass": 1,
+                  "fail": 1,
+                  "review": 1,
+                  "error": 1,
+                  "skipped": 1
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 1,
+                    "error": 1,
+                    "skipped": 1
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 2,
+                    "denominator": 5,
+                    "value": 0.4
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 5,
+                    "value": 0.4
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 0,
+                    "denominator": 5,
+                    "value": 0.0
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "counts": {
+                  "pass": 1,
+                  "fail": 1,
+                  "review": 1,
+                  "error": 1,
+                  "skipped": 1
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 1,
+                    "error": 1,
+                    "skipped": 1
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 2,
+                    "denominator": 5,
+                    "value": 0.4
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 5,
+                    "value": 0.4
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 0,
+                    "denominator": 5,
+                    "value": 0.0
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "counts": {
+                  "pass": 1,
+                  "fail": 1,
+                  "review": 2,
+                  "error": 1,
+                  "skipped": 0
+                },
+                "confusion": {
+                  "pass": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "fail": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "review": {
+                    "pass": 0,
+                    "fail": 0,
+                    "review": 0,
+                    "error": 0,
+                    "skipped": 0
+                  },
+                  "unlabeled": {
+                    "pass": 1,
+                    "fail": 1,
+                    "review": 2,
+                    "error": 1,
+                    "skipped": 0
+                  }
+                },
+                "rates": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "value": null
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 2,
+                    "denominator": 5,
+                    "value": 0.4
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 5,
+                    "value": 0.4
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 0,
+                    "denominator": 5,
+                    "value": 0.0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "note": "Partial labels. The check reference of one record covers one check alone, so the label coverage differs per scope, and the overall reference of the second record comes from the aggregate of its one check reference.",
+      "records": "{\"id\":\"metric-cases-301\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"metric-cases-302\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"}}}}\n{\"id\":\"metric-cases-303\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-301",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-302",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-303",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "expected": {
+        "case_count": 3,
+        "unevaluated_records": 0,
+        "attempts": 3,
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "counts": {
+              "pass": 2,
+              "fail": 1,
+              "review": 0,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 1,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 3,
+                "value": 0.0
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 3,
+                "denominator": 3,
+                "value": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 2,
+                "denominator": 3,
+                "value": 0.6666666666666666
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "counts": {
+              "pass": 2,
+              "fail": 1,
+              "review": 0,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 1,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 3,
+                "value": 0.0
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 3,
+                "denominator": 3,
+                "value": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "pass": 2,
+              "fail": 1,
+              "review": 0,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 1,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 3,
+                "value": 0.0
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 3,
+                "denominator": 3,
+                "value": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 2,
+                "denominator": 3,
+                "value": 0.6666666666666666
+              }
+            ]
+          }
+        ],
+        "latency_cases": 0
+      }
+    },
+    {
+      "note": "The two error metrics apart. One reference fail case predicted pass gives both metrics the numerator 1, over the reference fail and review denominator 1 and over the labeled predicted pass denominator 3.",
+      "records": "{\"id\":\"metric-cases-401\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"metric-cases-402\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"metric-cases-403\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"metric-cases-404\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-401",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-402",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-403",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-404",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "expected": {
+        "case_count": 4,
+        "unevaluated_records": 0,
+        "attempts": 4,
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "counts": {
+              "pass": 4,
+              "fail": 0,
+              "review": 0,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 2,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 1,
+                "value": 1.0
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 2,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "value": 0.0
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "value": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 3,
+                "denominator": 4,
+                "value": 0.75
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "counts": {
+              "pass": 4,
+              "fail": 0,
+              "review": 0,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 3,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 3,
+                "value": 0.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 3,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "value": 0.0
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "value": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 3,
+                "denominator": 4,
+                "value": 0.75
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "pass": 4,
+              "fail": 0,
+              "review": 0,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 2,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 1,
+                "value": 1.0
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 2,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "value": 0.0
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "value": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 3,
+                "denominator": 4,
+                "value": 0.75
+              }
+            ]
+          }
+        ],
+        "latency_cases": 0
+      }
+    },
+    {
+      "note": "Zero denominators. Every reference states pass and nothing predicts pass, so the false acceptance rate and the error among accepted cases state no value while the false rejection rate states one.",
+      "records": "{\"id\":\"metric-cases-501\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"metric-cases-502\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-501",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "metric-cases-502",
+          "checks": {
+            "notes-complete": "review",
+            "summary-free-of-todos": "review"
+          },
+          "aggregate": "review",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "expected": {
+        "case_count": 2,
+        "unevaluated_records": 0,
+        "attempts": 2,
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "counts": {
+              "pass": 0,
+              "fail": 1,
+              "review": 1,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 1,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 2,
+                "denominator": 2,
+                "value": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "counts": {
+              "pass": 0,
+              "fail": 1,
+              "review": 1,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 1,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 2,
+                "denominator": 2,
+                "value": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "pass": 0,
+              "fail": 1,
+              "review": 1,
+              "error": 0,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 1,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 2,
+                "denominator": 2,
+                "value": 1.0
+              }
+            ]
+          }
+        ],
+        "latency_cases": 0
+      }
+    },
+    {
+      "note": "Errors and skips over all attempts. The reference fail case that errored and the reference review case that was skipped stay in their denominators, and the totals state attempts, latency with its case count, and usage.",
+      "records": "{\"id\":\"metric-cases-601\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"},\"summary-free-of-todos\":{\"outcome\":\"fail\"}},\"outcome\":\"fail\"}}\n{\"id\":\"metric-cases-602\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"no\"},\"summary-free-of-todos\":{\"outcome\":\"fail\"}},\"outcome\":\"fail\"}}\n{\"id\":\"metric-cases-603\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"review\":true},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"review\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-601",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 3,
+          "elapsed_ms": 900,
+          "usage": {
+            "requests": 2
+          }
+        },
+        {
+          "id": "metric-cases-602",
+          "checks": {
+            "notes-complete": "error",
+            "summary-free-of-todos": "error"
+          },
+          "aggregate": "error",
+          "completion": "completed",
+          "attempts": 5,
+          "usage": {
+            "requests": 4
+          }
+        },
+        {
+          "id": "metric-cases-603",
+          "checks": {
+            "notes-complete": "skipped",
+            "summary-free-of-todos": "review"
+          },
+          "aggregate": "review",
+          "completion": "cancelled",
+          "attempts": 0,
+          "elapsed_ms": 100
+        }
+      ],
+      "expected": {
+        "case_count": 3,
+        "unevaluated_records": 0,
+        "attempts": 8,
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "counts": {
+              "pass": 1,
+              "fail": 0,
+              "review": 0,
+              "error": 1,
+              "skipped": 1
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 1
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 1,
+                "value": 1.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 3,
+                "denominator": 3,
+                "value": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "counts": {
+              "pass": 1,
+              "fail": 0,
+              "review": 1,
+              "error": 1,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 0,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "value": 0.5
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 1,
+                "value": 1.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 1,
+                "value": 0.0
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 3,
+                "denominator": 3,
+                "value": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "pass": 1,
+              "fail": 0,
+              "review": 1,
+              "error": 1,
+              "skipped": 0
+            },
+            "confusion": {
+              "pass": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              },
+              "fail": {
+                "pass": 1,
+                "fail": 0,
+                "review": 0,
+                "error": 1,
+                "skipped": 0
+              },
+              "review": {
+                "pass": 0,
+                "fail": 0,
+                "review": 1,
+                "error": 0,
+                "skipped": 0
+              },
+              "unlabeled": {
+                "pass": 0,
+                "fail": 0,
+                "review": 0,
+                "error": 0,
+                "skipped": 0
+              }
+            },
+            "rates": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 1,
+                "value": 1.0
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "value": null
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 1,
+                "denominator": 3,
+                "value": 0.3333333333333333
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 3,
+                "denominator": 3,
+                "value": 1.0
+              }
+            ]
+          }
+        ],
+        "latency_cases": 2,
+        "elapsed_ms": 1000.0,
+        "usage": {
+          "requests": 6.0
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "note": "No evaluated case is no evidence: no metric holds one denominator.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [],
+      "expected": {
+        "reason_code": "insufficient_evidence",
+        "field_path": "/cases"
+      }
+    },
+    {
+      "note": "One outcome that names no record of the dataset states nothing about that record.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "absent-case",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/cases/0/id"
+      }
+    },
+    {
+      "note": "One repeated case identifier counts one case twice.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-701",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 100,
+          "usage": {
+            "input_tokens": 10
+          }
+        },
+        {
+          "id": "metric-cases-701",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 100,
+          "usage": {
+            "input_tokens": 10
+          }
+        }
+      ],
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/cases/1/id"
+      }
+    },
+    {
+      "note": "One outcome that names no check of the definition.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-701",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass",
+            "absent-check": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 100,
+          "usage": {
+            "input_tokens": 10
+          }
+        }
+      ],
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/cases/0/checks/absent-check"
+      }
+    },
+    {
+      "note": "One outcome that omits one check of the definition. Every check is required.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-701",
+          "checks": {
+            "notes-complete": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 100,
+          "usage": {
+            "input_tokens": 10
+          }
+        }
+      ],
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/cases/0/checks/summary-free-of-todos"
+      }
+    },
+    {
+      "note": "One negative elapsed time.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-701",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": -1,
+          "usage": {
+            "input_tokens": 10
+          }
+        }
+      ],
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/cases/0/elapsed_ms"
+      }
+    },
+    {
+      "note": "One negative usage amount.",
+      "records": "{\"id\":\"metric-cases-701\",\"group\":\"notes\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"answer\":\"yes\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "metric-cases-701",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1,
+          "elapsed_ms": 100,
+          "usage": {
+            "input_tokens": -5
+          }
+        }
+      ],
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/cases/0/usage/input_tokens"
+      }
+    }
+  ]
+}

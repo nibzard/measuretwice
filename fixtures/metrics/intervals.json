@@ -1,0 +1,2115 @@
+{
+  "schema_version": 1,
+  "description": "Uncertainty intervals of task T043. Every count row states one numerator, one denominator, and one confidence level, with the Wilson score bounds one independent implementation of the documented formula computed. Every valid row states one dataset, the evaluated outcomes, and one interval request, with the interval rows the Rust core computes: the case counts of every rate, the draws behind the interval, the bounds, or the reason no bound computes. Every invalid row states the reason code and the field path of its rejection.",
+  "definition": "all-input-types.json",
+  "metadata": {
+    "schema_version": 1,
+    "id": "metric-cases",
+    "name": "Evaluation metric cases",
+    "revision": "2026-09-24.1",
+    "kind": "development_fixture",
+    "intended_population": "Release notes of one product area. No prevalence claim.",
+    "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "all",
+        "purpose": "fitting",
+        "groups": [
+          "notes"
+        ]
+      }
+    ]
+  },
+  "counts": [
+    {
+      "note": "0 of 20 at 0.95 confidence.",
+      "numerator": 0,
+      "denominator": 20,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.161125158052819
+      }
+    },
+    {
+      "note": "1 of 20 at 0.95 confidence.",
+      "numerator": 1,
+      "denominator": 20,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.008881448800795,
+        "upper": 0.236131193446742
+      }
+    },
+    {
+      "note": "5 of 20 at 0.95 confidence.",
+      "numerator": 5,
+      "denominator": 20,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.111861701407666,
+        "upper": 0.468700877618744
+      }
+    },
+    {
+      "note": "3 of 10 at 0.9 confidence.",
+      "numerator": 3,
+      "denominator": 10,
+      "confidence_level": 0.9,
+      "expected": {
+        "lower": 0.126876583903198,
+        "upper": 0.558300204130165
+      }
+    },
+    {
+      "note": "3 of 10 at 0.95 confidence.",
+      "numerator": 3,
+      "denominator": 10,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.107791267406301,
+        "upper": 0.603221852538855
+      }
+    },
+    {
+      "note": "3 of 10 at 0.99 confidence.",
+      "numerator": 3,
+      "denominator": 10,
+      "confidence_level": 0.99,
+      "expected": {
+        "lower": 0.079566316523066,
+        "upper": 0.679975320798897
+      }
+    },
+    {
+      "note": "7 of 8 at 0.95 confidence.",
+      "numerator": 7,
+      "denominator": 8,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.529111817787146,
+        "upper": 0.977582508549943
+      }
+    },
+    {
+      "note": "0 of 1 at 0.95 confidence.",
+      "numerator": 0,
+      "denominator": 1,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.793450685622763
+      }
+    },
+    {
+      "note": "0 of 2 at 0.95 confidence.",
+      "numerator": 0,
+      "denominator": 2,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.657619772493347
+      }
+    },
+    {
+      "note": "0 of 5 at 0.9 confidence.",
+      "numerator": 0,
+      "denominator": 5,
+      "confidence_level": 0.9,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.351116500765101
+      }
+    },
+    {
+      "note": "0 of 5 at 0.95 confidence.",
+      "numerator": 0,
+      "denominator": 5,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.434482464783175
+      }
+    },
+    {
+      "note": "0 of 5 at 0.99 confidence.",
+      "numerator": 0,
+      "denominator": 5,
+      "confidence_level": 0.99,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.570258321027009
+      }
+    },
+    {
+      "note": "1 of 1 at 0.95 confidence.",
+      "numerator": 1,
+      "denominator": 1,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.206549314377237,
+        "upper": 1.0
+      }
+    },
+    {
+      "note": "2 of 2 at 0.9 confidence.",
+      "numerator": 2,
+      "denominator": 2,
+      "confidence_level": 0.9,
+      "expected": {
+        "lower": 0.425030609006346,
+        "upper": 1.0
+      }
+    },
+    {
+      "note": "2 of 2 at 0.99 confidence.",
+      "numerator": 2,
+      "denominator": 2,
+      "confidence_level": 0.99,
+      "expected": {
+        "lower": 0.231618291730728,
+        "upper": 1.0
+      }
+    },
+    {
+      "note": "2 of 3 at 0.95 confidence.",
+      "numerator": 2,
+      "denominator": 3,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.207659600802048,
+        "upper": 0.938508055279604
+      }
+    },
+    {
+      "note": "4 of 6 at 0.95 confidence.",
+      "numerator": 4,
+      "denominator": 6,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.299993315138392,
+        "upper": 0.90322858889422
+      }
+    },
+    {
+      "note": "6 of 6 at 0.95 confidence.",
+      "numerator": 6,
+      "denominator": 6,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.609665712097835,
+        "upper": 1.0
+      }
+    },
+    {
+      "note": "0 of 4 at 0.95 confidence.",
+      "numerator": 0,
+      "denominator": 4,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.0,
+        "upper": 0.489890836454597
+      }
+    },
+    {
+      "note": "4 of 4 at 0.95 confidence.",
+      "numerator": 4,
+      "denominator": 4,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.510109163545403,
+        "upper": 1.0
+      }
+    },
+    {
+      "note": "5 of 5 at 0.95 confidence.",
+      "numerator": 5,
+      "denominator": 5,
+      "confidence_level": 0.95,
+      "expected": {
+        "lower": 0.565517535216825,
+        "upper": 1.0
+      }
+    },
+    {
+      "note": "One numerator above its own denominator counts one share above its whole.",
+      "numerator": 4,
+      "denominator": 3,
+      "confidence_level": 0.95,
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/numerator"
+      }
+    },
+    {
+      "note": "One fractional count names no case count of one evaluation.",
+      "numerator": 1.5,
+      "denominator": 4,
+      "confidence_level": 0.95,
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/numerator"
+      }
+    },
+    {
+      "note": "One negative count names no case count of one evaluation.",
+      "numerator": -1,
+      "denominator": 4,
+      "confidence_level": 0.95,
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/numerator"
+      }
+    },
+    {
+      "note": "One count above the dataset record limit names no denominator of one evaluation.",
+      "numerator": 0,
+      "denominator": 100001,
+      "confidence_level": 0.95,
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/denominator"
+      }
+    },
+    {
+      "note": "One count stated as text is no number.",
+      "numerator": 0,
+      "denominator": "4",
+      "confidence_level": 0.95,
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/denominator"
+      }
+    },
+    {
+      "note": "No denominator holds no evidence, so no interval computes.",
+      "numerator": 0,
+      "denominator": 0,
+      "confidence_level": 0.95,
+      "expected": {
+        "reason_code": "insufficient_evidence",
+        "field_path": "/denominator"
+      }
+    }
+  ],
+  "valid": [
+    {
+      "note": "One pair for every reference category and every predicted outcome, over eight distinct groups. Every interval counts one case per group, so the independent model applies to every metric of every scope and every slice.",
+      "records": "{\"id\":\"interval-cases-101\",\"group\":\"note-101\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-102\",\"group\":\"note-102\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-103\",\"group\":\"note-103\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"review\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"review\"}}\n{\"id\":\"interval-cases-104\",\"group\":\"note-104\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"dates\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-105\",\"group\":\"note-105\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-106\",\"group\":\"note-106\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-107\",\"group\":\"note-107\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-108\",\"group\":\"note-108\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"limits\"]}",
+      "outcomes": [
+        {
+          "id": "interval-cases-101",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-102",
+          "checks": {
+            "notes-complete": "error",
+            "summary-free-of-todos": "error"
+          },
+          "aggregate": "error",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-103",
+          "checks": {
+            "notes-complete": "review",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "review",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-104",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-105",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-106",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-107",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-108",
+          "checks": {
+            "notes-complete": "skipped",
+            "summary-free-of-todos": "review"
+          },
+          "aggregate": "review",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "sampling": "independent_cases",
+      "confidence_level": 0.95,
+      "minimum_samples": 1,
+      "expected": {
+        "method": "wilson_score",
+        "confidence_level": 0.95,
+        "sampling": "independent_cases",
+        "minimum_samples": 1,
+        "method_statement": "Wilson score intervals at 95 percent confidence. Every case of the denominator is one independent draw: no group of the dataset holds two cases of the same denominator. One interval needs its own denominator and at least 1 independent cases. Zero observed errors is not proof of zero risk: the upper bound states the risk the counts still allow.",
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 1,
+                "lower": 0.045587260809701,
+                "upper": 0.699358157417598
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 3,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.061491944720396,
+                "upper": 0.792340399197952
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.061491944720396,
+                "upper": 0.792340399197952
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 2,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 2,
+                "lower": 0.071479212752109,
+                "upper": 0.590724569689831
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 5,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 5,
+                "lower": 0.305742394602627,
+                "upper": 0.863155714176403
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 7,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 7,
+                "lower": 0.529111817787146,
+                "upper": 0.977582508549943
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "draws": 0,
+                "event_draws": 0,
+                "reason": "insufficient_evidence"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.489890836454597
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 2,
+                "denominator": 7,
+                "draws": 7,
+                "event_draws": 2,
+                "lower": 0.082218924004057,
+                "upper": 0.641065548167381
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 1,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 1,
+                "lower": 0.022417491450057,
+                "upper": 0.470888182212854
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 6,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 6,
+                "lower": 0.409275430310169,
+                "upper": 0.928520787247891
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 7,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 7,
+                "lower": 0.529111817787146,
+                "upper": 0.977582508549943
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 1,
+                "lower": 0.045587260809701,
+                "upper": 0.699358157417598
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 3,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.061491944720396,
+                "upper": 0.792340399197952
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.061491944720396,
+                "upper": 0.792340399197952
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 2,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 2,
+                "lower": 0.071479212752109,
+                "upper": 0.590724569689831
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 5,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 5,
+                "lower": 0.305742394602627,
+                "upper": 0.863155714176403
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 7,
+                "denominator": 8,
+                "draws": 8,
+                "event_draws": 7,
+                "lower": 0.529111817787146,
+                "upper": 0.977582508549943
+              }
+            ]
+          }
+        ],
+        "slices": [
+          {
+            "tag": "dates",
+            "scopes": [
+              {
+                "scope": "notes-complete",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 1,
+                    "denominator": 3,
+                    "draws": 3,
+                    "event_draws": 1,
+                    "lower": 0.061491944720396,
+                    "upper": 0.792340399197952
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 1,
+                    "denominator": 1,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "lower": 0.206549314377237,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 1,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "lower": 0.206549314377237,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 1,
+                    "lower": 0.045587260809701,
+                    "upper": 0.699358157417598
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 2,
+                    "lower": 0.15003898915215,
+                    "upper": 0.84996101084785
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 4,
+                    "lower": 0.510109163545403,
+                    "upper": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "draws": 0,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.657619772493347
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 1,
+                    "lower": 0.045587260809701,
+                    "upper": 0.699358157417598
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.489890836454597
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 4,
+                    "lower": 0.510109163545403,
+                    "upper": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 1,
+                    "denominator": 3,
+                    "draws": 3,
+                    "event_draws": 1,
+                    "lower": 0.061491944720396,
+                    "upper": 0.792340399197952
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 1,
+                    "denominator": 1,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "lower": 0.206549314377237,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 1,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "lower": 0.206549314377237,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 1,
+                    "lower": 0.045587260809701,
+                    "upper": 0.699358157417598
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 2,
+                    "lower": 0.15003898915215,
+                    "upper": 0.84996101084785
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 4,
+                    "lower": 0.510109163545403,
+                    "upper": 1.0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "limits",
+            "scopes": [
+              {
+                "scope": "notes-complete",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 1,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.793450685622763
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.657619772493347
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.657619772493347
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 1,
+                    "lower": 0.045587260809701,
+                    "upper": 0.699358157417598
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "draws": 0,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.657619772493347
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 3,
+                    "draws": 3,
+                    "event_draws": 1,
+                    "lower": 0.061491944720396,
+                    "upper": 0.792340399197952
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 1,
+                    "lower": 0.045587260809701,
+                    "upper": 0.699358157417598
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 1,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.793450685622763
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.657619772493347
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.657619772493347
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 1,
+                    "lower": 0.045587260809701,
+                    "upper": 0.699358157417598
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 3,
+                    "denominator": 4,
+                    "draws": 4,
+                    "event_draws": 3,
+                    "lower": 0.300641842582402,
+                    "upper": 0.954412739190299
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "note": "Grouped cases. Three groups hold two cases each, so the group is the draw: the intervals count three groups beside the case counts, and the early slice holds one group alone, below the declared minimum of two.",
+      "records": "{\"id\":\"interval-cases-201\",\"group\":\"incident-1\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"later\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-202\",\"group\":\"incident-1\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"later\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-203\",\"group\":\"incident-2\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"early\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-204\",\"group\":\"incident-2\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"early\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-205\",\"group\":\"incident-3\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"later\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-206\",\"group\":\"incident-3\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"tags\":[\"later\"],\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "interval-cases-201",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-202",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-203",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-204",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-205",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-206",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "sampling": "grouped_cases",
+      "confidence_level": 0.9,
+      "minimum_samples": 2,
+      "expected": {
+        "method": "wilson_score",
+        "confidence_level": 0.9,
+        "sampling": "grouped_cases",
+        "minimum_samples": 2,
+        "method_statement": "Wilson score intervals at 90 percent confidence. The group is the draw. The interval bounds the share of groups that hold at least one counted event, beside the case counts of the rate. One interval needs its own denominator and at least 2 groups. Zero observed errors is not proof of zero risk: the upper bound states the risk the counts still allow.",
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "lower": 0.120866319422274,
+                "upper": 0.879133680577726
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 5,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.078265726333728,
+                "upper": 0.746466131718776
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 3,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.474195574157513
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.474195574157513
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 6,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 3,
+                "lower": 0.525804425842487,
+                "upper": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 6,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 3,
+                "lower": 0.525804425842487,
+                "upper": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "draws": 0,
+                "event_draws": 0,
+                "reason": "insufficient_evidence"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 5,
+                "draws": 3,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.474195574157513
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.078265726333728,
+                "upper": 0.746466131718776
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.474195574157513
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 6,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 3,
+                "lower": 0.525804425842487,
+                "upper": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 6,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 3,
+                "lower": 0.525804425842487,
+                "upper": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "lower": 0.120866319422274,
+                "upper": 0.879133680577726
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 5,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.078265726333728,
+                "upper": 0.746466131718776
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 3,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.474195574157513
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.474195574157513
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 6,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 3,
+                "lower": 0.525804425842487,
+                "upper": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 6,
+                "denominator": 6,
+                "draws": 3,
+                "event_draws": 3,
+                "lower": 0.525804425842487,
+                "upper": 1.0
+              }
+            ]
+          }
+        ],
+        "slices": [
+          {
+            "tag": "early",
+            "scopes": [
+              {
+                "scope": "notes-complete",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "draws": 0,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 2,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "reason": "insufficient_evidence"
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "draws": 0,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 2,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "reason": "insufficient_evidence"
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "draws": 0,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 2,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 2,
+                    "denominator": 2,
+                    "draws": 1,
+                    "event_draws": 1,
+                    "reason": "insufficient_evidence"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "later",
+            "scopes": [
+              {
+                "scope": "notes-complete",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 1,
+                    "lower": 0.120866319422274,
+                    "upper": 0.879133680577726
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 1,
+                    "denominator": 3,
+                    "draws": 2,
+                    "event_draws": 1,
+                    "lower": 0.120866319422274,
+                    "upper": 0.879133680577726
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.574969390993654
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.574969390993654
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 2,
+                    "lower": 0.425030609006346,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 2,
+                    "lower": 0.425030609006346,
+                    "upper": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "summary-free-of-todos",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 0,
+                    "denominator": 0,
+                    "draws": 0,
+                    "event_draws": 0,
+                    "reason": "insufficient_evidence"
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 3,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.574969390993654
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 1,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 1,
+                    "lower": 0.120866319422274,
+                    "upper": 0.879133680577726
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.574969390993654
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 2,
+                    "lower": 0.425030609006346,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 2,
+                    "lower": 0.425030609006346,
+                    "upper": 1.0
+                  }
+                ]
+              },
+              {
+                "scope": "all_checks",
+                "intervals": [
+                  {
+                    "metric": "false_acceptance_rate",
+                    "numerator": 1,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 1,
+                    "lower": 0.120866319422274,
+                    "upper": 0.879133680577726
+                  },
+                  {
+                    "metric": "error_among_accepted",
+                    "numerator": 1,
+                    "denominator": 3,
+                    "draws": 2,
+                    "event_draws": 1,
+                    "lower": 0.120866319422274,
+                    "upper": 0.879133680577726
+                  },
+                  {
+                    "metric": "false_rejection_rate",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.574969390993654
+                  },
+                  {
+                    "metric": "review_rate",
+                    "numerator": 0,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 0,
+                    "lower": 0.0,
+                    "upper": 0.574969390993654
+                  },
+                  {
+                    "metric": "automatic_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 2,
+                    "lower": 0.425030609006346,
+                    "upper": 1.0
+                  },
+                  {
+                    "metric": "label_coverage",
+                    "numerator": 4,
+                    "denominator": 4,
+                    "draws": 2,
+                    "event_draws": 2,
+                    "lower": 0.425030609006346,
+                    "upper": 1.0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "note": "The declared independent model against one repeated group. thread-1 holds two reference fail cases, so every denominator that holds them both states unsupported_sampling, while the false rejection rate counts reference pass cases alone and keeps one case per group.",
+      "records": "{\"id\":\"interval-cases-301\",\"group\":\"thread-1\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-302\",\"group\":\"thread-1\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-303\",\"group\":\"thread-2\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-304\",\"group\":\"thread-3\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "interval-cases-301",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-302",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-303",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-304",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "sampling": "independent_cases",
+      "confidence_level": 0.99,
+      "minimum_samples": 1,
+      "expected": {
+        "method": "wilson_score",
+        "confidence_level": 0.99,
+        "sampling": "independent_cases",
+        "minimum_samples": 1,
+        "method_statement": "Wilson score intervals at 99 percent confidence. Every case of the denominator is one independent draw: no group of the dataset holds two cases of the same denominator. One interval needs its own denominator and at least 1 independent cases. Zero observed errors is not proof of zero risk: the upper bound states the risk the counts still allow.",
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "lower": 0.061713076778102,
+                "upper": 0.938286923221898
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "lower": 0.061713076778102,
+                "upper": 0.938286923221898
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 0,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 4,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 4,
+                "reason": "unsupported_sampling"
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "draws": 0,
+                "event_draws": 0,
+                "reason": "insufficient_evidence"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.768381708269273
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 2,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 2,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 0,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 4,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 4,
+                "reason": "unsupported_sampling"
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "lower": 0.061713076778102,
+                "upper": 0.938286923221898
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 1,
+                "lower": 0.061713076778102,
+                "upper": 0.938286923221898
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 0,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 4,
+                "reason": "unsupported_sampling"
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 4,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 4,
+                "reason": "unsupported_sampling"
+              }
+            ]
+          }
+        ],
+        "slices": []
+      }
+    },
+    {
+      "note": "An unmet minimum beside zero observed errors. The false acceptance rate counts two cases, below the declared minimum of three, while the false rejection rate of the rule check counts five reference pass cases with no predicted failure and still states one upper bound above zero.",
+      "records": "{\"id\":\"interval-cases-401\",\"group\":\"note-401\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-402\",\"group\":\"note-402\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"fail\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"fail\"}}\n{\"id\":\"interval-cases-403\",\"group\":\"note-403\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-404\",\"group\":\"note-404\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}\n{\"id\":\"interval-cases-405\",\"group\":\"note-405\",\"input\":{\"summary\":\"The search index now refreshes nightly.\",\"severity\":2,\"confidence\":0.9,\"breaking\":false,\"tickets\":[\"SRCH-101\"],\"metadata\":{\"team\":\"search\"}},\"label\":{\"author_type\":\"human\",\"reviewed\":false},\"expected\":{\"checks\":{\"notes-complete\":{\"outcome\":\"pass\"},\"summary-free-of-todos\":{\"outcome\":\"pass\"}},\"outcome\":\"pass\"}}",
+      "outcomes": [
+        {
+          "id": "interval-cases-401",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-402",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-403",
+          "checks": {
+            "notes-complete": "fail",
+            "summary-free-of-todos": "fail"
+          },
+          "aggregate": "fail",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-404",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        },
+        {
+          "id": "interval-cases-405",
+          "checks": {
+            "notes-complete": "pass",
+            "summary-free-of-todos": "pass"
+          },
+          "aggregate": "pass",
+          "completion": "completed",
+          "attempts": 1
+        }
+      ],
+      "sampling": "independent_cases",
+      "confidence_level": 0.95,
+      "minimum_samples": 3,
+      "expected": {
+        "method": "wilson_score",
+        "confidence_level": 0.95,
+        "sampling": "independent_cases",
+        "minimum_samples": 3,
+        "method_statement": "Wilson score intervals at 95 percent confidence. Every case of the denominator is one independent draw: no group of the dataset holds two cases of the same denominator. One interval needs its own denominator and at least 3 independent cases. Zero observed errors is not proof of zero risk: the upper bound states the risk the counts still allow.",
+        "scopes": [
+          {
+            "scope": "notes-complete",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 2,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 2,
+                "reason": "insufficient_evidence"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 2,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 2,
+                "lower": 0.15003898915215,
+                "upper": 0.84996101084785
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.061491944720396,
+                "upper": 0.792340399197952
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.434482464783175
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 5,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 5,
+                "lower": 0.565517535216825,
+                "upper": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 5,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 5,
+                "lower": 0.565517535216825,
+                "upper": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "summary-free-of-todos",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 0,
+                "denominator": 0,
+                "draws": 0,
+                "event_draws": 0,
+                "reason": "insufficient_evidence"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 0,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.489890836454597
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 1,
+                "lower": 0.03622410863243,
+                "upper": 0.624465370237475
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.434482464783175
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 5,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 5,
+                "lower": 0.565517535216825,
+                "upper": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 5,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 5,
+                "lower": 0.565517535216825,
+                "upper": 1.0
+              }
+            ]
+          },
+          {
+            "scope": "all_checks",
+            "intervals": [
+              {
+                "metric": "false_acceptance_rate",
+                "numerator": 2,
+                "denominator": 2,
+                "draws": 2,
+                "event_draws": 2,
+                "reason": "insufficient_evidence"
+              },
+              {
+                "metric": "error_among_accepted",
+                "numerator": 2,
+                "denominator": 4,
+                "draws": 4,
+                "event_draws": 2,
+                "lower": 0.15003898915215,
+                "upper": 0.84996101084785
+              },
+              {
+                "metric": "false_rejection_rate",
+                "numerator": 1,
+                "denominator": 3,
+                "draws": 3,
+                "event_draws": 1,
+                "lower": 0.061491944720396,
+                "upper": 0.792340399197952
+              },
+              {
+                "metric": "review_rate",
+                "numerator": 0,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 0,
+                "lower": 0.0,
+                "upper": 0.434482464783175
+              },
+              {
+                "metric": "automatic_coverage",
+                "numerator": 5,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 5,
+                "lower": 0.565517535216825,
+                "upper": 1.0
+              },
+              {
+                "metric": "label_coverage",
+                "numerator": 5,
+                "denominator": 5,
+                "draws": 5,
+                "event_draws": 5,
+                "lower": 0.565517535216825,
+                "upper": 1.0
+              }
+            ]
+          }
+        ],
+        "slices": []
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "note": "One confidence level outside the three supported levels.",
+      "request": {
+        "sampling": "independent_cases",
+        "confidence_level": 0.8,
+        "minimum_samples": 30
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/confidence_level"
+      }
+    },
+    {
+      "note": "One confidence level stated as text.",
+      "request": {
+        "sampling": "independent_cases",
+        "confidence_level": "95",
+        "minimum_samples": 30
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/confidence_level"
+      }
+    },
+    {
+      "note": "One sampling word the methods support nowhere.",
+      "request": {
+        "sampling": "bootstrap",
+        "confidence_level": 0.95,
+        "minimum_samples": 30
+      },
+      "expected": {
+        "reason_code": "unsupported_sampling",
+        "field_path": "/sampling"
+      }
+    },
+    {
+      "note": "One minimum of zero draws states no evidence requirement.",
+      "request": {
+        "sampling": "grouped_cases",
+        "confidence_level": 0.95,
+        "minimum_samples": 0
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples"
+      }
+    },
+    {
+      "note": "One fractional minimum names no draw count.",
+      "request": {
+        "sampling": "grouped_cases",
+        "confidence_level": 0.95,
+        "minimum_samples": 2.5
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples"
+      }
+    },
+    {
+      "note": "One request without one sampling model declares no assumption.",
+      "request": {
+        "confidence_level": 0.95,
+        "minimum_samples": 30
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/sampling"
+      }
+    },
+    {
+      "note": "One request without one confidence level states no level.",
+      "request": {
+        "sampling": "grouped_cases",
+        "minimum_samples": 30
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/confidence_level"
+      }
+    },
+    {
+      "note": "One request field outside the request contract.",
+      "request": {
+        "sampling": "grouped_cases",
+        "confidence_level": 0.95,
+        "minimum_samples": 30,
+        "stratified": true
+      },
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/stratified"
+      }
+    },
+    {
+      "note": "One request that holds no object states nothing.",
+      "request": [
+        1,
+        2,
+        3
+      ],
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": ""
+      }
+    }
+  ]
+}

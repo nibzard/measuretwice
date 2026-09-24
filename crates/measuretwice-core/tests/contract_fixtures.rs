@@ -6,7 +6,13 @@
 //! and the run state boundary own: the valid definition artifacts, the
 //! structural definition rejections, the input validation records, the
 //! dataset loading records, the
-//! reference-label meaning and provenance records, the
+//! reference-label meaning and provenance records, the grouped splits and
+//! dataset identities, the
+//! evaluation metrics with their confusion matrices, counts, and rates, the
+//! uncertainty intervals with their methods, evidence, and bounds, the
+//! calibration plans with their goals, grids, identities, and bindings, the
+//! fitting search with its selections, statuses, and goal rows, the
+//! frozen validation with its statuses, goal rows, and refusals, the
 //! hashing rejection records, the canonical hash fixtures, the Jev
 //! translation questions with their translation-domain digests, the
 //! serialization round trips, the profile self-hashes, the outcome and
@@ -22,8 +28,11 @@ use measuretwice_core::profile::{
     self, CompatibilityRequest, LiveBinding, ProfileOrigin, Qualification,
 };
 use measuretwice_core::run_state::{AttemptResolution, CheckPlace, Phase, RunLimits, RunState};
+use measuretwice_core::splits;
 use measuretwice_core::testing::SplitMix64;
-use measuretwice_core::{case, dataset, definition, json, report, rule};
+use measuretwice_core::{
+    case, dataset, definition, fitting, intervals, json, metrics, plan, qualification, report, rule,
+};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -538,6 +547,845 @@ fn dataset_loading_records_report_the_stated_codes_and_paths() {
     }
     let covered: Vec<&str> = covered.iter().map(String::as_str).collect();
     assert_eq!(covered, DATASET_REJECTION_CODES);
+}
+
+/// The dataset splits group pins the identities, the group rule, the content
+/// hashes, the evidence classes, and the overlap facts, as the fixture
+/// manifest states.
+#[test]
+fn dataset_split_records_pin_identities_hashes_and_evidence() {
+    let document = fixture_document("datasets/splits.json");
+    let definition = dataset_definition(&json!({}), &document);
+    let default_metadata = &document["metadata"];
+
+    // Every valid dataset computes the stated identity and the stated split
+    // identities, including every content hash.
+    let valid = document["valid"].as_array().expect("valid records");
+    assert!(valid.len() >= 4, "the fixture group lost valid records");
+    let mut computed: Vec<splits::SplitIdentity> = Vec::new();
+    let mut identities: Vec<splits::DatasetIdentity> = Vec::new();
+    for record in valid {
+        let note = record["note"].as_str().expect("a note");
+        let metadata = record
+            .get("metadata")
+            .unwrap_or(default_metadata)
+            .to_owned();
+        let metadata_text = serde_json::to_string(&metadata).expect("the metadata serializes");
+        let records = record["records"].as_str().expect("the records text");
+        let loaded = dataset::load_dataset(&metadata_text, records)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        dataset::validate_dataset(&loaded, &definition)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let grouped =
+            splits::dataset_splits(&loaded).unwrap_or_else(|error| panic!("{note}: {error}"));
+        let identity = grouped.identity();
+        let stated = &record["expected"];
+
+        assert_eq!(
+            identity.population.as_str(),
+            stated["population"].as_str().expect("a population"),
+            "{note}"
+        );
+        assert_eq!(
+            identity.population.supports_qualification(),
+            stated["supports_qualification"].as_bool().expect("a flag"),
+            "{note}"
+        );
+        assert_eq!(
+            identity.population.states_prevalence(),
+            stated["states_prevalence"].as_bool().expect("a flag"),
+            "{note}"
+        );
+        assert_eq!(
+            identity.record_count,
+            stated["record_count"].as_u64().expect("a count") as usize,
+            "{note}"
+        );
+        assert_eq!(
+            identity.content_hash,
+            stated["content_hash"].as_str().expect("a hash"),
+            "{note}"
+        );
+        assert_eq!(
+            serde_json::to_value(&identity.group_assignments).expect("serializes"),
+            stated["group_assignments"],
+            "{note}"
+        );
+        assert_eq!(
+            serde_json::to_value(&identity.unassigned_groups).expect("serializes"),
+            stated["unassigned_groups"],
+            "{note}"
+        );
+
+        let stated_splits = stated["splits"].as_array().expect("the split expectations");
+        assert_eq!(
+            grouped.splits().len(),
+            stated_splits.len(),
+            "{note}: every declared split appears"
+        );
+        for (split, stated) in grouped.splits().iter().zip(stated_splits) {
+            let split_identity = split.identity();
+            if let Some(id) = stated["split"].as_str() {
+                assert_eq!(split_identity.split_id, id, "{note}");
+            }
+            if let Some(purpose) = stated["purpose"].as_str() {
+                assert_eq!(split_identity.purpose.as_str(), purpose, "{note}");
+            }
+            if let Some(count) = stated["record_count"].as_u64() {
+                assert_eq!(split_identity.record_count, count as usize, "{note}");
+            }
+            if let Some(cases) = stated["case_ids"].as_array() {
+                assert_eq!(
+                    serde_json::to_value(&split_identity.case_ids).expect("serializes"),
+                    Value::Array(cases.clone()),
+                    "{note}"
+                );
+            }
+            if let Some(hash) = stated["content_hash"].as_str() {
+                assert_eq!(split_identity.content_hash, hash, "{note}");
+            }
+            computed.push(split_identity.clone());
+        }
+        identities.push(identity.clone());
+
+        // One changed input of one split changes that split alone.
+        if stated["fitting_hash_unchanged"].as_bool() == Some(true) {
+            let base_loaded = loaded_fixture_dataset(&document, 0);
+            let base = splits::dataset_splits(&base_loaded).expect("the splits compute");
+            let changed_fit = grouped
+                .split("fit")
+                .expect("the fitting split")
+                .identity()
+                .content_hash
+                .clone();
+            let base_fit = base
+                .split("fit")
+                .expect("the fitting split")
+                .identity()
+                .content_hash
+                .clone();
+            assert_eq!(
+                changed_fit, base_fit,
+                "{note}: the fitting split is unchanged"
+            );
+            assert_ne!(
+                grouped
+                    .split("holdout")
+                    .expect("the split")
+                    .identity()
+                    .content_hash,
+                base.split("holdout")
+                    .expect("the split")
+                    .identity()
+                    .content_hash,
+                "{note}: the validation content changed"
+            );
+        }
+    }
+
+    // Every invalid dataset fails with its stated reason code and field path.
+    let invalid = document["invalid"].as_array().expect("invalid records");
+    assert!(invalid.len() >= 3, "the fixture group lost invalid records");
+    for record in invalid {
+        let note = record["note"].as_str().expect("a note");
+        let metadata = record
+            .get("metadata")
+            .unwrap_or(default_metadata)
+            .to_owned();
+        let metadata_text = serde_json::to_string(&metadata).expect("the metadata serializes");
+        let records = record["records"].as_str().expect("the records text");
+        let error = match dataset::load_dataset(&metadata_text, records) {
+            Ok(loaded) => splits::dataset_splits(&loaded)
+                .err()
+                .unwrap_or_else(|| panic!("{note}: the dataset was accepted")),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.code.as_str(),
+            record["expected"]["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            record["expected"]["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+    }
+
+    // Every evidence row classifies as stated. One reused holdout is
+    // development data, whatever the dataset names state.
+    let evidence = document["evidence"].as_array().expect("evidence rows");
+    assert!(evidence.len() >= 5, "the fixture group lost evidence rows");
+    for row in evidence {
+        let note = row["note"].as_str().expect("a note");
+        let loaded = loaded_fixture_dataset(&document, row["dataset"].as_u64().expect("a dataset"));
+        let grouped = splits::dataset_splits(&loaded).expect("the splits compute");
+        let validation = grouped
+            .split(row["split"].as_str().expect("a split"))
+            .unwrap_or_else(|| panic!("{note}: the split exists"))
+            .identity()
+            .clone();
+        let population = row
+            .get("population")
+            .and_then(Value::as_str)
+            .map(|word| {
+                splits::PopulationStatement::from_word(word)
+                    .unwrap_or_else(|| panic!("{note}: one stated population word"))
+            })
+            .unwrap_or(grouped.identity().population);
+        let used: Vec<splits::SplitIdentity> = row["used"]
+            .as_array()
+            .expect("the used holdouts")
+            .iter()
+            .map(|entry| {
+                let used_loaded =
+                    loaded_named_dataset(&document, entry["from"].as_str().expect("a dataset"));
+                let mut identity = splits::dataset_splits(&used_loaded)
+                    .expect("the splits compute")
+                    .split(entry["split"].as_str().expect("a split"))
+                    .unwrap_or_else(|| panic!("{note}: the used split exists"))
+                    .identity()
+                    .clone();
+                if let Some(rename) = entry.get("rename") {
+                    if let Some(dataset) = rename["dataset"].as_str() {
+                        identity.dataset_id = dataset.to_owned();
+                    }
+                    if let Some(revision) = rename["revision"].as_str() {
+                        identity.revision = revision.to_owned();
+                    }
+                    if let Some(split) = rename["split"].as_str() {
+                        identity.split_id = split.to_owned();
+                    }
+                }
+                identity
+            })
+            .collect();
+        let result = splits::validation_evidence(&validation, population, &used);
+        let stated = &row["expected"];
+        assert_eq!(
+            result.class.as_str(),
+            stated["class"].as_str().expect("a class"),
+            "{note}"
+        );
+        if let Some(flag) = stated["representative_sample"].as_bool() {
+            assert_eq!(result.representative_sample, flag, "{note}");
+        }
+        if let Some(flag) = stated["needs_fresh_evidence"].as_bool() {
+            assert_eq!(result.needs_fresh_evidence, flag, "{note}");
+        }
+        if let Some(reused) = stated["reused_from"].as_array() {
+            assert_eq!(
+                serde_json::to_value(&result.reused_from).expect("serializes"),
+                Value::Array(reused.clone()),
+                "{note}"
+            );
+        }
+        assert!(!result.statement.is_empty(), "{note}: no statement");
+    }
+
+    // Every overlap row states the shared groups and the shared cases.
+    let overlap = document["overlap"].as_array().expect("overlap rows");
+    assert!(overlap.len() >= 3, "the fixture group lost overlap rows");
+    for row in overlap {
+        let note = row["note"].as_str().expect("a note");
+        let fitting = fixture_split_identity(&document, &row["fitting"]);
+        let validation = fixture_split_identity(&document, &row["validation"]);
+        let result = splits::split_overlap(&fitting, &validation);
+        let stated = &row["expected"];
+        assert_eq!(
+            result.same_dataset,
+            stated["same_dataset"].as_bool().expect("a flag"),
+            "{note}"
+        );
+        assert_eq!(
+            serde_json::to_value(&result.shared_groups).expect("serializes"),
+            stated["shared_groups"],
+            "{note}"
+        );
+        assert_eq!(
+            serde_json::to_value(&result.shared_cases).expect("serializes"),
+            stated["shared_cases"],
+            "{note}"
+        );
+        assert_eq!(
+            result.is_disjoint(),
+            stated["separated"].as_bool().expect("a flag"),
+            "{note}"
+        );
+        // The requirement refuses every overlap that the facts state.
+        let refused = splits::require_separated(&fitting, &validation);
+        assert_eq!(
+            refused.is_err(),
+            !result.is_disjoint(),
+            "{note}: the requirement agrees with the facts"
+        );
+    }
+
+    // One split identity round trips through the boundary contract.
+    let value = serde_json::to_value(&computed[0]).expect("the identity serializes");
+    assert_eq!(
+        splits::parse_split_identity(&value).expect("the identity parses"),
+        computed[0]
+    );
+    assert_eq!(identities.len(), valid.len());
+}
+
+/// Loads one valid fixture dataset by its position in the valid records.
+fn loaded_fixture_dataset(document: &Value, index: u64) -> dataset::Dataset {
+    let record = &document["valid"][index as usize];
+    let metadata = record
+        .get("metadata")
+        .cloned()
+        .unwrap_or_else(|| document["metadata"].clone());
+    dataset::load_dataset(
+        &serde_json::to_string(&metadata).expect("serializes"),
+        record["records"].as_str().expect("the records text"),
+    )
+    .expect("the dataset loads")
+}
+
+/// Loads one valid fixture dataset by the name its evidence rows state:
+/// base, unassigned, changed, or the position of one later dataset.
+fn loaded_named_dataset(document: &Value, name: &str) -> dataset::Dataset {
+    let index = match name {
+        "base" => 0,
+        "unassigned" => 1,
+        "changed" => 3,
+        other => other
+            .parse::<usize>()
+            .unwrap_or_else(|_| panic!("one stated dataset name: {other}")),
+    };
+    loaded_fixture_dataset(document, index as u64)
+}
+
+/// Returns one split identity of one fixture selection row.
+fn fixture_split_identity(document: &Value, entry: &Value) -> splits::SplitIdentity {
+    splits::dataset_splits(&loaded_fixture_dataset(
+        document,
+        entry["dataset"].as_u64().expect("a dataset"),
+    ))
+    .expect("the splits compute")
+    .split(entry["split"].as_str().expect("a split"))
+    .expect("the split exists")
+    .identity()
+    .clone()
+}
+
+/// The evaluation-metrics group covers the rejections of the metrics
+/// boundary, as the fixture manifest states.
+const METRICS_REJECTION_CODES: &[&str] = &[
+    "insufficient_evidence",
+    "unknown_field",
+    "duplicate_id",
+    "missing_field",
+    "invalid_field_type",
+];
+
+/// Builds one evaluated case from one fixture outcome object.
+fn case_outcome_of(value: &Value) -> metrics::CaseOutcome {
+    let mut checks = BTreeMap::new();
+    for (check_id, word) in value["checks"].as_object().expect("the check outcomes") {
+        let outcome = report::Outcome::from_word(word.as_str().expect("one outcome word"))
+            .unwrap_or_else(|| panic!("{check_id}: one outcome word"));
+        checks.insert(check_id.clone(), outcome);
+    }
+    metrics::CaseOutcome {
+        case_id: value["id"]
+            .as_str()
+            .expect("one case identifier")
+            .to_owned(),
+        checks,
+        aggregate: report::AggregateOutcome::from_word(
+            value["aggregate"].as_str().expect("one aggregate word"),
+        )
+        .expect("one aggregate word"),
+        completion: report::CompletionStatus::from_word(
+            value["completion"].as_str().expect("one completion word"),
+        )
+        .expect("one completion word"),
+        attempts: value["attempts"].as_u64().expect("one attempt count"),
+        elapsed_ms: value.get("elapsed_ms").and_then(Value::as_f64),
+        usage: value
+            .get("usage")
+            .map(|usage| {
+                usage
+                    .as_object()
+                    .expect("one usage object")
+                    .iter()
+                    .map(|(key, amount)| (key.clone(), amount.as_f64().expect("one usage number")))
+                    .collect()
+            })
+            .unwrap_or_default(),
+    }
+}
+
+/// Compares one computed metric set with one stated fixture expectation.
+/// The expectation states the scope, the counts, the confusion matrix, and
+/// the rates with their numerators, denominators, and values.
+fn assert_metric_set(computed: &metrics::MetricSet, stated: &Value, note: &str) {
+    assert_eq!(
+        computed.scope,
+        stated["scope"].as_str().expect("a scope"),
+        "{note}"
+    );
+    assert_eq!(
+        serde_json::to_value(computed.counts).expect("serializes"),
+        stated["counts"],
+        "{note}: {}",
+        computed.scope
+    );
+    if let Some(confusion) = stated.get("confusion") {
+        assert_eq!(
+            serde_json::to_value(computed.confusion).expect("serializes"),
+            *confusion,
+            "{note}: {}",
+            computed.scope
+        );
+    }
+    let rates = stated["rates"].as_array().expect("the stated rates");
+    assert_eq!(
+        computed.rates.len(),
+        rates.len(),
+        "{note}: {}",
+        computed.scope
+    );
+    for (rate, stated_rate) in computed.rates.iter().zip(rates) {
+        let scope = format!("{} of {}", rate.metric.as_str(), computed.scope);
+        assert_eq!(
+            rate.metric.as_str(),
+            stated_rate["metric"].as_str().expect("a metric word"),
+            "{note}: {scope}"
+        );
+        assert_eq!(
+            rate.numerator,
+            stated_rate["numerator"].as_u64().expect("a numerator") as usize,
+            "{note}: {scope}"
+        );
+        assert_eq!(
+            rate.denominator,
+            stated_rate["denominator"].as_u64().expect("a denominator") as usize,
+            "{note}: {scope}"
+        );
+        // One zero denominator states one null value, and one present
+        // denominator states one number.
+        if stated_rate["value"].is_null() {
+            assert!(rate.is_unavailable(), "{note}: {scope} states no value");
+            assert_eq!(rate.value, None, "{note}: {scope}");
+        } else {
+            assert_eq!(
+                rate.value,
+                Some(stated_rate["value"].as_f64().expect("a value")),
+                "{note}: {scope}"
+            );
+        }
+    }
+}
+
+#[test]
+fn evaluation_metric_rows_pin_counts_confusion_and_rates() {
+    let document = fixture_document("metrics/evaluation.json");
+    let definition = dataset_definition(&json!({}), &document);
+    let metadata_text =
+        serde_json::to_string(&document["metadata"]).expect("the metadata serializes");
+
+    // Every valid row computes the stated metric sets, slices, and
+    // operational totals. The fixture expectations come from one
+    // independent implementation of the metric definitions.
+    let valid = document["valid"].as_array().expect("valid records");
+    assert!(valid.len() >= 6, "the fixture group lost valid records");
+    for record in valid {
+        let note = record["note"].as_str().expect("a note");
+        let loaded =
+            dataset::load_dataset(&metadata_text, record["records"].as_str().expect("records"))
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let validated = dataset::validate_dataset(&loaded, &definition)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let outcomes: Vec<metrics::CaseOutcome> = record["outcomes"]
+            .as_array()
+            .expect("the outcomes")
+            .iter()
+            .map(case_outcome_of)
+            .collect();
+        let computed = metrics::evaluate_metrics(&validated, &outcomes)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let stated = &record["expected"];
+
+        assert_eq!(
+            computed.case_count,
+            stated["case_count"].as_u64().expect("a count") as usize,
+            "{note}"
+        );
+        assert_eq!(
+            computed.unevaluated_records,
+            stated["unevaluated_records"].as_u64().expect("a count") as usize,
+            "{note}"
+        );
+        assert_eq!(
+            computed.attempts,
+            stated["attempts"].as_u64().expect("a count"),
+            "{note}"
+        );
+        assert_eq!(
+            computed.latency_cases,
+            stated["latency_cases"].as_u64().expect("a count") as usize,
+            "{note}"
+        );
+        if let Some(elapsed) = stated.get("elapsed_ms") {
+            assert_eq!(
+                computed.latency_ms,
+                Some(elapsed.as_f64().expect("a latency total")),
+                "{note}"
+            );
+        } else {
+            assert_eq!(computed.latency_ms, None, "{note}");
+        }
+        if let Some(usage) = stated.get("usage").and_then(Value::as_object) {
+            assert_eq!(computed.usage.len(), usage.len(), "{note}");
+            for (key, amount) in usage {
+                assert_eq!(
+                    computed.usage.get(key),
+                    Some(&amount.as_f64().expect("a usage total")),
+                    "{note}: {key}"
+                );
+            }
+        }
+
+        let scopes = stated["scopes"].as_array().expect("the stated scopes");
+        assert_eq!(computed.scopes.len(), scopes.len(), "{note}");
+        for (set, stated_set) in computed.scopes.iter().zip(scopes) {
+            assert_metric_set(set, stated_set, note);
+        }
+        // The complete check set is the last scope.
+        assert_eq!(
+            computed
+                .metric_set(metrics::ALL_CHECKS)
+                .expect("the complete set")
+                .scope,
+            metrics::ALL_CHECKS,
+            "{note}"
+        );
+
+        let slices = stated["slices"].as_array().cloned().unwrap_or_default();
+        assert_eq!(computed.slices.len(), slices.len(), "{note}");
+        for (slice, stated_slice) in computed.slices.iter().zip(&slices) {
+            assert_eq!(
+                slice.tag,
+                stated_slice["tag"].as_str().expect("a tag"),
+                "{note}"
+            );
+            let stated_metrics = stated_slice["metrics"].as_array().expect("the stated sets");
+            assert_eq!(slice.metrics.len(), stated_metrics.len(), "{note}");
+            for (set, stated_set) in slice.metrics.iter().zip(stated_metrics) {
+                assert_metric_set(set, stated_set, note);
+            }
+        }
+
+        // No metric set adds up as independent evidence.
+        assert_eq!(computed.independence, metrics::NO_INDEPENDENCE, "{note}");
+    }
+
+    // Every invalid row fails with its stated reason code and field path.
+    let invalid = document["invalid"].as_array().expect("invalid records");
+    assert!(invalid.len() >= 5, "the fixture group lost invalid records");
+    let mut covered: BTreeSet<&str> = BTreeSet::new();
+    for record in invalid {
+        let note = record["note"].as_str().expect("a note");
+        let loaded =
+            dataset::load_dataset(&metadata_text, record["records"].as_str().expect("records"))
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let validated = dataset::validate_dataset(&loaded, &definition)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let outcomes: Vec<metrics::CaseOutcome> = record["outcomes"]
+            .as_array()
+            .expect("the outcomes")
+            .iter()
+            .map(case_outcome_of)
+            .collect();
+        let error = metrics::evaluate_metrics(&validated, &outcomes)
+            .err()
+            .unwrap_or_else(|| panic!("{note}: the evaluation was accepted"));
+        assert_eq!(
+            error.code.as_str(),
+            record["expected"]["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            record["expected"]["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+        covered.insert(error.code.as_str());
+    }
+    let expected_codes: BTreeSet<&str> = METRICS_REJECTION_CODES.iter().copied().collect();
+    assert_eq!(
+        covered, expected_codes,
+        "the fixture group lost a rejection"
+    );
+}
+
+/// The interval group covers the rejections of the interval boundary, as the
+/// fixture manifest states.
+const INTERVAL_REJECTION_CODES: &[&str] = &[
+    "invalid_field_type",
+    "unsupported_sampling",
+    "missing_field",
+    "unknown_field",
+    "insufficient_evidence",
+];
+
+/// The tolerance of the bound comparison. The stated bounds come from one
+/// independent implementation of the documented formula, so two rounding
+/// orders may differ in their last digits and nowhere else.
+const BOUND_TOLERANCE: f64 = 1e-12;
+
+/// Compares one stated bound with one computed bound.
+fn assert_bound(computed: f64, stated: &Value, note: &str) {
+    let expected = stated.as_f64().expect("one bound");
+    assert!(
+        (computed - expected).abs() <= BOUND_TOLERANCE,
+        "{note}: bound {computed} against {expected}"
+    );
+}
+
+/// Compares one computed interval set with one stated fixture expectation.
+/// Every row states its metric, the case counts of its rate, its draws, and
+/// either its bounds or the reason no bound computes.
+fn assert_interval_set(computed: &intervals::IntervalSet, stated: &Value, note: &str) {
+    assert_eq!(
+        computed.scope,
+        stated["scope"].as_str().expect("a scope"),
+        "{note}"
+    );
+    let rows = stated["intervals"].as_array().expect("the stated rows");
+    assert_eq!(
+        computed.intervals.len(),
+        rows.len(),
+        "{note}: {}",
+        computed.scope
+    );
+    for (interval, stated_interval) in computed.intervals.iter().zip(rows) {
+        let row = format!("{} of {}", interval.metric.as_str(), computed.scope,);
+        assert_eq!(
+            interval.metric.as_str(),
+            stated_interval["metric"].as_str().expect("a metric word"),
+            "{note}: {row}"
+        );
+        assert_eq!(
+            interval.numerator,
+            stated_interval["numerator"].as_u64().expect("a numerator") as usize,
+            "{note}: {row}"
+        );
+        assert_eq!(
+            interval.denominator,
+            stated_interval["denominator"]
+                .as_u64()
+                .expect("a denominator") as usize,
+            "{note}: {row}"
+        );
+        assert_eq!(
+            interval.draws,
+            stated_interval["draws"].as_u64().expect("a draw count") as usize,
+            "{note}: {row}"
+        );
+        assert_eq!(
+            interval.event_draws,
+            stated_interval["event_draws"]
+                .as_u64()
+                .expect("an event count") as usize,
+            "{note}: {row}"
+        );
+        // One row states either its bounds or the reason no bound computes.
+        match stated_interval.get("reason").and_then(Value::as_str) {
+            Some(reason) => {
+                assert_eq!(
+                    interval.reason.expect("a reason").as_str(),
+                    reason,
+                    "{note}: {row}"
+                );
+                assert_eq!(interval.lower, None, "{note}: {row} states no bound");
+                assert_eq!(interval.upper, None, "{note}: {row} states no bound");
+            }
+            None => {
+                assert_eq!(interval.reason, None, "{note}: {row} states no reason");
+                assert_bound(
+                    interval.lower.expect("a lower bound"),
+                    &stated_interval["lower"],
+                    &format!("{note}: {row} lower"),
+                );
+                assert_bound(
+                    interval.upper.expect("an upper bound"),
+                    &stated_interval["upper"],
+                    &format!("{note}: {row} upper"),
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn interval_rows_pin_methods_evidence_and_bounds() {
+    let document = fixture_document("metrics/intervals.json");
+    let definition = dataset_definition(&json!({}), &document);
+    let metadata_text =
+        serde_json::to_string(&document["metadata"]).expect("the metadata serializes");
+
+    // Every count row states the bounds of one independent implementation of
+    // the documented formula, or the rejection of one broken count. Both
+    // halves feed the coverage check at the end.
+    let counts = document["counts"].as_array().expect("count records");
+    assert!(counts.len() >= 20, "the fixture group lost count records");
+    let mut covered: BTreeSet<&str> = BTreeSet::new();
+    for record in counts {
+        let note = record["note"].as_str().expect("a note");
+        let computed = intervals::parse_count(&record["numerator"], "/numerator")
+            .and_then(|numerator| {
+                intervals::parse_count(&record["denominator"], "/denominator")
+                    .map(|denominator| (numerator, denominator))
+            })
+            .and_then(|(numerator, denominator)| {
+                let level = intervals::ConfidenceLevel::from_number(
+                    record["confidence_level"].as_f64().unwrap_or(f64::NAN),
+                )
+                .ok_or_else(|| {
+                    measuretwice_core::error::ValidationError::invalid_field_type(
+                        "/confidence_level",
+                        "The interval methods support the confidence levels 0.9, 0.95, and 0.99 alone.",
+                    )
+                })?;
+                intervals::wilson_interval(numerator, denominator, level)
+            });
+        match computed {
+            Ok((lower, upper)) => {
+                assert_bound(
+                    lower,
+                    &record["expected"]["lower"],
+                    &format!("{note}: lower"),
+                );
+                assert_bound(
+                    upper,
+                    &record["expected"]["upper"],
+                    &format!("{note}: upper"),
+                );
+            }
+            Err(error) => {
+                assert_eq!(
+                    error.code.as_str(),
+                    record["expected"]["reason_code"].as_str().expect("a code"),
+                    "{note}: {error}"
+                );
+                assert_eq!(
+                    error.field_path,
+                    record["expected"]["field_path"].as_str().expect("a path"),
+                    "{note}: {error}"
+                );
+                covered.insert(error.code.as_str());
+            }
+        }
+    }
+
+    // Every valid row computes the stated intervals of every scope and every
+    // slice under its declared sampling model and evidence requirement.
+    let valid = document["valid"].as_array().expect("valid records");
+    assert!(valid.len() >= 4, "the fixture group lost valid records");
+    for record in valid {
+        let note = record["note"].as_str().expect("a note");
+        let loaded =
+            dataset::load_dataset(&metadata_text, record["records"].as_str().expect("records"))
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let validated = dataset::validate_dataset(&loaded, &definition)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let outcomes: Vec<metrics::CaseOutcome> = record["outcomes"]
+            .as_array()
+            .expect("the outcomes")
+            .iter()
+            .map(case_outcome_of)
+            .collect();
+        let request = intervals::parse_interval_request(&json!({
+            "sampling": record["sampling"],
+            "confidence_level": record["confidence_level"],
+            "minimum_samples": record["minimum_samples"],
+        }))
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let computed = intervals::evaluate_intervals(&validated, &outcomes, &request)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let stated = &record["expected"];
+
+        // The header states the method, the level, the sampling model, the
+        // minimum evidence, and the complete method statement.
+        assert_eq!(computed.method, intervals::METHOD, "{note}");
+        assert_eq!(
+            computed.method,
+            stated["method"].as_str().expect("a method"),
+            "{note}"
+        );
+        assert_eq!(
+            computed.sampling,
+            stated["sampling"].as_str().expect("a sampling model"),
+            "{note}"
+        );
+        assert_eq!(
+            computed.confidence_level,
+            stated["confidence_level"].as_f64().expect("a level"),
+            "{note}"
+        );
+        assert_eq!(
+            computed.minimum_samples,
+            stated["minimum_samples"].as_u64().expect("a minimum") as usize,
+            "{note}"
+        );
+        assert_eq!(
+            computed.method_statement,
+            stated["method_statement"].as_str().expect("a statement"),
+            "{note}"
+        );
+        assert!(computed.method_statement.len() <= 2000, "{note}");
+
+        let scopes = stated["scopes"].as_array().expect("the stated scopes");
+        assert_eq!(computed.scopes.len(), scopes.len(), "{note}");
+        for (set, stated_set) in computed.scopes.iter().zip(scopes) {
+            assert_interval_set(set, stated_set, note);
+        }
+        let slices = stated["slices"].as_array().cloned().unwrap_or_default();
+        assert_eq!(computed.slices.len(), slices.len(), "{note}");
+        for (slice, stated_slice) in computed.slices.iter().zip(&slices) {
+            assert_eq!(
+                slice.tag,
+                stated_slice["tag"].as_str().expect("a tag"),
+                "{note}"
+            );
+            let stated_scopes = stated_slice["scopes"].as_array().expect("the stated sets");
+            assert_eq!(slice.scopes.len(), stated_scopes.len(), "{note}");
+            for (set, stated_set) in slice.scopes.iter().zip(stated_scopes) {
+                assert_interval_set(set, stated_set, note);
+            }
+        }
+    }
+
+    // Every invalid row fails with its stated reason code and field path.
+    let invalid = document["invalid"].as_array().expect("invalid records");
+    assert!(invalid.len() >= 8, "the fixture group lost invalid records");
+    for record in invalid {
+        let note = record["note"].as_str().expect("a note");
+        let error = intervals::parse_interval_request(&record["request"])
+            .err()
+            .unwrap_or_else(|| panic!("{note}: the request was accepted"));
+        assert_eq!(
+            error.code.as_str(),
+            record["expected"]["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            record["expected"]["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+        covered.insert(error.code.as_str());
+    }
+    let expected_codes: BTreeSet<&str> = INTERVAL_REJECTION_CODES.iter().copied().collect();
+    assert_eq!(
+        covered, expected_codes,
+        "the fixture group lost a rejection"
+    );
 }
 
 #[test]
@@ -2162,4 +3010,1177 @@ fn the_frozen_review_record_reproduces_through_the_policy() {
             .expect("a contract outcome")
     );
     assert_eq!(outcome, Outcome::Review);
+}
+
+// ---------------------------------------------------------------------------
+// Calibration plans.
+// ---------------------------------------------------------------------------
+
+/// Loads one dataset of the plans group by its role: `primary` or `other`.
+fn plan_dataset(document: &Value, role: &str) -> dataset::Dataset {
+    let field = match role {
+        "primary" => "dataset",
+        "other" => "other_dataset",
+        other => panic!("one stated dataset role: {other}"),
+    };
+    dataset::load_dataset(
+        &serde_json::to_string(&document[field]).expect("the metadata serializes"),
+        document[&format!("{field}_records")]
+            .as_str()
+            .expect("the records text"),
+    )
+    .expect("the dataset loads")
+}
+
+/// Returns one split identity of the plans group. One plain name names one
+/// split of the primary dataset; `other:<split>` names one split of the
+/// second dataset.
+fn plan_split(document: &Value, name: &str) -> splits::SplitIdentity {
+    let (role, split) = match name.split_once(':') {
+        Some(("other", split)) => ("other", split),
+        _ => ("primary", name),
+    };
+    let loaded = plan_dataset(document, role);
+    let grouped = splits::dataset_splits(&loaded).expect("the splits compute");
+    grouped
+        .split(split)
+        .unwrap_or_else(|| panic!("one declared split: {split}"))
+        .identity()
+        .clone()
+}
+
+/// Reads one stated plan of the plans group by its identifier.
+fn stated_plan(document: &Value, id: &str) -> Value {
+    document["plans"]
+        .as_array()
+        .expect("a plan array")
+        .iter()
+        .find(|plan| plan["id"].as_str() == Some(id))
+        .cloned()
+        .unwrap_or_else(|| panic!("no stated plan holds the identifier {id}"))
+}
+
+/// The plans group pins the artifact contract, the stored self-hash, and the
+/// derived facts of every valid plan, as the fixture manifest states.
+#[test]
+fn calibration_plans_validate_with_their_identity_and_derived_facts() {
+    let document = fixture_document("plans/validation.json");
+    let plans = document["plans"].as_array().expect("a plan array");
+    assert!(plans.len() >= 4, "the fixture group lost plans");
+
+    for plan in plans {
+        let id = plan["id"].as_str().expect("an identifier");
+        let validated = plan::validate_plan(plan).unwrap_or_else(|error| panic!("{id}: {error}"));
+
+        // The computed identity covers the artifact with its own digest
+        // removed, and one stored digest must equal it.
+        let computed = hashing::compute_self_hash(Domain::Plan, plan).expect("one object");
+        assert_eq!(validated.content_hash(), computed, "{id}");
+        if let Some(stored) = plan["content_hash"].as_str() {
+            assert_eq!(validated.stored_content_hash(), Some(stored), "{id}");
+            hashing::verify_self_hash(Domain::Plan, plan)
+                .unwrap_or_else(|error| panic!("{id}: {error}"));
+        } else {
+            assert_eq!(validated.stored_content_hash(), None, "{id}");
+        }
+        // The accessors agree with the artifact on every read field.
+        assert_eq!(validated.id(), id);
+        assert_eq!(
+            validated.definition_name(),
+            plan["definition"]["name"].as_str().expect("a name"),
+            "{id}"
+        );
+        assert_eq!(
+            validated
+                .constraints()
+                .iter()
+                .map(|constraint| constraint.metric.as_str())
+                .collect::<Vec<_>>(),
+            plan["constraints"]
+                .as_array()
+                .expect("constraints")
+                .iter()
+                .map(|constraint| constraint["metric"].as_str().expect("a metric"))
+                .collect::<Vec<_>>(),
+            "{id}"
+        );
+
+        // The derived facts of the group pin the enumeration order and the
+        // stated goal set.
+        let facts = &document["facts"][id];
+        assert!(
+            !facts.is_null(),
+            "{id}: the group states no facts for this plan"
+        );
+        assert_eq!(
+            validated.candidate_count(),
+            facts["candidate_count"].as_u64().expect("a count") as usize,
+            "{id}"
+        );
+        let candidates: Vec<Value> = validated
+            .candidates()
+            .iter()
+            .map(|candidate| {
+                json!({
+                    "accept_cutoff": candidate.accept_cutoff,
+                    "rejection_cutoff": candidate.rejection_cutoff,
+                    "confidence_floor": candidate.confidence_floor,
+                })
+            })
+            .collect();
+        assert_eq!(
+            candidates.len(),
+            facts["candidate_count"].as_u64().expect("a count") as usize,
+            "{id}"
+        );
+        let stated = facts["candidates"].as_array().expect("the candidate order");
+        for (index, expected) in stated.iter().enumerate() {
+            assert_eq!(
+                serde_json::to_value(&candidates[index]).expect("serializes"),
+                json!({
+                    "accept_cutoff": expected["accept_cutoff"],
+                    "rejection_cutoff": expected["rejection_cutoff"],
+                    "confidence_floor": expected["confidence_floor"],
+                }),
+                "{id}: candidate {index}"
+            );
+        }
+        let objective = validated.objective();
+        assert_eq!(
+            json!({
+                "metric": objective.metric.as_str(),
+                "direction": objective.direction.as_str(),
+            }),
+            facts["objective"],
+            "{id}"
+        );
+        assert_eq!(
+            validated.confidence_level().as_f64(),
+            facts["confidence_level"].as_f64().expect("a level"),
+            "{id}"
+        );
+        assert_eq!(
+            validated.minimum_samples().keys().collect::<Vec<_>>(),
+            facts["denominators"]
+                .as_array()
+                .expect("denominator names")
+                .iter()
+                .map(|name| name.as_str().expect("a name"))
+                .collect::<Vec<_>>(),
+            "{id}"
+        );
+    }
+
+    // One edited copy of one stored plan fails its digest, and one stripped
+    // copy loses the digest field first.
+    let mut edited = stated_plan(&document, "message-supported-calibration");
+    edited["intended_population"] = Value::String("Edited after hashing.".to_owned());
+    let error = plan::validate_plan(&edited).expect_err("the edited copy was accepted");
+    assert_eq!(error.code, ReasonCode::HashMismatch, "{error}");
+    assert_eq!(error.field_path, "/content_hash");
+
+    // A plan without one stored digest still states its computed identity,
+    // so the calibration output can record it.
+    let unhashed = stated_plan(&document, "message-supported-review-plan");
+    let validated = plan::validate_plan(&unhashed).expect("the plan validates");
+    assert_eq!(validated.stored_content_hash(), None);
+    assert_eq!(
+        validated.content_hash(),
+        document["facts"]["message-supported-review-plan"]["content_hash"]
+            .as_str()
+            .expect("a computed digest")
+    );
+}
+
+/// Every invalid plan of the group rejects with its stated reason code and
+/// field path, before the stored digest is read.
+#[test]
+fn invalid_calibration_plans_reject_with_their_stated_codes() {
+    let document = fixture_document("plans/validation.json");
+    let invalid = document["invalid"].as_array().expect("an invalid array");
+    assert!(
+        invalid.len() >= 30,
+        "the fixture group lost invalid records"
+    );
+
+    let mut covered = BTreeSet::new();
+    for record in invalid {
+        let expected = &record["expected"];
+        let error = plan::validate_plan(&record["plan"])
+            .err()
+            .unwrap_or_else(|| panic!("{}: the plan was accepted", record["note"]));
+        assert_eq!(
+            error.code.as_str(),
+            expected["reason_code"].as_str().expect("a code"),
+            "{}: {error}",
+            record["note"]
+        );
+        assert_eq!(
+            error.field_path,
+            expected["field_path"].as_str().expect("a path"),
+            "{}: {error}",
+            record["note"]
+        );
+        covered.insert(error.code.as_str().to_owned());
+    }
+    // The group covers every validation code the plan boundary states.
+    for code in [
+        "unsupported_schema_version",
+        "unknown_field",
+        "missing_field",
+        "invalid_field_type",
+        "duplicate_id",
+        "hash_mismatch",
+    ] {
+        assert!(covered.contains(code), "the group covers no {code} row");
+    }
+}
+
+/// Every binding row of the group pairs one valid plan with the loaded
+/// definition, the loaded split identities, or the registered evaluators.
+#[test]
+fn calibration_plan_bindings_check_definition_datasets_and_evaluator() {
+    let document = fixture_document("plans/validation.json");
+    let bindings = document["bindings"].as_array().expect("a bindings array");
+    assert!(bindings.len() >= 8, "the fixture group lost binding rows");
+
+    let mut definition_cache: BTreeMap<String, definition::ValidatedDefinition> = BTreeMap::new();
+    let mut loaded = 0;
+    for row in bindings {
+        let note = row["note"].as_str().expect("a note");
+        let artifact = match row.get("plan_id") {
+            Some(Value::String(id)) => stated_plan(&document, id),
+            _ => row["plan"].clone(),
+        };
+        let plan = plan::validate_plan(&artifact).unwrap_or_else(|error| {
+            panic!("{note}: the pairing plan is no valid artifact: {error}")
+        });
+
+        let mut failure: Option<measuretwice_core::error::ValidationError> = None;
+        if let Some(Value::String(name)) = row.get("definition") {
+            let definition = definition_cache
+                .entry(name.clone())
+                .or_insert_with(|| {
+                    let text = fs::read_to_string(fixture(&format!("definitions/valid/{name}")))
+                        .unwrap_or_else(|error| panic!("{name}: {error}"));
+                    definition::validate_definition_str(&text)
+                        .unwrap_or_else(|error| panic!("{name}: {error}"))
+                })
+                .clone();
+            failure = plan::check_plan_definition(&plan, &definition, "/plan").err();
+        }
+        if failure.is_none() && row.get("fitting").is_some() {
+            let fitting = plan_split(&document, row["fitting"].as_str().expect("a split"));
+            let validation = plan_split(&document, row["validation"].as_str().expect("a split"));
+            failure = plan::check_plan_datasets(&plan, &fitting, &validation, "/plan").err();
+        }
+        if failure.is_none() && row.get("evaluators").is_some() {
+            let registered = plan::parse_registered_evaluators(&row["evaluators"], "/evaluators")
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+            failure = plan::check_plan_evaluator(&plan, &registered, "/plan").err();
+        }
+
+        match (row.get("expected"), failure) {
+            (Some(expected), Some(error)) => {
+                assert_eq!(
+                    error.code.as_str(),
+                    expected["reason_code"].as_str().expect("a code"),
+                    "{note}: {error}"
+                );
+                assert_eq!(
+                    error.field_path,
+                    expected["field_path"].as_str().expect("a path"),
+                    "{note}: {error}"
+                );
+            }
+            (Some(expected), None) => {
+                panic!(
+                    "{}: the pairing loaded, expected {}",
+                    note, expected["reason_code"]
+                );
+            }
+            (None, Some(error)) => panic!("{note}: the pairing refused one load: {error}"),
+            (None, None) => loaded += 1,
+        }
+    }
+    assert!(loaded >= 1, "the group states no pairing that loads");
+}
+
+// ---------------------------------------------------------------------------
+// Fitting search fixtures (task T048).
+// ---------------------------------------------------------------------------
+
+/// Loads the shared definition of the fitting group and validates it.
+fn fitting_definition(document: &Value) -> definition::ValidatedDefinition {
+    let name = document["definition"].as_str().expect("a definition file");
+    let text = fs::read_to_string(fixture(&format!("definitions/valid/{name}")))
+        .unwrap_or_else(|error| panic!("{name}: {error}"));
+    definition::validate_definition_str(&text).unwrap_or_else(|error| panic!("{name}: {error}"))
+}
+
+/// Loads the shared dataset of the fitting group.
+fn fitting_dataset(document: &Value) -> dataset::Dataset {
+    dataset::load_dataset(
+        &serde_json::to_string(&document["dataset"]).expect("the metadata serializes"),
+        document["dataset_records"]
+            .as_str()
+            .expect("the records text"),
+    )
+    .expect("the dataset loads")
+}
+
+/// Compares one computed goal row with one stated fixture expectation. The
+/// expectation states the metric, the met flag, the counts of the rate, the
+/// observed value and the upper bound, and the evidence state.
+fn assert_constraint_fit(computed: &fitting::ConstraintFit, stated: &Value, note: &str) {
+    let metric = computed.metric.as_str();
+    assert_eq!(
+        metric,
+        stated["metric"].as_str().expect("a metric word"),
+        "{note}"
+    );
+    assert_eq!(
+        computed.met,
+        stated["met"].as_bool().expect("a met flag"),
+        "{note}"
+    );
+    assert_eq!(
+        computed.numerator,
+        stated["numerator"].as_u64().expect("a numerator") as usize,
+        "{note}: {metric}"
+    );
+    assert_eq!(
+        computed.denominator,
+        stated["denominator"].as_u64().expect("a denominator") as usize,
+        "{note}: {metric}"
+    );
+    match (computed.observed, stated["observed"].as_f64()) {
+        (Some(observed), Some(expected)) => assert_bound(observed, &json!(expected), note),
+        (None, None) => {}
+        pair => panic!("{note}: {metric}: the observed value states {pair:?}"),
+    }
+    match (computed.upper_bound, stated["upper_bound"].as_f64()) {
+        (Some(bound), Some(expected)) => assert_bound(bound, &json!(expected), note),
+        (None, None) => {}
+        pair => panic!("{note}: {metric}: the upper bound states {pair:?}"),
+    }
+    match computed.evidence {
+        fitting::ConstraintEvidence::Measured => {
+            assert_eq!(stated["evidence"], json!("measured"), "{note}: {metric}");
+        }
+        fitting::ConstraintEvidence::ZeroDenominator => {
+            assert_eq!(
+                stated["evidence"],
+                json!("zero_denominator"),
+                "{note}: {metric}"
+            );
+        }
+        fitting::ConstraintEvidence::BelowMinimum {
+            stated: minimum,
+            measured: count,
+        } => {
+            assert_eq!(
+                stated["evidence"],
+                json!("below_minimum"),
+                "{note}: {metric}"
+            );
+            assert_eq!(
+                (minimum, count),
+                (
+                    stated["stated"].as_u64().expect("a stated minimum") as usize,
+                    stated["measured"].as_u64().expect("a measured count") as usize,
+                ),
+                "{note}: {metric}"
+            );
+        }
+    }
+}
+
+/// Compares one computed candidate row with one stated fixture expectation.
+/// The expectation states the enumeration index, the candidate, the feasible
+/// flag, the objective counts, the unmet metric words, and the evidence
+/// states of every goal.
+fn assert_candidate_fit(computed: &fitting::CandidateFit, stated: &Value, note: &str) {
+    assert_eq!(
+        computed.index,
+        stated["index"].as_u64().expect("an index") as usize,
+        "{note}"
+    );
+    assert_eq!(
+        serde_json::to_value(computed.candidate).expect("serializes"),
+        stated["candidate"],
+        "{note}"
+    );
+    assert_eq!(
+        computed.feasible,
+        stated["feasible"].as_bool().expect("a feasible flag"),
+        "{note}"
+    );
+    assert_eq!(
+        (computed.objective.numerator, computed.objective.denominator),
+        (
+            stated["objective"]["numerator"]
+                .as_u64()
+                .expect("a numerator") as usize,
+            stated["objective"]["denominator"]
+                .as_u64()
+                .expect("a denominator") as usize,
+        ),
+        "{note}"
+    );
+    let unmet: Vec<&str> = computed
+        .constraints
+        .iter()
+        .filter(|row| !row.met)
+        .map(|row| row.metric.as_str())
+        .collect();
+    let stated_unmet: Vec<&str> = stated["unmet"]
+        .as_array()
+        .expect("the unmet metric words")
+        .iter()
+        .map(|word| word.as_str().expect("a metric word"))
+        .collect();
+    assert_eq!(unmet, stated_unmet, "{note}");
+    let evidence: Vec<&str> = computed
+        .constraints
+        .iter()
+        .map(|row| match row.evidence {
+            fitting::ConstraintEvidence::Measured => "measured",
+            fitting::ConstraintEvidence::ZeroDenominator => "zero_denominator",
+            fitting::ConstraintEvidence::BelowMinimum { .. } => "below_minimum",
+        })
+        .collect();
+    let stated_evidence: Vec<&str> = stated["evidence"]
+        .as_array()
+        .expect("the evidence words")
+        .iter()
+        .map(|word| word.as_str().expect("an evidence word"))
+        .collect();
+    assert_eq!(evidence, stated_evidence, "{note}");
+}
+
+/// The fitting group pins the selection, the status, and the goal rows of
+/// every valid plan, as the fixture manifest states: one known feasible
+/// candidate, one tie between two cutoffs that decide the same outcomes,
+/// two conflicting goals, one unachievable goal, one plan minimum that
+/// gates one goal, and one upper-bound basis.
+#[test]
+fn fitting_search_rows_pin_selection_status_and_goal_rows() {
+    let document = fixture_document("fitting/search.json");
+    let definition = fitting_definition(&document);
+    let loaded = fitting_dataset(&document);
+    let validated = dataset::validate_dataset(&loaded, &definition)
+        .unwrap_or_else(|error| panic!("the dataset validates: {error}"));
+    let assessments = &document["assessments"];
+    let plans = document["plans"].as_array().expect("a plan array");
+    assert!(plans.len() >= 6, "the fixture group lost plans");
+
+    for artifact in plans {
+        let id = artifact["id"].as_str().expect("an identifier");
+        let plan = plan::validate_plan(artifact).unwrap_or_else(|error| panic!("{id}: {error}"));
+        let report = fitting::fit_policy(&plan, &validated, assessments)
+            .unwrap_or_else(|error| panic!("{id}: {error}"));
+        let facts = &document["facts"][id];
+        assert!(!facts.is_null(), "{id}: the group states no facts");
+
+        // The status, the counts, and the fitting-split identity.
+        assert_eq!(
+            report.status.as_str(),
+            facts["status"].as_str().expect("a status"),
+            "{id}"
+        );
+        assert_eq!(
+            report.case_count,
+            facts["case_count"].as_u64().expect("a case count") as usize,
+            "{id}"
+        );
+        assert_eq!(
+            report.candidate_count,
+            facts["candidate_count"]
+                .as_u64()
+                .expect("a candidate count") as usize,
+            "{id}"
+        );
+        assert_eq!(
+            report.split_content_hash,
+            facts["split_content_hash"]
+                .as_str()
+                .expect("a split digest"),
+            "{id}"
+        );
+        assert_eq!(report.plan_id, id);
+        assert_eq!(report.method, fitting::METHOD);
+        assert_eq!(report.interval_method, intervals::METHOD);
+        assert_eq!(report.statement, fitting::DEVELOPMENT_EVIDENCE_STATEMENT);
+        assert_eq!(
+            serde_json::to_value(report.objective).expect("serializes"),
+            artifact["objective"],
+            "{id}"
+        );
+
+        // The selected candidate, or the valid absence of one.
+        match (report.selected(), facts["selected"].is_null()) {
+            (Some(selected), false) => {
+                let stated = &facts["selected"];
+                assert_eq!(
+                    selected.index,
+                    stated["index"].as_u64().expect("an index") as usize,
+                    "{id}"
+                );
+                assert_eq!(
+                    serde_json::to_value(selected.candidate).expect("serializes"),
+                    stated["candidate"],
+                    "{id}"
+                );
+                assert_eq!(
+                    selected.objective.metric.as_str(),
+                    stated["objective"]["metric"]
+                        .as_str()
+                        .expect("a metric word"),
+                    "{id}"
+                );
+                assert_eq!(
+                    (selected.objective.numerator, selected.objective.denominator),
+                    (
+                        stated["objective"]["numerator"]
+                            .as_u64()
+                            .expect("a numerator") as usize,
+                        stated["objective"]["denominator"]
+                            .as_u64()
+                            .expect("a denominator") as usize,
+                    ),
+                    "{id}"
+                );
+                assert_bound(
+                    selected.objective.value.expect("the objective value"),
+                    &stated["objective"]["value"],
+                    id,
+                );
+                let rows = stated["constraints"]
+                    .as_array()
+                    .expect("the stated goal rows");
+                assert_eq!(selected.constraints.len(), rows.len(), "{id}");
+                for (row, stated_row) in selected.constraints.iter().zip(rows) {
+                    let note = format!("{id}: the selected goal row");
+                    assert_constraint_fit(row, stated_row, &note);
+                }
+                let scopes = stated["scopes"].as_array().expect("the stated scopes");
+                assert_eq!(selected.scopes.len(), scopes.len(), "{id}");
+                for (set, stated_set) in selected.scopes.iter().zip(scopes) {
+                    assert_eq!(
+                        set.scope,
+                        stated_set["scope"].as_str().expect("a scope"),
+                        "{id}"
+                    );
+                    assert_eq!(
+                        serde_json::to_value(set.counts).expect("serializes"),
+                        stated_set["counts"],
+                        "{id}: {}",
+                        set.scope
+                    );
+                }
+            }
+            (None, true) => {}
+            pair => panic!("{id}: the selected candidate states {pair:?}"),
+        }
+
+        // Every enumerated candidate, feasible or not.
+        let rows = facts["candidates"]
+            .as_array()
+            .expect("the stated candidates");
+        assert_eq!(report.candidates.len(), rows.len(), "{id}");
+        for (fit, stated) in report.candidates.iter().zip(rows) {
+            let note = format!("{id}: candidate {}", fit.index);
+            assert_candidate_fit(fit, stated, &note);
+        }
+    }
+
+    // The tie row stays explicit: two feasible candidates state the same
+    // objective counts and the first in the declared order wins.
+    let tie = &document["facts"]["tie-plan"];
+    let first = &tie["candidates"][0];
+    let second = &tie["candidates"][1];
+    assert_eq!(
+        first["objective"], second["objective"],
+        "the tie states equal counts"
+    );
+    assert_eq!(
+        tie["selected"]["index"],
+        json!(0),
+        "the tie takes the first candidate"
+    );
+}
+
+/// Every invalid row of the fitting group rejects with its stated reason
+/// code and field path, before any candidate is enumerated.
+#[test]
+fn invalid_fitting_rows_reject_with_their_stated_codes() {
+    let document = fixture_document("fitting/search.json");
+    let definition = fitting_definition(&document);
+    let loaded = fitting_dataset(&document);
+    let validated = dataset::validate_dataset(&loaded, &definition)
+        .unwrap_or_else(|error| panic!("the dataset validates: {error}"));
+    let invalid = document["invalid"].as_array().expect("an invalid array");
+    assert!(invalid.len() >= 6, "the fixture group lost invalid rows");
+
+    for row in invalid {
+        let note = row["note"].as_str().expect("a note");
+        let artifact = match row.get("plan") {
+            Some(plan) => plan.clone(),
+            None => stated_plan(
+                &document,
+                row["plan_id"].as_str().expect("a plan identifier"),
+            ),
+        };
+        let plan = plan::validate_plan(&artifact)
+            .unwrap_or_else(|error| panic!("{note}: the plan itself must validate: {error}"));
+        let assessments = row.get("assessments").unwrap_or(&document["assessments"]);
+        let error = fitting::fit_policy(&plan, &validated, assessments)
+            .err()
+            .unwrap_or_else(|| panic!("{note}: the fitting search was accepted"));
+        let expected = &row["expected"];
+        assert_eq!(
+            error.code.as_str(),
+            expected["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            expected["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Frozen validation fixtures (task T049).
+// ---------------------------------------------------------------------------
+
+/// Loads the shared definition of the qualification group and validates it.
+fn qualification_definition(document: &Value) -> definition::ValidatedDefinition {
+    let name = document["definition"].as_str().expect("a definition file");
+    let text = fs::read_to_string(fixture(&format!("definitions/valid/{name}")))
+        .unwrap_or_else(|error| panic!("{name}: {error}"));
+    definition::validate_definition_str(&text).unwrap_or_else(|error| panic!("{name}: {error}"))
+}
+
+/// One loaded dataset of the qualification group: the metadata artifact, the
+/// records text, and the parsed dataset, so one validated view can borrow
+/// all three inside one test.
+struct QualificationDataset {
+    dataset: dataset::Dataset,
+}
+
+impl QualificationDataset {
+    /// Loads the primary dataset or the correlated one.
+    fn load(document: &Value, correlated: bool) -> Self {
+        let (metadata, records) = if correlated {
+            (
+                &document["other_dataset"],
+                &document["other_dataset_records"],
+            )
+        } else {
+            (&document["dataset"], &document["dataset_records"])
+        };
+        let metadata_text = serde_json::to_string(metadata).expect("the metadata serializes");
+        let dataset =
+            dataset::load_dataset(&metadata_text, records.as_str().expect("the records text"))
+                .unwrap_or_else(|error| panic!("the dataset loads: {error}"));
+        Self { dataset }
+    }
+
+    /// Validates the dataset against one definition.
+    fn validated<'a>(
+        &'a self,
+        definition: &'a definition::ValidatedDefinition,
+    ) -> dataset::ValidatedDataset<'a> {
+        dataset::validate_dataset(&self.dataset, definition)
+            .unwrap_or_else(|error| panic!("the dataset validates: {error}"))
+    }
+}
+
+/// Builds one validation request of the qualification group: the default
+/// request of the document, the per-plan override when one exists, and the
+/// split identities the `previously_used` names state.
+fn qualification_request(
+    document: &Value,
+    plan_id: &str,
+    loaded: &QualificationDataset,
+) -> qualification::ValidationRequest {
+    let mut stated = document["requests"]
+        .get(plan_id)
+        .unwrap_or(&document["request"])
+        .clone();
+    // The fixture states the used splits by name; the boundary reads split
+    // identities, so the names resolve against the loaded dataset first.
+    let used_names = stated
+        .as_object_mut()
+        .expect("one request object")
+        .remove("previously_used")
+        .map(|names| names.as_array().expect("an array").clone());
+    let mut request = qualification::parse_validation_request(&stated)
+        .unwrap_or_else(|error| panic!("{plan_id}: the request parses: {error}"));
+    if let Some(used) = used_names {
+        let grouped = splits::dataset_splits(&loaded.dataset).expect("the splits compute");
+        let mut identities = Vec::with_capacity(used.len());
+        for name in used {
+            let split = name.as_str().expect("one split name");
+            identities.push(
+                grouped
+                    .splits()
+                    .iter()
+                    .find(|entry| entry.identity().split_id == split)
+                    .unwrap_or_else(|| panic!("{plan_id}: the dataset declares no {split}"))
+                    .identity()
+                    .clone(),
+            );
+        }
+        request.previously_used = identities;
+    }
+    request
+}
+
+/// Runs one plan of the qualification group through the fit and the frozen
+/// validation, and states the computed facts of the result.
+fn qualification_facts(report: &qualification::QualificationReport) -> Value {
+    let goals: Vec<Value> = report
+        .goals
+        .iter()
+        .map(|goal| {
+            let mut row = json!({
+                "metric": goal.metric.as_str(),
+                "met": goal.met,
+                "numerator": goal.numerator,
+                "denominator": goal.denominator,
+                "observed": goal.observed,
+                "upper_bound": goal.upper_bound,
+                "draws": goal.draws,
+                "evidence": match goal.evidence {
+                    qualification::GoalEvidence::Measured => json!("measured"),
+                    qualification::GoalEvidence::ZeroDenominator => json!("zero_denominator"),
+                    qualification::GoalEvidence::UnsupportedSampling => {
+                        json!("unsupported_sampling")
+                    }
+                    qualification::GoalEvidence::BelowMinimum { stated, measured } => {
+                        json!({"below_minimum": {"stated": stated, "measured": measured}})
+                    }
+                }
+            });
+            if let qualification::GoalEvidence::BelowMinimum { stated, measured } = goal.evidence {
+                row["stated"] = json!(stated);
+                row["measured"] = json!(measured);
+            }
+            row
+        })
+        .collect();
+    let requirements: Vec<Value> = report
+        .sample_requirements
+        .iter()
+        .map(|row| {
+            json!({
+                "denominator": row.denominator,
+                "stated": row.stated,
+                "measured": row.measured,
+                "met": row.met,
+            })
+        })
+        .collect();
+    let slices: Vec<Value> = report
+        .slices
+        .iter()
+        .map(|row| {
+            json!({
+                "tag": row.tag,
+                "met": row.met,
+                "denominators": row.denominators,
+            })
+        })
+        .collect();
+    let reasons: Vec<&str> = report.reasons.iter().map(|row| row.code.as_str()).collect();
+    json!({
+        "status": report.status.as_str(),
+        "reasons": reasons,
+        "evidence_class": report.evidence.class.as_str(),
+        "case_count": report.case_count,
+        "candidate_index": report.candidate_index,
+        "candidate": report.candidate,
+        "applied": report.applied,
+        "goals": goals,
+        "sample_requirements": requirements,
+        "slices": slices,
+        "counts": report
+            .scopes
+            .iter()
+            .find(|set| set.scope == metrics::ALL_CHECKS)
+            .map(|set| set.counts)
+            .value_or_null(),
+    })
+}
+
+/// One temporary value helper: `None` states null.
+trait ValueOrNull {
+    fn value_or_null(&self) -> Value;
+}
+
+impl ValueOrNull for Option<metrics::OutcomeCounts> {
+    fn value_or_null(&self) -> Value {
+        match self {
+            Some(counts) => serde_json::to_value(counts).expect("the counts serialize"),
+            None => Value::Null,
+        }
+    }
+}
+
+/// Runs one plan row of the qualification group through the fit and the
+/// frozen validation, with the row's stated overrides applied.
+fn qualification_row(
+    document: &Value,
+    primary: &QualificationDataset,
+    correlated: &QualificationDataset,
+    artifact: &Value,
+    fit_of: Option<&Value>,
+    patch: Option<&Value>,
+    assessment_patch: Option<&Value>,
+) -> Result<qualification::QualificationReport, measuretwice_core::error::ValidationError> {
+    let definition = qualification_definition(document);
+    let primary_validated = primary.validated(&definition);
+    let correlated_validated = correlated.validated(&definition);
+    let uses_primary =
+        artifact["datasets"]["fitting"]["dataset"].as_str() == Some("qualification-cases");
+    let (loaded, validated) = if uses_primary {
+        (primary, &primary_validated)
+    } else {
+        (correlated, &correlated_validated)
+    };
+
+    let plan = plan::validate_plan(artifact)
+        .unwrap_or_else(|error| panic!("{}: the row plan validates: {error}", artifact["id"]));
+    let fit_source = fit_of.unwrap_or(artifact);
+    let fit_plan = plan::validate_plan(fit_source)
+        .unwrap_or_else(|error| panic!("{}: the fit plan validates: {error}", fit_source["id"]));
+    let mut fit = fitting::fit_policy(&fit_plan, validated, &document["fitting_assessments"])
+        .unwrap_or_else(|error| panic!("{}: the fit runs: {error}", fit_source["id"]));
+    if let Some(patch) = patch {
+        if let Some(hash) = patch["definition_hash"].as_str() {
+            fit.definition_hash = hash.to_owned();
+        }
+        if let Some(split) = patch["split"].as_str() {
+            fit.split = split.to_owned();
+        }
+        if let Some(hash) = patch["split_content_hash"].as_str() {
+            fit.split_content_hash = hash.to_owned();
+        }
+        if let Some(accept) = patch["candidate_accept"].as_f64() {
+            fit.selected
+                .as_mut()
+                .expect("one candidate")
+                .candidate
+                .accept_cutoff = accept;
+        }
+        if let Some(index) = patch["candidate_index"].as_u64() {
+            fit.selected.as_mut().expect("one candidate").index = index as usize;
+        }
+    }
+
+    let request = qualification_request(document, plan.id(), loaded);
+    let mut assessments = document["assessment_overrides"]
+        .get(plan.id())
+        .cloned()
+        .unwrap_or(match artifact["datasets"]["fitting"]["dataset"].as_str() {
+            Some("qualification-cases") => document["assessments"].clone(),
+            _ => document["other_assessments"].clone(),
+        });
+    if let Some(Value::Object(fields)) = assessment_patch.cloned() {
+        if let Some(added) = fields.get("add").and_then(Value::as_object) {
+            for (case, entry) in added {
+                assessments[case] = entry.clone();
+            }
+        }
+        if let Some(removed) = fields.get("remove").and_then(Value::as_str) {
+            assessments
+                .as_object_mut()
+                .expect("one assessment object")
+                .remove(removed);
+        }
+    }
+    qualification::qualify_candidate(&plan, validated, &fit, &request, &assessments)
+}
+
+/// The qualification group pins the status, the reasons, the goal rows, the
+/// sample requirements, and the slice floors of every valid plan, as the
+/// fixture manifest states: one validated scope on the observed value, one
+/// on the upper confidence bound, one unmet goal with the frozen candidate
+/// unchanged, one plan minimum above the validation counts, one important
+/// slice below its floor, one reused holdout, one correlated-group
+/// validation under independent cases, and the same validation under
+/// grouped cases.
+#[test]
+fn qualification_rows_pin_status_reasons_and_goal_rows() {
+    let document = fixture_document("qualification/validation.json");
+    let primary = QualificationDataset::load(&document, false);
+    let correlated = QualificationDataset::load(&document, true);
+    let plans = document["plans"].as_array().expect("a plan array");
+    assert!(plans.len() >= 8, "the fixture group lost plans");
+
+    let mut covered: BTreeSet<String> = BTreeSet::new();
+    for artifact in plans {
+        let id = artifact["id"].as_str().expect("an identifier");
+        let report =
+            qualification_row(&document, &primary, &correlated, artifact, None, None, None)
+                .unwrap_or_else(|error| panic!("{id}: {error}"));
+        let facts = &document["facts"][id];
+        assert!(!facts.is_null(), "{id}: the group states no facts");
+
+        // The status, the reasons in decision order, and the evidence class.
+        assert_eq!(
+            report.status.as_str(),
+            facts["status"].as_str().expect("a status"),
+            "{id}"
+        );
+        assert_ne!(report.status.as_str(), "unvalidated", "{id}");
+        let codes: Vec<&str> = report.reasons.iter().map(|row| row.code.as_str()).collect();
+        let stated: Vec<&str> = facts["reasons"]
+            .as_array()
+            .expect("the reason codes")
+            .iter()
+            .map(|code| code.as_str().expect("a code"))
+            .collect();
+        assert_eq!(codes, stated, "{id}");
+        assert_eq!(
+            report.evidence.class.as_str(),
+            facts["evidence_class"].as_str().expect("a class"),
+            "{id}"
+        );
+        covered.insert(report.status.as_str().to_owned());
+
+        // The frozen candidate and its position, unchanged by the validation.
+        assert_eq!(
+            report.candidate_index,
+            facts["candidate_index"].as_u64().expect("an index") as usize,
+            "{id}"
+        );
+        assert_eq!(
+            serde_json::to_value(report.candidate).expect("serializes"),
+            facts["candidate"],
+            "{id}"
+        );
+        assert_eq!(
+            serde_json::to_value(report.applied).expect("serializes"),
+            facts["applied"],
+            "{id}"
+        );
+        assert_eq!(report.method, qualification::METHOD, "{id}");
+        assert_eq!(report.statement, qualification::CANDIDATE_STATEMENT, "{id}");
+        assert_eq!(
+            report.case_count,
+            facts["case_count"].as_u64().expect("a count") as usize,
+            "{id}"
+        );
+
+        // One row per declared goal, with the counts, the bounds, and the
+        // evidence state.
+        let goals = facts["goals"].as_array().expect("the goal rows");
+        assert_eq!(report.goals.len(), goals.len(), "{id}");
+        for (computed, stated) in report.goals.iter().zip(goals) {
+            assert_eq!(
+                computed.metric.as_str(),
+                stated["metric"].as_str().expect("a metric"),
+                "{id}"
+            );
+            assert_eq!(
+                computed.met,
+                stated["met"].as_bool().expect("a flag"),
+                "{id}"
+            );
+            assert_eq!(
+                (computed.numerator, computed.denominator, computed.draws),
+                (
+                    stated["numerator"].as_u64().expect("a numerator") as usize,
+                    stated["denominator"].as_u64().expect("a denominator") as usize,
+                    stated["draws"].as_u64().expect("the draws") as usize
+                ),
+                "{id}"
+            );
+            match (computed.observed, stated["observed"].as_f64()) {
+                (Some(observed), Some(expected)) => assert_bound(observed, &json!(expected), id),
+                (None, None) => {}
+                pair => panic!("{id}: the observed value states {pair:?}"),
+            }
+            match (computed.upper_bound, stated["upper_bound"].as_f64()) {
+                (Some(bound), Some(expected)) => assert_bound(bound, &json!(expected), id),
+                (None, None) => {}
+                pair => panic!("{id}: the upper bound states {pair:?}"),
+            }
+            match computed.evidence {
+                qualification::GoalEvidence::Measured => {
+                    assert_eq!(stated["evidence"], json!("measured"), "{id}");
+                }
+                qualification::GoalEvidence::ZeroDenominator => {
+                    assert_eq!(stated["evidence"], json!("zero_denominator"), "{id}");
+                }
+                qualification::GoalEvidence::UnsupportedSampling => {
+                    assert_eq!(stated["evidence"], json!("unsupported_sampling"), "{id}");
+                }
+                qualification::GoalEvidence::BelowMinimum {
+                    stated: floor,
+                    measured,
+                } => {
+                    assert_eq!(
+                        stated["evidence"],
+                        json!({"below_minimum": {"stated": floor, "measured": measured}}),
+                        "{id}"
+                    );
+                }
+            }
+        }
+
+        // The sample requirements and the important slices.
+        let requirements = facts["sample_requirements"]
+            .as_array()
+            .expect("the requirement rows");
+        assert_eq!(report.sample_requirements.len(), requirements.len(), "{id}");
+        for (computed, stated) in report.sample_requirements.iter().zip(requirements) {
+            assert_eq!(
+                (
+                    computed.denominator.as_str(),
+                    computed.stated,
+                    computed.measured,
+                    computed.met
+                ),
+                (
+                    stated["denominator"].as_str().expect("a denominator"),
+                    stated["stated"].as_u64().expect("a minimum") as usize,
+                    stated["measured"].as_u64().expect("a count") as usize,
+                    stated["met"].as_bool().expect("a flag")
+                ),
+                "{id}"
+            );
+        }
+        let slices = facts["slices"].as_array().expect("the slice rows");
+        assert_eq!(report.slices.len(), slices.len(), "{id}");
+        for (computed, stated) in report.slices.iter().zip(slices) {
+            assert_eq!(computed.tag, stated["tag"].as_str().expect("a tag"), "{id}");
+            assert_eq!(
+                computed.met,
+                stated["met"].as_bool().expect("a flag"),
+                "{id}"
+            );
+            assert_eq!(
+                serde_json::to_value(&computed.denominators).expect("serializes"),
+                stated["denominators"],
+                "{id}"
+            );
+        }
+
+        // The predicted outcome counts of the complete check set.
+        let counts = report
+            .scopes
+            .iter()
+            .find(|set| set.scope == metrics::ALL_CHECKS)
+            .map(|set| serde_json::to_value(set.counts).expect("serializes"));
+        assert_eq!(counts, Some(facts["counts"].clone()), "{id}");
+    }
+    // The group covers the three statuses one frozen validation computes.
+    for status in [
+        "validated_for_scope",
+        "criteria_not_met",
+        "insufficient_evidence",
+    ] {
+        assert!(covered.contains(status), "the group covers no {status} row");
+    }
+}
+
+/// Every invalid row of the qualification group refuses with its stated
+/// reason code and field path.
+#[test]
+fn invalid_qualification_rows_refuse_with_their_stated_codes() {
+    let document = fixture_document("qualification/validation.json");
+    let primary = QualificationDataset::load(&document, false);
+    let correlated = QualificationDataset::load(&document, true);
+    let invalid = document["invalid"].as_array().expect("an invalid array");
+    assert!(invalid.len() >= 13, "the fixture group lost invalid rows");
+
+    let mut covered = BTreeSet::new();
+    for row in invalid {
+        let note = row["note"].as_str().expect("a note");
+        let mut artifact = match row.get("plan_id") {
+            Some(Value::String(id)) => document["plans"]
+                .as_array()
+                .expect("a plan array")
+                .iter()
+                .find(|plan| plan["id"] == *id)
+                .unwrap_or_else(|| panic!("{note}: the group states no plan {id}"))
+                .clone(),
+            _ => row["plan"].clone(),
+        };
+
+        // One row may move the validation selection, name another dataset,
+        // or edit one limit after the search, so the freeze or the selection
+        // check names the moved field.
+        if let Some(split) = row["validation_split"].as_str() {
+            artifact["datasets"]["validation"]["split"] = json!(split);
+            let grouped = splits::dataset_splits(&primary.dataset).expect("the splits compute");
+            if let Some(offered) = grouped
+                .splits()
+                .iter()
+                .find(|entry| entry.identity().split_id == split)
+            {
+                artifact["datasets"]["validation"]["content_hash"] =
+                    json!(offered.identity().content_hash);
+            }
+        }
+        if row["foreign_validation_dataset"].as_bool() == Some(true) {
+            artifact["datasets"]["validation"]["dataset"] = json!("other-cases");
+        }
+        if let Some(limit) = row["edited_plan_limit"].as_f64() {
+            artifact["constraints"][0]["limit"] = json!(limit);
+        }
+        let fit_of = match row["fit_plan"].as_str() {
+            Some(id) => Some(
+                document["plans"]
+                    .as_array()
+                    .expect("a plan array")
+                    .iter()
+                    .find(|plan| plan["id"] == json!(id))
+                    .unwrap_or_else(|| panic!("{note}: the group states no plan {id}"))
+                    .clone(),
+            ),
+            None => None,
+        };
+
+        let error = qualification_row(
+            &document,
+            &primary,
+            &correlated,
+            &artifact,
+            fit_of.as_ref(),
+            row.get("fit_patch"),
+            row.get("assessment_patch"),
+        )
+        .err()
+        .unwrap_or_else(|| panic!("{note}: the qualification was accepted"));
+        let expected = &row["expected"];
+        assert_eq!(
+            error.code.as_str(),
+            expected["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            expected["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+        covered.insert(error.code.as_str().to_owned());
+    }
+    for code in [
+        "invalid_field_type",
+        "hash_mismatch",
+        "definition_mismatch",
+        "policy_mismatch",
+        "criteria_not_met",
+        "unknown_field",
+        "missing_field",
+    ] {
+        assert!(covered.contains(code), "the group covers no {code} row");
+    }
 }

@@ -1,0 +1,4938 @@
+{
+  "schema_version": 1,
+  "description": "Calibration plan fixtures of task T047. The plans array holds valid artifacts; each one that carries a content_hash states its computed self-hash in the plan domain, which one implementation of the hashing contract outside the Rust core computed. The facts object states the derived facts of every valid plan: its computed identity, its candidate count, the head of the candidate enumeration in the declared order, its objective, its confidence level, and its denominator names. The invalid array holds artifacts that Rust must reject with the stated reason code and field path, before any dataset is read. The bindings array pairs valid plans with one loaded definition, one fitting and one validation split identity of the shared datasets, or the registered evaluators: those failures are binding failures before any fitting runs. A row states its plan under plan_id or plan, its split selections under fitting and validation, where other: names the second dataset, and the failure is absent when the pairing loads.",
+  "definition": "categorical-question.json",
+  "dataset": {
+    "schema_version": 1,
+    "id": "plan-cases",
+    "name": "Calibration plan cases",
+    "revision": "2026-09-24.1",
+    "kind": "representative_sample",
+    "intended_population": "Proposed messages in support conversations.",
+    "sampling_method": "Sampled at random from reviewed traffic of one week.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "fit",
+        "purpose": "fitting",
+        "groups": [
+          "conversation-a"
+        ]
+      },
+      {
+        "id": "holdout",
+        "purpose": "validation",
+        "groups": [
+          "conversation-b"
+        ]
+      }
+    ]
+  },
+  "dataset_records": "{\"id\": \"plan-case-1\", \"group\": \"conversation-a\", \"tags\": [\"baseline-pass\"], \"input\": {\"prior_decision\": \"Customer exports stay in the EU.\", \"conversation\": \"The new export worker stays in the EU region.\", \"proposed_message\": \"The export worker now serves EU customers from the EU region.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}, \"outcome\": \"pass\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal written for the plan fixtures.\"}}\n{\"id\": \"plan-case-2\", \"group\": \"conversation-a\", \"tags\": [\"eu-export\"], \"input\": {\"prior_decision\": \"Customer exports stay in the EU.\", \"conversation\": \"We must move the export worker to the US region.\", \"proposed_message\": \"The export worker moved to the US region.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"contradicted\", \"outcome\": \"fail\"}}, \"outcome\": \"fail\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal written for the plan fixtures.\"}}\n{\"id\": \"plan-case-3\", \"group\": \"conversation-b\", \"tags\": [\"later-corrections\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday. Note 1.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}, \"outcome\": \"pass\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal written for the plan fixtures.\"}}\n{\"id\": \"plan-case-4\", \"group\": \"conversation-b\", \"tags\": [\"later-corrections\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"Maybe the release moves. Note 2.\", \"proposed_message\": \"The release might move to Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"incomplete\", \"outcome\": \"review\"}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal written for the plan fixtures.\"}}",
+  "other_dataset": {
+    "schema_version": 1,
+    "id": "plan-cases-2",
+    "name": "Calibration plan cases of a second source",
+    "revision": "2026-09-24.2",
+    "kind": "representative_sample",
+    "intended_population": "Proposed messages in support conversations.",
+    "sampling_method": "Sampled at random from reviewed traffic of a second week.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "holdout",
+        "purpose": "validation",
+        "groups": [
+          "conversation-a"
+        ]
+      }
+    ]
+  },
+  "other_dataset_records": "{\"id\": \"plan-case-9\", \"group\": \"conversation-a\", \"tags\": [\"baseline-pass\"], \"input\": {\"prior_decision\": \"Customer exports stay in the EU.\", \"conversation\": \"A second worker also stays in the EU region.\", \"proposed_message\": \"Both workers now serve EU customers from the EU region.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}, \"outcome\": \"pass\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal written for the plan fixtures.\"}}",
+  "plans": [
+    {
+      "schema_version": 1,
+      "id": "message-supported-plan",
+      "name": "Message support calibration plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the Cassandra pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent. Selection is not random, so interval methods treat groups as exchangeable.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.05,
+          "basis": "upper_confidence_bound"
+        },
+        {
+          "metric": "review_rate",
+          "comparison": "at_most",
+          "limit": 0.3,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "labeled_cases": 200,
+        "accepted_cases": 80
+      },
+      "important_slices": [
+        {
+          "tag": "later-corrections",
+          "minimum_samples": {
+            "labeled_cases": 30
+          }
+        }
+      ],
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.6,
+          0.7,
+          0.8,
+          0.9
+        ],
+        "rejection_cutoffs": [
+          0.6,
+          0.7,
+          0.8
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0",
+        "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+        "model_requested": "jev-1.13"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "message-supported-cases",
+          "revision": "2026-09-23",
+          "split": "fitting",
+          "content_hash": "923feb8e4dd601bc4fb2585e95f787503384df7e6a1ce623aec90280424261c6"
+        },
+        "validation": {
+          "dataset": "message-supported-cases",
+          "revision": "2026-09-23",
+          "split": "validation",
+          "content_hash": "d9b765d1f02168bfc5dc596a3c7b4968184e3d1200b2207230a2944edac11336"
+        }
+      },
+      "content_hash": "de4bcb9a68a77d5ca7f6fb5a4da35c53e80a5ba955ef57cfe42a85f0fcd0ff79"
+    },
+    {
+      "schema_version": 1,
+      "id": "message-supported-calibration",
+      "name": "Limit wrong interventions, then minimize review",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+      "confidence_level": 0.9,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.05,
+          "basis": "upper_confidence_bound"
+        },
+        {
+          "metric": "false_rejection_rate",
+          "comparison": "at_most",
+          "limit": 0.1,
+          "basis": "upper_confidence_bound"
+        }
+      ],
+      "objective": {
+        "metric": "automatic_coverage",
+        "direction": "maximize"
+      },
+      "minimum_samples": {
+        "labeled_cases": 200,
+        "evaluated_cases": 220,
+        "accepted_cases": 80,
+        "reference_pass_cases": 140,
+        "reference_fail_or_review_cases": 60
+      },
+      "important_slices": [
+        {
+          "tag": "later-corrections",
+          "minimum_samples": {
+            "labeled_cases": 30
+          }
+        },
+        {
+          "tag": "eu-export",
+          "minimum_samples": {
+            "labeled_cases": 20
+          }
+        }
+      ],
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55,
+          0.65,
+          0.75,
+          0.85,
+          0.95
+        ],
+        "rejection_cutoffs": [
+          0.55,
+          0.75,
+          0.95
+        ],
+        "confidence_floors": [
+          0.7,
+          0.9
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0",
+        "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+        "model_requested": "jev-1.13"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "plan-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit",
+          "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+        },
+        "validation": {
+          "dataset": "plan-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout",
+          "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+        }
+      },
+      "content_hash": "22d7cd11f0ff2a75a44706d2c6dd17e189654651340fa3af5df0b97c9b22ece4"
+    },
+    {
+      "schema_version": 1,
+      "id": "delivery-limits-plan",
+      "definition": {
+        "name": "delivery-limits",
+        "content_hash": "b42095ca790562a64294b369641a8699c6d3c1c2d95f6d5e98091a9fa38f8b2f"
+      },
+      "intended_population": "Delivery limits on summary and notice text.",
+      "sampling_assumptions": "Cases grouped by document. Groups are independent draws.",
+      "confidence_level": 0.99,
+      "constraints": [
+        {
+          "metric": "review_rate",
+          "comparison": "at_most",
+          "limit": 0.4,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "evaluated_cases": 100
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.6,
+          0.8
+        ],
+        "rejection_cutoffs": [
+          0.6,
+          0.8
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "plan-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "plan-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      },
+      "content_hash": "7df5c834430978f3aa2f2749bdde1743608211c5d5c29619c1299f3dcefa16ae"
+    },
+    {
+      "schema_version": 1,
+      "id": "message-supported-review-plan",
+      "name": "Minimize review under a bounded error",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.08,
+          "basis": "upper_confidence_bound"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "labeled_cases": 120,
+        "accepted_cases": 40,
+        "reference_fail_or_review_cases": 40
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.6,
+          0.7,
+          0.8,
+          0.9
+        ],
+        "rejection_cutoffs": [
+          0.6,
+          0.7,
+          0.8
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "plan-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit",
+          "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+        },
+        "validation": {
+          "dataset": "plan-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout",
+          "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+        }
+      }
+    }
+  ],
+  "facts": {
+    "message-supported-plan": {
+      "content_hash": "de4bcb9a68a77d5ca7f6fb5a4da35c53e80a5ba955ef57cfe42a85f0fcd0ff79",
+      "candidate_count": 12,
+      "candidates": [
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.7,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.8,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.7,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.7,
+          "rejection_cutoff": 0.7,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.7,
+          "rejection_cutoff": 0.8,
+          "confidence_floor": null
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "confidence_level": 0.95,
+      "denominators": [
+        "accepted_cases",
+        "labeled_cases"
+      ]
+    },
+    "message-supported-calibration": {
+      "content_hash": "22d7cd11f0ff2a75a44706d2c6dd17e189654651340fa3af5df0b97c9b22ece4",
+      "candidate_count": 45,
+      "candidates": [
+        {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.55,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.55,
+          "confidence_floor": 0.7
+        },
+        {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.55,
+          "confidence_floor": 0.9
+        },
+        {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.75,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.75,
+          "confidence_floor": 0.7
+        }
+      ],
+      "objective": {
+        "metric": "automatic_coverage",
+        "direction": "maximize"
+      },
+      "confidence_level": 0.9,
+      "denominators": [
+        "accepted_cases",
+        "evaluated_cases",
+        "labeled_cases",
+        "reference_fail_or_review_cases",
+        "reference_pass_cases"
+      ]
+    },
+    "delivery-limits-plan": {
+      "content_hash": "7df5c834430978f3aa2f2749bdde1743608211c5d5c29619c1299f3dcefa16ae",
+      "candidate_count": 4,
+      "candidates": [
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.8,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.8,
+          "confidence_floor": null
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "confidence_level": 0.99,
+      "denominators": [
+        "evaluated_cases"
+      ]
+    },
+    "message-supported-review-plan": {
+      "content_hash": "16cff2e62e87d9cfd0e2fb7708da486e1cca7c035362cbc898e3771d74cfdf81",
+      "candidate_count": 12,
+      "candidates": [
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.7,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.6,
+          "rejection_cutoff": 0.8,
+          "confidence_floor": null
+        },
+        {
+          "accept_cutoff": 0.7,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "confidence_level": 0.95,
+      "denominators": [
+        "accepted_cases",
+        "labeled_cases",
+        "reference_fail_or_review_cases"
+      ]
+    }
+  },
+  "invalid": [
+    {
+      "note": "One plan without id states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "acfb499060732c418104fa3677e7fdceedee9b19ef43c21d8743daaa6acf4b84"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/id"
+      }
+    },
+    {
+      "note": "One plan without definition states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "2b77df0f65e50fd390df8b2d793a5a0ff5926d46528af7a1171975515605783f"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/definition"
+      }
+    },
+    {
+      "note": "One plan without intended_population states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "54c5e7a0532381d8c380b0254a56997396a922ae46d8f157e4fae2edec920b30"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/intended_population"
+      }
+    },
+    {
+      "note": "One plan without sampling_assumptions states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "bd49fbba06296d0df1b0f0ee02d062d5f3c2433ce884e69edc05162f96575273"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/sampling_assumptions"
+      }
+    },
+    {
+      "note": "One plan without confidence_level states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "a035abfbd8b70d4f7076cf85a104c1c279526e8064d68fa1d158aaaf43ef16ed"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/confidence_level"
+      }
+    },
+    {
+      "note": "One plan without constraints states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "a4b650b9fe4ca34227626b3bf3922b8b294b33ab31f8535ce1aec8804831c695"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/constraints"
+      }
+    },
+    {
+      "note": "One plan without objective states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "34ded80f8749ed015260415b5bbec6fa3a5a07fc566875f05e5399113470ed35"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/objective"
+      }
+    },
+    {
+      "note": "One plan without minimum_samples states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "6efff3d52d53d1858e06866cc88de78ca31ad9e550de09d55765134fb078256c"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/minimum_samples"
+      }
+    },
+    {
+      "note": "One plan without candidate_grid states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "3b9d868dda80f472db679ac5fcc1defbf2e11c3112f766e96b9e245dfc329165"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/candidate_grid"
+      }
+    },
+    {
+      "note": "One plan without evaluator states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "143cc8dacdc0942677ed9d45f2fbe9a8c7d3dc9d4ea49cb1e416a03f1d185cd0"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/evaluator"
+      }
+    },
+    {
+      "note": "One plan without datasets states an incomplete goal set.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "content_hash": "36b52ef1cf19e89a805045ddeea1a0ea4fed61c889377837b2444c1ab92ceec9"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/datasets"
+      }
+    },
+    {
+      "note": "One field outside the plan contract refuses the artifact before any goal is read.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "default_tolerance": 0.05,
+        "content_hash": "acf35bfbaa57c56f6bda0b807419de2eba8a18992bba22217e70cba6fc712db0"
+      },
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/default_tolerance"
+      }
+    },
+    {
+      "note": "One identifier with an uppercase letter names no stable plan.",
+      "plan": {
+        "schema_version": 1,
+        "id": "Message-Supported-Plan",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "0e5de6fe39f48dfb1a0fd911593b8b681dca4844af7e0d53b375dc6bb58ff64a"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/id"
+      }
+    },
+    {
+      "note": "One empty population states no claim scope.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "3b6c5e56f905cacaef6e48b798081404f0dc042acdf7d60298b7bf695b9a41c9"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/intended_population"
+      }
+    },
+    {
+      "note": "One malformed definition hash binds nothing.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "nothex"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "65ca1ca4c5bfed2889a0e8eec91b42de24eb23e6e71b40ece5bdf7fee6ff6d8b"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/definition/content_hash"
+      }
+    },
+    {
+      "note": "One confidence level outside the three supported levels rejects.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.98,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "c50d0499fba46453ebcf59d70250489e26381c5b03296377597ddd979c65ba4d"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/confidence_level"
+      }
+    },
+    {
+      "note": "One plan without one constraint states no goal.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "17484c3f2f8abc7a0e77f7bd7e9d86677876b59a145ccdb4a5097cf35d190fd3"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/constraints"
+      }
+    },
+    {
+      "note": "One vague metric word names no denominator.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_rate",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "6f27a3abc226a9b25040f003e70f2f3a93ece116a139cc78688d80e4182350f2"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/constraints/0/metric"
+      }
+    },
+    {
+      "note": "One limit above 1 is no share of a denominator.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 1.5,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "660f7c18137ce71bbc127691752a1e8ed0b38118cd5a15f6b5a1762a7e928286"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/constraints/0/limit"
+      }
+    },
+    {
+      "note": "One repeated constraint metric leaves the goal ambiguous.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.2,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "cfd9c590d3d267001bf0b004f0cdca2aeb2d5ed866dba0670557193f2fb7cf6a"
+      },
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/constraints/1/metric"
+      }
+    },
+    {
+      "note": "The upper bound of one rate cannot establish one minimum, so one at_least limit takes the observed value alone.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "automatic_coverage",
+            "comparison": "at_least",
+            "limit": 0.7,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "140f0908de3aa5e5f7ebc65441f5e1316b8840fb345c41c4597a51815c43044f"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/constraints/0/basis"
+      }
+    },
+    {
+      "note": "One objective metric outside the review and coverage pair optimizes nothing the family measures.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "error_among_accepted",
+          "direction": "minimize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "270e88502777cae2be7d86fe51260e645b3f6be2bb9379e89d1405c560cdc0de"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/objective/metric"
+      }
+    },
+    {
+      "note": "Maximizing the review rate works against the owner goal.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "review_rate",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "2d8d15c845d0dbc50861369b631a52f8073639dcb94f042a03d7982e83ace983"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/objective/direction"
+      }
+    },
+    {
+      "note": "Minimizing the automatic coverage works against the owner goal.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "minimize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "f036b4d4be576368526ecee2ab7cf4d3d4c724cfbad9c7968f0f661d2f4a13a1"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/objective/direction"
+      }
+    },
+    {
+      "note": "One sample count map without one entry states no evidence requirement.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {},
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "3d1fd11ad249f5c8a14df9e9108069a24ae74b9636a449ff66488c5b3406cfd2"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples"
+      }
+    },
+    {
+      "note": "One denominator name outside the published set states no requirement any evaluation reads.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "accepted_case": 80
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "c7c9db9b273825c84904ee1175b8ba0613c600b5650d7bcbcf1cd405cfad8add"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples/accepted_case"
+      }
+    },
+    {
+      "note": "One minimum of zero demands no evidence.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 0
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "0dd91392a77d80a35c92bae0b676efa2840330f3520f5533b80807e5faac272c"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples/labeled_cases"
+      }
+    },
+    {
+      "note": "One minimum above the dataset record limit no dataset can ever meet.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 100001
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "8fc73e6b8a627bb7c67dd54eeb61aed1aff70ccbfe9568ca703ccc174f299e9f"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples/labeled_cases"
+      }
+    },
+    {
+      "note": "One constrained error metric without the minimum of its denominator leaves the goal without an evidence floor.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "false_acceptance_rate",
+            "comparison": "at_most",
+            "limit": 0.03,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "accepted_cases": 80
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "73ac81400d03501ef2245248e8dbb9e53a4b6e06d622c98d4ec0582ee12b81f8"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/minimum_samples"
+      }
+    },
+    {
+      "note": "One repeated slice tag checks one slice twice.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 10
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "cd0ba094892fa16ebfb6c384fd858e4cf0df71c10c45256d8615ba1a3eb8521b"
+      },
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/important_slices/1/tag"
+      }
+    },
+    {
+      "note": "One slice minimum with one denominator name outside the published set states no requirement.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled": 30
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "3b472f36d7ee2e31e435a61786d9a82292b676457027ac2a748a7c2863386f61"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/important_slices/0/minimum_samples/labeled"
+      }
+    },
+    {
+      "note": "One grid without one acceptance cutoff permits no candidate.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "c404039124571cc4d77c6ea9129981d56693e666c11e0e8feb213060d6d34d9e"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/candidate_grid/accept_cutoffs"
+      }
+    },
+    {
+      "note": "One acceptance cutoff at 0.5 permits one simultaneous acceptance and rejection.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.6,
+            0.5
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "15b8117ca4d23983e2436e84acee5346fdb6310fd267bf857ae306cc6fec3e05"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/candidate_grid/accept_cutoffs/1"
+      }
+    },
+    {
+      "note": "One rejection cutoff above 1 is no share of probability mass.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.6
+          ],
+          "rejection_cutoffs": [
+            1.2
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "2516ffb3e13e5b148399cb9905278a663b091018f6eb1f7ba5f7d7b051b346c6"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/candidate_grid/rejection_cutoffs/0"
+      }
+    },
+    {
+      "note": "One repeated cutoff enumerates one candidate twice.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.6,
+            0.7,
+            0.6
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "7b08e9e9f85d54b70facbedc690c688e03829bb18eb15065150e5391a93ee246"
+      },
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/candidate_grid/accept_cutoffs/2"
+      }
+    },
+    {
+      "note": "One confidence floor at 0.5 or below abstains on almost every answer.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.6
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ],
+          "confidence_floors": [
+            0.4
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "aba2f635051a929c48cf1397a97a81898a176ff5ab132398aca6b9c87d4c59c4"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/candidate_grid/confidence_floors/0"
+      }
+    },
+    {
+      "note": "One evaluator configuration without one adapter version is incomplete.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "2f7a44d6a33c23016d020f30ec50769589a9f3b12cee559cf1c461f1cd8c4566"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/evaluator/adapter_version"
+      }
+    },
+    {
+      "note": "One malformed translation hash records no translation.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "nothex"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "4f2d656a3c2b2f8f8dbcf23a499d9afa0a1f3fc0f9f7bcded1e5f9d72b11027e"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/evaluator/translation_hash"
+      }
+    },
+    {
+      "note": "One validation selection without one split names no data.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1"
+          }
+        },
+        "content_hash": "fcf3a9142b4567f712a2c5ba819176d673148061a6db865c05f1aa9391b78698"
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/datasets/validation/split"
+      }
+    },
+    {
+      "note": "One plan that names one split for fitting and validation holds no independent validation data.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          }
+        },
+        "content_hash": "3da042b2bded01c128f445f8105a6a370ea814c16382c242e16769ade82a2d4a"
+      },
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/datasets/validation"
+      }
+    },
+    {
+      "note": "One stored plan hash that differs marks one edited or corrupted copy.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "reason_code": "hash_mismatch",
+        "field_path": "/content_hash"
+      }
+    },
+    {
+      "note": "One stored plan hash outside the hex form records no digest.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "nothex"
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/content_hash"
+      }
+    },
+    {
+      "note": "One plan of a later schema version needs one reader of that version.",
+      "plan": {
+        "schema_version": 2,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          }
+        },
+        "content_hash": "ad93bc6c87ae8312811dd65554bb36ee52ec4532f8eaff949389a0437a348aee"
+      },
+      "expected": {
+        "reason_code": "unsupported_schema_version",
+        "field_path": "/schema_version"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "note": "The plan, the loaded definition, both split selections, and the registered evaluator agree, so the calibration may start.",
+      "plan_id": "message-supported-calibration",
+      "definition": "categorical-question.json",
+      "fitting": "fit",
+      "validation": "holdout",
+      "evaluators": [
+        {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        }
+      ]
+    },
+    {
+      "note": "An exact-only definition has no measured error source, so no calibration plan fits it.",
+      "plan_id": "delivery-limits-plan",
+      "definition": "exact-rules.json",
+      "expected": {
+        "reason_code": "policy_mismatch",
+        "field_path": "/plan/candidate_grid"
+      }
+    },
+    {
+      "note": "The plan binds the message-supported definition. The loaded definition is consequence-level, so the pairing changes the meaning.",
+      "plan_id": "message-supported-calibration",
+      "definition": "ordered-scale.json",
+      "expected": {
+        "reason_code": "definition_mismatch",
+        "field_path": "/plan/definition"
+      }
+    },
+    {
+      "note": "The fitting selection names the split the dataset declares for validation.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "dafa400e65477d5d72bde5f21fc73ff3873e4bbccd98b34748c1cf0284681c54"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          }
+        }
+      },
+      "fitting": "holdout",
+      "validation": "fit",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/plan/datasets/fitting/split"
+      }
+    },
+    {
+      "note": "The validation selection names another dataset, so the offered split of this dataset binds nothing.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "message-supported-cases",
+            "revision": "2026-09-23",
+            "split": "validation"
+          }
+        }
+      },
+      "fitting": "fit",
+      "validation": "holdout",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/plan/datasets/validation/dataset"
+      }
+    },
+    {
+      "note": "One stored split hash that differs from the computed digest of the loaded records fails the revision.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "fitting": "fit",
+      "validation": "holdout",
+      "expected": {
+        "reason_code": "hash_mismatch",
+        "field_path": "/plan/datasets/validation/content_hash"
+      }
+    },
+    {
+      "note": "The second dataset declares the same group as the fitting split, so its validation split shares the fitting group and loses its independence.",
+      "plan": {
+        "schema_version": 1,
+        "id": "message-supported-calibration",
+        "name": "Limit wrong interventions, then minimize review",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the reviewed support traffic.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is random within one week of traffic.",
+        "confidence_level": 0.9,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.05,
+            "basis": "upper_confidence_bound"
+          },
+          {
+            "metric": "false_rejection_rate",
+            "comparison": "at_most",
+            "limit": 0.1,
+            "basis": "upper_confidence_bound"
+          }
+        ],
+        "objective": {
+          "metric": "automatic_coverage",
+          "direction": "maximize"
+        },
+        "minimum_samples": {
+          "labeled_cases": 200,
+          "evaluated_cases": 220,
+          "accepted_cases": 80,
+          "reference_pass_cases": 140,
+          "reference_fail_or_review_cases": 60
+        },
+        "important_slices": [
+          {
+            "tag": "later-corrections",
+            "minimum_samples": {
+              "labeled_cases": 30
+            }
+          },
+          {
+            "tag": "eu-export",
+            "minimum_samples": {
+              "labeled_cases": 20
+            }
+          }
+        ],
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55,
+            0.65,
+            0.75,
+            0.85,
+            0.95
+          ],
+          "rejection_cutoffs": [
+            0.55,
+            0.75,
+            0.95
+          ],
+          "confidence_floors": [
+            0.7,
+            0.9
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0",
+          "translation_hash": "a5065efe5f955d002a550c9598efeb1217b0b402db10efda842f10682a2ec65b",
+          "model_requested": "jev-1.13"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "plan-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit",
+            "content_hash": "9d0efb1242861103bebc799bfd24757cecc6fb3e5625b1b168161513337b2599"
+          },
+          "validation": {
+            "dataset": "plan-cases-2",
+            "revision": "2026-09-24.2",
+            "split": "holdout",
+            "content_hash": "5b7e0e0c6844f79e9c4dd2564b8c49236c6d4880013c41df6faf8ec4e01978f1"
+          }
+        }
+      },
+      "fitting": "fit",
+      "validation": "other:holdout",
+      "expected": {
+        "reason_code": "duplicate_id",
+        "field_path": "/plan/datasets/validation"
+      }
+    },
+    {
+      "note": "No registered evaluator serves the evaluator the plan names.",
+      "plan_id": "message-supported-calibration",
+      "evaluators": [
+        {
+          "evaluator": "scripted-choice",
+          "adapter_version": "0.1.0"
+        }
+      ],
+      "expected": {
+        "reason_code": "evaluator_mismatch",
+        "field_path": "/plan/evaluator/evaluator"
+      }
+    },
+    {
+      "note": "The registered adapter states another version, so the measurements of the plan need new qualification.",
+      "plan_id": "message-supported-calibration",
+      "evaluators": [
+        {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.2.0"
+        }
+      ],
+      "expected": {
+        "reason_code": "evaluator_mismatch",
+        "field_path": "/plan/evaluator/adapter_version"
+      }
+    }
+  ]
+}

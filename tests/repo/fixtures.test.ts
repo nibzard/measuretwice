@@ -1569,6 +1569,219 @@ test("compatibility fixtures pair profiles with definitions and live evaluator s
   expect([...modes].sort()).toEqual(["enforcement", "shadow"]);
 });
 
+/** The metric words of `common.schema.json`, with the objective pair of the plan contract. */
+const PLAN_METRICS = ["false_acceptance_rate", "error_among_accepted", "false_rejection_rate", "review_rate", "automatic_coverage", "label_coverage"];
+const OBJECTIVE_METRICS = ["review_rate", "automatic_coverage"];
+/** The denominator names of the plan contract, as `metrics.rs` publishes them. */
+const DENOMINATORS = ["accepted_cases", "evaluated_cases", "labeled_cases", "reference_fail_or_review_cases", "reference_pass_cases"];
+/** The error metrics, whose denominator minimum one plan must state. */
+const ERROR_METRICS = ["false_acceptance_rate", "error_among_accepted", "false_rejection_rate"];
+
+/** States the documented plan invariants that the fixture data itself must keep. */
+function planErrors(plan: Json): Err[] {
+  const errors: Err[] = [];
+  const fail = (code: string, path: string) => errors.push({ code, path });
+  if (!isObject(plan)) return [{ code: "invalid_field_type", path: "" }];
+  if (plan.schema_version !== 1) fail("unsupported_schema_version", "/schema_version");
+  if (!(typeof plan.id === "string" && ARTIFACT_ID.test(plan.id))) fail("invalid_field_type", "/id");
+  if (plan.name !== undefined && !(typeof plan.name === "string" && plan.name.length >= 1 && plan.name.length <= 200)) {
+    fail("invalid_field_type", "/name");
+  }
+  const definition = plan.definition;
+  if (!isObject(definition) || !(typeof definition.name === "string" && ARTIFACT_ID.test(definition.name)) || !HASH_PATTERN.test(String(definition.content_hash))) {
+    fail("invalid_field_type", "/definition/content_hash");
+  }
+  for (const field of ["intended_population", "sampling_assumptions"]) {
+    const value = plan[field];
+    if (!(typeof value === "string" && value.length >= 1 && value.length <= 2000)) fail("invalid_field_type", `/${field}`);
+  }
+  if (![0.9, 0.95, 0.99].includes(Number(plan.confidence_level))) fail("invalid_field_type", "/confidence_level");
+  const constraints = Array.isArray(plan.constraints) ? plan.constraints : [];
+  if (constraints.length < 1) fail("invalid_field_type", "/constraints");
+  const constrained: string[] = [];
+  constraints.forEach((entry, index) => {
+    if (!isObject(entry)) return fail("invalid_field_type", `/constraints/${index}`);
+    if (!PLAN_METRICS.includes(String(entry.metric))) fail("invalid_field_type", `/constraints/${index}/metric`);
+    if (constrained.includes(String(entry.metric))) fail("duplicate_id", `/constraints/${index}/metric`);
+    constrained.push(String(entry.metric));
+    const limit = Number(entry.limit);
+    if (!(limit >= 0 && limit <= 1)) fail("invalid_field_type", `/constraints/${index}/limit`);
+    if (entry.comparison === "at_least" && entry.basis === "upper_confidence_bound") {
+      fail("invalid_field_type", `/constraints/${index}/basis`);
+    }
+  });
+  const objective = isObject(plan.objective) ? plan.objective : {};
+  if (!OBJECTIVE_METRICS.includes(String(objective.metric))) fail("invalid_field_type", "/objective/metric");
+  const improving = objective.metric === "review_rate" ? "minimize" : "maximize";
+  if (objective.direction !== improving) fail("invalid_field_type", "/objective/direction");
+  const minimums = isObject(plan.minimum_samples) ? plan.minimum_samples : {};
+  if (Object.keys(minimums).length < 1) fail("invalid_field_type", "/minimum_samples");
+  for (const [name, count] of Object.entries(minimums)) {
+    if (!DENOMINATORS.includes(name)) fail("invalid_field_type", `/minimum_samples/${name}`);
+    if (!(typeof count === "number" && Number.isInteger(count) && count >= 1 && count <= 100000)) {
+      fail("invalid_field_type", `/minimum_samples/${name}`);
+    }
+  }
+  for (const metric of constrained.filter((metric) => ERROR_METRICS.includes(metric))) {
+    const denominator = metric === "error_among_accepted" ? "accepted_cases" : metric === "false_acceptance_rate" ? "reference_fail_or_review_cases" : "reference_pass_cases";
+    if (minimums[denominator] === undefined) fail("invalid_field_type", "/minimum_samples");
+  }
+  const slices = Array.isArray(plan.important_slices) ? plan.important_slices : [];
+  if (plan.important_slices !== undefined && !Array.isArray(plan.important_slices)) fail("invalid_field_type", "/important_slices");
+  const tags: string[] = [];
+  slices.forEach((entry, index) => {
+    if (!isObject(entry)) return fail("invalid_field_type", `/important_slices/${index}`);
+    const tag = String(entry.tag);
+    if (!(entry.tag !== undefined && tag.length >= 1 && tag.length <= 64)) fail("invalid_field_type", `/important_slices/${index}/tag`);
+    if (tags.includes(tag)) fail("duplicate_id", `/important_slices/${index}/tag`);
+    tags.push(tag);
+    const sliceMinimums = isObject(entry.minimum_samples) ? entry.minimum_samples : {};
+    if (Object.keys(sliceMinimums).length < 1) fail("invalid_field_type", `/important_slices/${index}/minimum_samples`);
+    for (const name of Object.keys(sliceMinimums)) {
+      if (!DENOMINATORS.includes(name)) fail("invalid_field_type", `/important_slices/${index}/minimum_samples/${name}`);
+    }
+  });
+  const grid = isObject(plan.candidate_grid) ? plan.candidate_grid : {};
+  for (const [field, innermost] of [["accept_cutoffs", false], ["rejection_cutoffs", false], ["confidence_floors", true]] as const) {
+    const values = Array.isArray(grid[field]) ? (grid[field] as Json[]) : [];
+    if (!innermost && values.length < 1) fail("invalid_field_type", `/candidate_grid/${field}`);
+    if (grid[field] !== undefined && !Array.isArray(grid[field])) fail("invalid_field_type", `/candidate_grid/${field}`);
+    const seen: number[] = [];
+    values.forEach((value, index) => {
+      const cutoff = Number(value);
+      if (!(cutoff > 0.5 && cutoff <= 1)) fail("invalid_field_type", `/candidate_grid/${field}/${index}`);
+      if (seen.includes(cutoff)) fail("duplicate_id", `/candidate_grid/${field}/${index}`);
+      seen.push(cutoff);
+    });
+  }
+  const evaluator = isObject(plan.evaluator) ? plan.evaluator : {};
+  if (!(typeof evaluator.evaluator === "string" && ARTIFACT_ID.test(evaluator.evaluator))) fail("invalid_field_type", "/evaluator/evaluator");
+  if (!(typeof evaluator.adapter_version === "string" && evaluator.adapter_version.length >= 1)) fail("invalid_field_type", "/evaluator/adapter_version");
+  if (evaluator.translation_hash !== undefined && !HASH_PATTERN.test(String(evaluator.translation_hash))) fail("invalid_field_type", "/evaluator/translation_hash");
+  const datasets = isObject(plan.datasets) ? plan.datasets : {};
+  const selections: string[] = [];
+  for (const role of ["fitting", "validation"]) {
+    const selection = isObject(datasets[role]) ? datasets[role] : {};
+    if (!(typeof selection.dataset === "string" && ARTIFACT_ID.test(selection.dataset))) fail("invalid_field_type", `/datasets/${role}/dataset`);
+    if (!(typeof selection.split === "string" && ARTIFACT_ID.test(selection.split))) fail("invalid_field_type", `/datasets/${role}/split`);
+    if (selection.content_hash !== undefined && !HASH_PATTERN.test(String(selection.content_hash))) fail("invalid_field_type", `/datasets/${role}/content_hash`);
+    selections.push(`${selection.dataset}/${selection.revision}/${selection.split}`);
+  }
+  if (selections[0] === selections[1]) fail("duplicate_id", "/datasets/validation");
+  if (plan.content_hash !== undefined && !HASH_PATTERN.test(String(plan.content_hash))) fail("invalid_field_type", "/content_hash");
+  return errors;
+}
+
+test("calibration plans state owner goals and invalid plans fail with stated codes", () => {
+  const doc = loadJson("plans/validation.json") as Record<string, Json | undefined>;
+  const plans = asObjects(doc.plans);
+  expect(plans.length).toBeGreaterThanOrEqual(4);
+  const identifiers = new Set<string>();
+  for (const plan of plans) {
+    expect(planErrors(plan), String(plan.id)).toEqual([]);
+    expect(HASH_PATTERN.test(String(plan.content_hash)) || plan.content_hash === undefined).toBe(true);
+    identifiers.add(String(plan.id));
+  }
+  // The facts state one entry per valid plan and pin the enumeration order.
+  const facts = isObject(doc.facts) ? doc.facts : {};
+  expect(Object.keys(facts).sort()).toEqual([...identifiers].sort());
+  for (const [id, entry] of Object.entries(facts)) {
+    const plan = plans.find((plan) => String(plan.id) === id) as Record<string, Json>;
+    const grid = plan.candidate_grid as Record<string, Json[]>;
+    const accept = grid.accept_cutoffs ?? [];
+    const rejection = grid.rejection_cutoffs ?? [];
+    const floors = grid.confidence_floors ?? [];
+    const count = accept.length * rejection.length * (floors.length + 1);
+    const fact = entry as Record<string, Json>;
+    expect(fact.candidate_count, id).toBe(count);
+    expect(HASH_PATTERN.test(String(fact.content_hash)), id).toBe(true);
+    expect((fact.candidates as Json[]).length, id).toBeLessThanOrEqual(count);
+    // The enumeration head follows the declared order: accept outer,
+    // rejection inner, floor innermost with no floor first.
+    const head = fact.candidates as Record<string, Json>[];
+    expect(head[0]?.confidence_floor, id).toBeNull();
+    if (floors.length > 0 && head.length > 1) {
+      expect(Number(head[1]?.confidence_floor), id).toBe(Number(floors[0]));
+    }
+    const minimums = isObject(plan.minimum_samples) ? plan.minimum_samples : {};
+    expect((fact.denominators as Json[]).sort(), id).toEqual(Object.keys(minimums).sort());
+  }
+
+  const invalid = asObjects(doc.invalid);
+  expect(invalid.length).toBeGreaterThanOrEqual(30);
+  const codes = new Set<string>();
+  for (const record of invalid) {
+    const expected = record.expected as { reason_code?: string; field_path?: string };
+    expect(REASON_CODES.has(String(expected.reason_code)), String(record.note)).toBe(true);
+    expect(String(expected.field_path).startsWith("/"), String(record.note)).toBe(true);
+    codes.add(String(expected.reason_code));
+  }
+  // The group covers every validation code the plan boundary states.
+  for (const code of ["unsupported_schema_version", "unknown_field", "missing_field", "invalid_field_type", "duplicate_id", "hash_mismatch"]) {
+    expect(codes.has(code), `no invalid plan states ${code}`).toBe(true);
+  }
+});
+
+test("calibration plan bindings stay consistent with the hashing fixtures and the shared datasets", () => {
+  const doc = loadJson("plans/validation.json") as Record<string, Json | undefined>;
+  const canonicalDoc = loadJson("hashing/canonical.json") as { hashes?: HashFixture[] };
+  const entries = canonicalDoc.hashes ?? [];
+  const plans = asObjects(doc.plans);
+  const byId = new Map(plans.map((plan) => [String(plan.id), plan]));
+
+  // The canonical plan of the hashing group appears with its published digest.
+  const planEntry = entries.find((entry) => entry.domain === "plan");
+  const canonical = byId.get(String((planEntry?.value as Record<string, Json>)?.id));
+  expect(canonical).toBeDefined();
+  const body = structuredClone(planEntry?.value) as Record<string, Json>;
+  body.content_hash = planEntry?.content_hash as Json;
+  expect(deepEqualNumbers(canonical, body)).toBe(true);
+
+  // Every plan that names one split of one dataset revision states one hash.
+  // One all-zero digest is one deliberate breakage of one binding row, so it
+  // joins no expectation.
+  const broken = "0".repeat(64);
+  const splitHashes = new Map<string, string>();
+  const carried: Json[] = [
+    ...plans,
+    ...asObjects(doc.invalid).map((row) => row.plan as Json),
+    ...asObjects(doc.bindings).map((row) => row.plan as Json),
+  ];
+  for (const entry of carried) {
+    if (!isObject(entry)) continue;
+    const datasets = entry.datasets;
+    if (!isObject(datasets)) continue;
+    for (const role of ["fitting", "validation"]) {
+      const selection = datasets[role];
+      if (!isObject(selection) || selection.content_hash === undefined) continue;
+      const hash = String(selection.content_hash);
+      if (hash === broken) continue;
+      const key = `${selection.dataset}/${selection.revision}/${selection.split}`;
+      expect(splitHashes.get(key) ?? hash, `${key}: two digests appear`).toBe(hash);
+      splitHashes.set(key, hash);
+    }
+  }
+  expect(splitHashes.size).toBeGreaterThanOrEqual(3);
+
+  // Every binding row names one stated plan or carries one inline plan, and
+  // every stated definition exists.
+  for (const row of asObjects(doc.bindings)) {
+    if (row.plan_id === undefined) {
+      expect(isObject(row.plan), String(row.note)).toBe(true);
+      expect(planErrors(row.plan), String(row.note)).toEqual([]);
+    } else {
+      expect(byId.has(String(row.plan_id)), String(row.note)).toBe(true);
+    }
+    if (row.definition !== undefined) {
+      expect(fixtureJsonFiles().includes(`definitions/valid/${String(row.definition)}`), String(row.note)).toBe(true);
+    }
+    for (const entry of asObjects(row.evaluators as Json)) {
+      expect(ARTIFACT_ID.test(String(entry.evaluator)), String(row.note)).toBe(true);
+      expect(typeof entry.adapter_version, String(row.note)).toBe("string");
+    }
+  }
+});
+
 test("runtime traces cover every execution and skip reason and stay internally consistent", () => {
   const doc = loadJson("runtime/traces.json") as { traces?: Json[] };
   const traces = asObjects(doc.traces);

@@ -1,0 +1,1816 @@
+{
+  "schema_version": 1,
+  "description": "Fitting search fixtures of task T048. The document holds one shared definition file name, one dataset whose fitting split carries eight designed cases and whose validation split stays outside the search, the stored assessment of every fitting case, and six valid calibration plans. The facts object states the computed result of every plan through the Rust fitting boundary: the status, the case and candidate counts, the computed hash of the fitting split, the selected candidate with its objective counts, its goal rows, and its per-scope outcome counts, plus one row per enumerated candidate with its feasible flag, its objective counts, its unmet metric words, and its evidence states. The designed cases pin one known feasible candidate, one tie between two cutoffs that decide the same outcomes, two conflicting goals that no permitted candidate meets together, one unachievable goal that no candidate meets at all, one plan minimum that gates one goal, and one upper-bound basis that reads the Wilson bound. The invalid array holds rows that the fitting boundary must reject with the stated reason code and field path: validation data offered as fitting data, a split and a revision the dataset declares not, a plan that binds another definition, one assessment that names one holdout case, one fitting case without an assessment, and one assessment that names no declared answer.",
+  "definition": "categorical-question.json",
+  "definition_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7",
+  "dataset": {
+    "schema_version": 1,
+    "id": "fitting-cases",
+    "name": "Fitting search cases",
+    "revision": "2026-09-24.1",
+    "kind": "representative_sample",
+    "intended_population": "Proposed messages in support conversations.",
+    "sampling_method": "Sampled at random from reviewed traffic of one week.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "splits": [
+      {
+        "id": "fit",
+        "purpose": "fitting",
+        "groups": [
+          "conversation-a"
+        ]
+      },
+      {
+        "id": "holdout",
+        "purpose": "validation",
+        "groups": [
+          "conversation-b"
+        ]
+      }
+    ]
+  },
+  "dataset_records": "{\"id\":\"fit-case-1\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-2\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-3\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-4\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-5\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"contradicted\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-6\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"contradicted\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-7\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"incomplete\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"fit-case-8\",\"group\":\"conversation-a\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"hold-case-1\",\"group\":\"conversation-b\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"supported\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}\n{\"id\":\"hold-case-2\",\"group\":\"conversation-b\",\"input\":{\"prior_decision\":\"Customer exports stay in the EU.\",\"conversation\":\"The new export worker stays in the EU region.\",\"proposed_message\":\"The export worker now serves EU customers from the EU region.\"},\"expected\":{\"checks\":{\"message-supported\":{\"answer\":\"contradicted\"}}},\"label\":{\"author_type\":\"model\",\"origin\":\"synthetic\",\"reviewed\":false,\"reason\":\"Agent proposal written for the fitting fixtures.\"}}",
+  "fitting_cases": [
+    "fit-case-1",
+    "fit-case-2",
+    "fit-case-3",
+    "fit-case-4",
+    "fit-case-5",
+    "fit-case-6",
+    "fit-case-7",
+    "fit-case-8"
+  ],
+  "assessments": {
+    "fit-case-1": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.95
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.03
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.02
+          }
+        ]
+      }
+    },
+    "fit-case-2": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.92
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.04
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.04
+          }
+        ]
+      }
+    },
+    "fit-case-3": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.85
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.1
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.05
+          }
+        ]
+      }
+    },
+    "fit-case-4": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.75
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.15
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.1
+          }
+        ]
+      }
+    },
+    "fit-case-5": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.88
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.07
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.05
+          }
+        ]
+      }
+    },
+    "fit-case-6": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "contradicted",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.05
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.12
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.83
+          }
+        ]
+      }
+    },
+    "fit-case-7": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "incomplete",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.2
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.6
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.2
+          }
+        ]
+      }
+    },
+    "fit-case-8": {
+      "message-supported": {
+        "kind": "categorical",
+        "label": "supported",
+        "distribution": [
+          {
+            "name": "supported",
+            "mass": 0.58
+          },
+          {
+            "name": "incomplete",
+            "mass": 0.22
+          },
+          {
+            "name": "contradicted",
+            "mass": 0.2
+          }
+        ]
+      }
+    }
+  },
+  "plans": [
+    {
+      "schema_version": 1,
+      "id": "feasible-plan",
+      "name": "Fitting fixture plan of feasible-plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.25,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "accepted_cases": 4
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55,
+          0.72,
+          0.85
+        ],
+        "rejection_cutoffs": [
+          0.6,
+          0.85
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "id": "tie-plan",
+      "name": "Fitting fixture plan of tie-plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.25,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "accepted_cases": 4
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55,
+          0.58,
+          0.72
+        ],
+        "rejection_cutoffs": [
+          0.6
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "id": "conflicting-goals-plan",
+      "name": "Fitting fixture plan of conflicting-goals-plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.0,
+          "basis": "observed_value"
+        },
+        {
+          "metric": "automatic_coverage",
+          "comparison": "at_least",
+          "limit": 0.75,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "accepted_cases": 2
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55,
+          0.72,
+          0.92
+        ],
+        "rejection_cutoffs": [
+          0.6
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "id": "no-feasible-plan",
+      "name": "Fitting fixture plan of no-feasible-plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "review_rate",
+          "comparison": "at_most",
+          "limit": 0.0,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "automatic_coverage",
+        "direction": "maximize"
+      },
+      "minimum_samples": {
+        "evaluated_cases": 8
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55
+        ],
+        "rejection_cutoffs": [
+          0.6
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "id": "evidence-floor-plan",
+      "name": "Fitting fixture plan of evidence-floor-plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.5,
+          "basis": "observed_value"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "accepted_cases": 6
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55,
+          0.72
+        ],
+        "rejection_cutoffs": [
+          0.6
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "id": "bound-plan",
+      "name": "Fitting fixture plan of bound-plan",
+      "definition": {
+        "name": "message-supported",
+        "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+      },
+      "intended_population": "Proposed intervention messages in the pilot conversation population.",
+      "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+      "confidence_level": 0.95,
+      "constraints": [
+        {
+          "metric": "error_among_accepted",
+          "comparison": "at_most",
+          "limit": 0.6,
+          "basis": "upper_confidence_bound"
+        }
+      ],
+      "objective": {
+        "metric": "review_rate",
+        "direction": "minimize"
+      },
+      "minimum_samples": {
+        "accepted_cases": 6
+      },
+      "candidate_grid": {
+        "accept_cutoffs": [
+          0.55,
+          0.72
+        ],
+        "rejection_cutoffs": [
+          0.6
+        ]
+      },
+      "evaluator": {
+        "evaluator": "jev-choice",
+        "adapter_version": "0.1.0"
+      },
+      "datasets": {
+        "fitting": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "fit"
+        },
+        "validation": {
+          "dataset": "fitting-cases",
+          "revision": "2026-09-24.1",
+          "split": "holdout"
+        }
+      }
+    }
+  ],
+  "facts": {
+    "feasible-plan": {
+      "status": "feasible",
+      "case_count": 8,
+      "candidate_count": 6,
+      "split_content_hash": "df9a8f878c8377f0af9136b284b534322c16057cdc5f7f1e139126f82f21e62a",
+      "selected": {
+        "index": 0,
+        "candidate": {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        "objective": {
+          "metric": "review_rate",
+          "numerator": 1,
+          "denominator": 8,
+          "value": 0.125
+        },
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "met": true,
+            "numerator": 1,
+            "denominator": 6,
+            "observed": 0.16666666666666666,
+            "upper_bound": null,
+            "evidence": "measured"
+          }
+        ],
+        "scopes": [
+          {
+            "scope": "message-supported",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "index": 0,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 1,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 1,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.85,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 2,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 2,
+          "candidate": {
+            "accept_cutoff": 0.72,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 2,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 3,
+          "candidate": {
+            "accept_cutoff": 0.72,
+            "rejection_cutoff": 0.85,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 3,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 4,
+          "candidate": {
+            "accept_cutoff": 0.85,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 3,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 5,
+          "candidate": {
+            "accept_cutoff": 0.85,
+            "rejection_cutoff": 0.85,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 4,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        }
+      ]
+    },
+    "tie-plan": {
+      "status": "feasible",
+      "case_count": 8,
+      "candidate_count": 3,
+      "split_content_hash": "df9a8f878c8377f0af9136b284b534322c16057cdc5f7f1e139126f82f21e62a",
+      "selected": {
+        "index": 0,
+        "candidate": {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        "objective": {
+          "metric": "review_rate",
+          "numerator": 1,
+          "denominator": 8,
+          "value": 0.125
+        },
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "met": true,
+            "numerator": 1,
+            "denominator": 6,
+            "observed": 0.16666666666666666,
+            "upper_bound": null,
+            "evidence": "measured"
+          }
+        ],
+        "scopes": [
+          {
+            "scope": "message-supported",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "index": 0,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 1,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 1,
+          "candidate": {
+            "accept_cutoff": 0.58,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 1,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 2,
+          "candidate": {
+            "accept_cutoff": 0.72,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 2,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        }
+      ]
+    },
+    "conflicting-goals-plan": {
+      "status": "no_feasible_candidate",
+      "case_count": 8,
+      "candidate_count": 3,
+      "split_content_hash": "df9a8f878c8377f0af9136b284b534322c16057cdc5f7f1e139126f82f21e62a",
+      "selected": null,
+      "candidates": [
+        {
+          "index": 0,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": false,
+          "objective": {
+            "numerator": 1,
+            "denominator": 8
+          },
+          "unmet": [
+            "error_among_accepted"
+          ],
+          "evidence": [
+            "measured",
+            "measured"
+          ]
+        },
+        {
+          "index": 1,
+          "candidate": {
+            "accept_cutoff": 0.72,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": false,
+          "objective": {
+            "numerator": 2,
+            "denominator": 8
+          },
+          "unmet": [
+            "error_among_accepted"
+          ],
+          "evidence": [
+            "measured",
+            "measured"
+          ]
+        },
+        {
+          "index": 2,
+          "candidate": {
+            "accept_cutoff": 0.92,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": false,
+          "objective": {
+            "numerator": 5,
+            "denominator": 8
+          },
+          "unmet": [
+            "automatic_coverage"
+          ],
+          "evidence": [
+            "measured",
+            "measured"
+          ]
+        }
+      ]
+    },
+    "no-feasible-plan": {
+      "status": "no_feasible_candidate",
+      "case_count": 8,
+      "candidate_count": 1,
+      "split_content_hash": "df9a8f878c8377f0af9136b284b534322c16057cdc5f7f1e139126f82f21e62a",
+      "selected": null,
+      "candidates": [
+        {
+          "index": 0,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": false,
+          "objective": {
+            "numerator": 7,
+            "denominator": 8
+          },
+          "unmet": [
+            "review_rate"
+          ],
+          "evidence": [
+            "measured"
+          ]
+        }
+      ]
+    },
+    "evidence-floor-plan": {
+      "status": "feasible",
+      "case_count": 8,
+      "candidate_count": 2,
+      "split_content_hash": "df9a8f878c8377f0af9136b284b534322c16057cdc5f7f1e139126f82f21e62a",
+      "selected": {
+        "index": 0,
+        "candidate": {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        "objective": {
+          "metric": "review_rate",
+          "numerator": 1,
+          "denominator": 8,
+          "value": 0.125
+        },
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "met": true,
+            "numerator": 1,
+            "denominator": 6,
+            "observed": 0.16666666666666666,
+            "upper_bound": null,
+            "evidence": "measured"
+          }
+        ],
+        "scopes": [
+          {
+            "scope": "message-supported",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "index": 0,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 1,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 1,
+          "candidate": {
+            "accept_cutoff": 0.72,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": false,
+          "objective": {
+            "numerator": 2,
+            "denominator": 8
+          },
+          "unmet": [
+            "error_among_accepted"
+          ],
+          "evidence": [
+            "below_minimum"
+          ]
+        }
+      ]
+    },
+    "bound-plan": {
+      "status": "feasible",
+      "case_count": 8,
+      "candidate_count": 2,
+      "split_content_hash": "df9a8f878c8377f0af9136b284b534322c16057cdc5f7f1e139126f82f21e62a",
+      "selected": {
+        "index": 0,
+        "candidate": {
+          "accept_cutoff": 0.55,
+          "rejection_cutoff": 0.6,
+          "confidence_floor": null
+        },
+        "objective": {
+          "metric": "review_rate",
+          "numerator": 1,
+          "denominator": 8,
+          "value": 0.125
+        },
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "met": true,
+            "numerator": 1,
+            "denominator": 6,
+            "observed": 0.16666666666666666,
+            "upper_bound": 0.5635028221864703,
+            "evidence": "measured"
+          }
+        ],
+        "scopes": [
+          {
+            "scope": "message-supported",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          },
+          {
+            "scope": "all_checks",
+            "counts": {
+              "error": 0,
+              "fail": 1,
+              "pass": 6,
+              "review": 1,
+              "skipped": 0
+            }
+          }
+        ]
+      },
+      "candidates": [
+        {
+          "index": 0,
+          "candidate": {
+            "accept_cutoff": 0.55,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": true,
+          "objective": {
+            "numerator": 1,
+            "denominator": 8
+          },
+          "unmet": [],
+          "evidence": [
+            "measured"
+          ]
+        },
+        {
+          "index": 1,
+          "candidate": {
+            "accept_cutoff": 0.72,
+            "rejection_cutoff": 0.6,
+            "confidence_floor": null
+          },
+          "feasible": false,
+          "objective": {
+            "numerator": 2,
+            "denominator": 8
+          },
+          "unmet": [
+            "error_among_accepted"
+          ],
+          "evidence": [
+            "below_minimum"
+          ]
+        }
+      ]
+    }
+  },
+  "invalid": [
+    {
+      "note": "One plan that names the validation split as its fitting data: the fitting boundary refuses the wrong purpose before any case is read.",
+      "plan": {
+        "schema_version": 1,
+        "id": "swapped-plan",
+        "name": "Fitting fixture plan of swapped-plan",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the pilot conversation population.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+        "confidence_level": 0.95,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.25,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "review_rate",
+          "direction": "minimize"
+        },
+        "minimum_samples": {
+          "accepted_cases": 4
+        },
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout"
+          },
+          "validation": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit"
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/plan/datasets/fitting/split"
+      }
+    },
+    {
+      "note": "One plan whose fitting selection names a split the dataset declares not.",
+      "plan": {
+        "schema_version": 1,
+        "id": "absent-split-plan",
+        "name": "Fitting fixture plan of absent-split-plan",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the pilot conversation population.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+        "confidence_level": 0.95,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.25,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "review_rate",
+          "direction": "minimize"
+        },
+        "minimum_samples": {
+          "accepted_cases": 4
+        },
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "absent"
+          },
+          "validation": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout"
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/plan/datasets/fitting/split"
+      }
+    },
+    {
+      "note": "One plan whose fitting selection names another revision of the dataset.",
+      "plan": {
+        "schema_version": 1,
+        "id": "foreign-revision-plan",
+        "name": "Fitting fixture plan of foreign-revision-plan",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7"
+        },
+        "intended_population": "Proposed intervention messages in the pilot conversation population.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+        "confidence_level": 0.95,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.25,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "review_rate",
+          "direction": "minimize"
+        },
+        "minimum_samples": {
+          "accepted_cases": 4
+        },
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.2",
+            "split": "fit"
+          },
+          "validation": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout"
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/plan/datasets/fitting/revision"
+      }
+    },
+    {
+      "note": "One plan that binds the content hash of another definition revision.",
+      "plan": {
+        "schema_version": 1,
+        "id": "foreign-definition-plan",
+        "name": "Fitting fixture plan of foreign-definition-plan",
+        "definition": {
+          "name": "message-supported",
+          "content_hash": "88c86b66dd45adbd34e4a409dd3a37a2cbe6f94990fefb35c7f0d97dcaf94970"
+        },
+        "intended_population": "Proposed intervention messages in the pilot conversation population.",
+        "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws. Selection is not random.",
+        "confidence_level": 0.95,
+        "constraints": [
+          {
+            "metric": "error_among_accepted",
+            "comparison": "at_most",
+            "limit": 0.25,
+            "basis": "observed_value"
+          }
+        ],
+        "objective": {
+          "metric": "review_rate",
+          "direction": "minimize"
+        },
+        "minimum_samples": {
+          "accepted_cases": 4
+        },
+        "candidate_grid": {
+          "accept_cutoffs": [
+            0.55
+          ],
+          "rejection_cutoffs": [
+            0.6
+          ]
+        },
+        "evaluator": {
+          "evaluator": "jev-choice",
+          "adapter_version": "0.1.0"
+        },
+        "datasets": {
+          "fitting": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "fit"
+          },
+          "validation": {
+            "dataset": "fitting-cases",
+            "revision": "2026-09-24.1",
+            "split": "holdout"
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "definition_mismatch",
+        "field_path": "/plan/definition"
+      }
+    },
+    {
+      "note": "One assessment that names one holdout case: validation data never enters the fitting search.",
+      "plan_id": "feasible-plan",
+      "assessments": {
+        "fit-case-1": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.95
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.03
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.02
+              }
+            ]
+          }
+        },
+        "fit-case-2": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.92
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.04
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.04
+              }
+            ]
+          }
+        },
+        "fit-case-3": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.85
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.1
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        },
+        "fit-case-4": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.75
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.15
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.1
+              }
+            ]
+          }
+        },
+        "fit-case-5": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.88
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.07
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        },
+        "fit-case-6": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "contradicted",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.05
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.12
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.83
+              }
+            ]
+          }
+        },
+        "fit-case-7": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "incomplete",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.2
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.6
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.2
+              }
+            ]
+          }
+        },
+        "fit-case-8": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.58
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.22
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.2
+              }
+            ]
+          }
+        },
+        "hold-case-1": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.9
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.05
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/assessments/hold-case-1"
+      }
+    },
+    {
+      "note": "One fitting case that states no stored assessment.",
+      "plan_id": "feasible-plan",
+      "assessments": {
+        "fit-case-1": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.95
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.03
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.02
+              }
+            ]
+          }
+        },
+        "fit-case-2": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.92
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.04
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.04
+              }
+            ]
+          }
+        },
+        "fit-case-3": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.85
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.1
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        },
+        "fit-case-4": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.75
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.15
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.1
+              }
+            ]
+          }
+        },
+        "fit-case-5": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.88
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.07
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        },
+        "fit-case-6": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "contradicted",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.05
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.12
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.83
+              }
+            ]
+          }
+        },
+        "fit-case-7": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "incomplete",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.2
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.6
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.2
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "missing_field",
+        "field_path": "/assessments/fit-case-8"
+      }
+    },
+    {
+      "note": "One stored assessment that names no declared answer of its check.",
+      "plan_id": "feasible-plan",
+      "assessments": {
+        "fit-case-1": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.95
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.03
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.02
+              }
+            ]
+          }
+        },
+        "fit-case-2": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.92
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.04
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.04
+              }
+            ]
+          }
+        },
+        "fit-case-3": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.85
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.1
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        },
+        "fit-case-4": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.75
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.15
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.1
+              }
+            ]
+          }
+        },
+        "fit-case-5": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "supported",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.88
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.07
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.05
+              }
+            ]
+          }
+        },
+        "fit-case-6": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "contradicted",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.05
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.12
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.83
+              }
+            ]
+          }
+        },
+        "fit-case-7": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "incomplete",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.2
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.6
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.2
+              }
+            ]
+          }
+        },
+        "fit-case-8": {
+          "message-supported": {
+            "kind": "categorical",
+            "label": "unsupported-answer",
+            "distribution": [
+              {
+                "name": "supported",
+                "mass": 0.58
+              },
+              {
+                "name": "incomplete",
+                "mass": 0.22
+              },
+              {
+                "name": "contradicted",
+                "mass": 0.2
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "reason_code": "invalid_assessment",
+        "field_path": "/assessments/fit-case-8/message-supported/assessment/label"
+      }
+    }
+  ]
+}

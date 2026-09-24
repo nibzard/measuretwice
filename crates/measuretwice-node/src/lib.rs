@@ -29,7 +29,8 @@ use measuretwice_core::error::{ReasonCode, ValidationError};
 use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
 use measuretwice_core::{
-    assessment, case, dataset, definition, hashing, json, policy, profile, report, rule, run_state,
+    assessment, case, comparison, dataset, definition, hashing, intervals, json, metrics, policy,
+    profile, report, review, rule, run_state, splits,
 };
 use serde_json::Value;
 
@@ -356,6 +357,63 @@ pub struct DatasetSplitEntry {
     pub purpose: String,
     /// Groups assigned to this split, in the declared order.
     pub groups: Vec<String>,
+    /// Records of this split, by group assignment.
+    pub record_count: u32,
+    /// Computed hash of the canonical records of this split.
+    pub content_hash: String,
+    /// Case identifiers of this split, ordered by identifier.
+    pub case_ids: Vec<String>,
+}
+
+/// One group of related cases and the split that holds it, as data.
+#[napi(object)]
+pub struct GroupAssignmentEntry {
+    /// Group of related cases.
+    pub group: String,
+    /// Split that the metadata assigns to this group.
+    pub split_id: String,
+    /// Records of this group.
+    pub record_count: u32,
+}
+
+/// One group of records that no declared split covers, as data.
+#[napi(object)]
+pub struct UnassignedGroupEntry {
+    /// Group of related cases that no split declares.
+    pub group: String,
+    /// Records of this group.
+    pub record_count: u32,
+    /// Line of the first record of this group, counted from 1.
+    pub first_line: u32,
+}
+
+/// The identity of one dataset, as data.
+#[napi(object)]
+pub struct DatasetIdentityEntry {
+    /// Stable dataset identifier.
+    pub dataset_id: String,
+    /// Dataset revision. Changed content needs one new revision.
+    pub revision: String,
+    /// Dataset kind, as the metadata states it.
+    pub kind: String,
+    /// What the kind states about the sampled population.
+    pub population: String,
+    /// True when one qualification claim may rest on data of this kind.
+    pub supports_qualification: bool,
+    /// True when data of this kind states one production prevalence.
+    pub states_prevalence: bool,
+    /// Population that the sampling procedure targets.
+    pub intended_population: String,
+    /// How the cases were selected.
+    pub sampling_method: String,
+    /// Number of case records.
+    pub record_count: u32,
+    /// Computed hash of the canonical case records.
+    pub content_hash: String,
+    /// Group assignments, ordered by group.
+    pub group_assignments: Vec<GroupAssignmentEntry>,
+    /// Groups of records that no declared split covers, ordered by group.
+    pub unassigned_groups: Vec<UnassignedGroupEntry>,
 }
 
 /// The metadata of one validated dataset.
@@ -459,6 +517,10 @@ pub struct DatasetInfo {
     pub definition_hash: String,
     /// The metadata artifact, as the core validated it.
     pub metadata: DatasetMetadataEntry,
+    /// The identity of the dataset: revision, kind, population statement,
+    /// sampling provenance, record count, content hash, and group
+    /// assignments.
+    pub identity: DatasetIdentityEntry,
     /// The number of case records.
     pub record_count: u32,
     /// Every case record, in file order.
@@ -482,6 +544,14 @@ pub struct DatasetInfo {
 /// appears under `labels.findings`, because one human must decide it.
 /// Reference labels and label provenance stay outside the input object; the
 /// run-case boundary keeps them out of every evaluator request.
+///
+/// The result also carries the grouped splits: `identity` records the
+/// revision, the kind, the population statement, the sampling provenance,
+/// the record count, the dataset content hash, and the group assignments,
+/// and each split of `metadata.splits` records its record count, its
+/// content hash, and its case identifiers. One group that two splits
+/// declare fails the metadata contract, and one stored dataset or split
+/// hash that differs from the computed digest fails with `hash_mismatch`.
 #[napi]
 pub fn validate_dataset(
     metadata_text: String,
@@ -491,7 +561,9 @@ pub fn validate_dataset(
     let validated_definition = lift(definition::validate_definition_str(&definition_text))?;
     let loaded = lift(dataset::load_dataset(&metadata_text, &records_text))?;
     let validated = lift(dataset::validate_dataset(&loaded, &validated_definition))?;
+    let grouped = lift(splits::dataset_splits(&loaded))?;
     let metadata = validated.metadata();
+    let identity = grouped.identity();
     let review = validated.label_review();
     let summary = review.summary();
     let mut records = Vec::with_capacity(validated.len());
@@ -522,13 +594,49 @@ pub fn validate_dataset(
             sampling_method: metadata.sampling_method.clone(),
             label_guidelines: metadata.label_guidelines.clone(),
             languages: metadata.languages.clone(),
-            splits: metadata
-                .splits
+            splits: grouped
+                .splits()
                 .iter()
-                .map(|split| DatasetSplitEntry {
-                    id: split.id.clone(),
-                    purpose: split.purpose.as_str().to_owned(),
-                    groups: split.groups.clone(),
+                .map(|split| {
+                    let split_identity = split.identity();
+                    DatasetSplitEntry {
+                        id: split_identity.split_id.clone(),
+                        purpose: split_identity.purpose.as_str().to_owned(),
+                        groups: split_identity.groups.clone(),
+                        record_count: split_identity.record_count as u32,
+                        content_hash: split_identity.content_hash.clone(),
+                        case_ids: split_identity.case_ids.clone(),
+                    }
+                })
+                .collect(),
+        },
+        identity: DatasetIdentityEntry {
+            dataset_id: identity.dataset_id.clone(),
+            revision: identity.revision.clone(),
+            kind: identity.kind.as_str().to_owned(),
+            population: identity.population.as_str().to_owned(),
+            supports_qualification: identity.population.supports_qualification(),
+            states_prevalence: identity.population.states_prevalence(),
+            intended_population: identity.intended_population.clone(),
+            sampling_method: identity.sampling_method.clone(),
+            record_count: identity.record_count as u32,
+            content_hash: identity.content_hash.clone(),
+            group_assignments: identity
+                .group_assignments
+                .iter()
+                .map(|assignment| GroupAssignmentEntry {
+                    group: assignment.group.clone(),
+                    split_id: assignment.split_id.clone(),
+                    record_count: assignment.record_count as u32,
+                })
+                .collect(),
+            unassigned_groups: identity
+                .unassigned_groups
+                .iter()
+                .map(|unassigned| UnassignedGroupEntry {
+                    group: unassigned.group.clone(),
+                    record_count: unassigned.record_count as u32,
+                    first_line: unassigned.first_line as u32,
                 })
                 .collect(),
         },
@@ -557,6 +665,138 @@ pub fn validate_dataset(
                 })
                 .collect(),
         },
+    })
+}
+
+/// The overlap between one fitting selection and one validation selection,
+/// as data.
+#[napi(object)]
+pub struct SplitOverlapEntry {
+    /// True when both selections name one dataset revision.
+    pub same_dataset: bool,
+    /// Groups that both splits declare, ordered by group.
+    pub shared_groups: Vec<String>,
+    /// Case identifiers that both splits hold, ordered by identifier.
+    pub shared_cases: Vec<String>,
+    /// True when the two selections share no group and no case.
+    pub separated: bool,
+}
+
+/// Detects fitting and validation overlap between two split selections.
+///
+/// Each text holds one split identity: the words of one dataset selection
+/// of a calibration plan (`dataset`, `revision`, `split`) plus `purpose`,
+/// `groups`, `record_count`, `content_hash`, and `case_ids`, exactly as the
+/// public wrapper composes it from one loaded dataset. Shared groups break
+/// the declared grouping strategy; shared case identifiers are duplicated
+/// cases that supplied fitting and validation evidence. The detection
+/// computes no rate and changes no artifact: it names the shared names.
+#[napi]
+pub fn split_overlap(
+    fitting_text: String,
+    validation_text: String,
+) -> Result<SplitOverlapEntry, napi::Error> {
+    let fitting = parse_split(&fitting_text)?;
+    let validation = parse_split(&validation_text)?;
+    let overlap = splits::split_overlap(&fitting, &validation);
+    Ok(SplitOverlapEntry {
+        same_dataset: overlap.same_dataset,
+        separated: overlap.is_disjoint(),
+        shared_groups: overlap.shared_groups,
+        shared_cases: overlap.shared_cases,
+    })
+}
+
+/// Requires fitting and validation selections that share no group and no
+/// case.
+///
+/// The inputs match `splitOverlap`. One overlap throws `duplicate_id` at
+/// `/datasets/validation`, because the validation data is the one that
+/// loses its independence. One calibration plan states this rule for its
+/// two dataset selections.
+#[napi]
+pub fn require_separated_splits(
+    fitting_text: String,
+    validation_text: String,
+) -> Result<(), napi::Error> {
+    let fitting = parse_split(&fitting_text)?;
+    let validation = parse_split(&validation_text)?;
+    lift(splits::require_separated(&fitting, &validation))
+}
+
+/// Parses one split identity text through the strict gate.
+fn parse_split(text: &str) -> Result<splits::SplitIdentity, napi::Error> {
+    lift(splits::parse_split_identity(&strict(text)?))
+}
+
+/// The evidence classification of one validation split, as data.
+#[napi(object)]
+pub struct ValidationEvidenceEntry {
+    /// The evidence class: independent_validation or development.
+    pub class: String,
+    /// True when the dataset kind states one representative sample.
+    pub representative_sample: bool,
+    /// Records of the split.
+    pub record_count: u32,
+    /// References of the earlier uses that hold the same validation content.
+    pub reused_from: Vec<String>,
+    /// True when one new qualification claim needs fresh validation
+    /// evidence, because this split is development data.
+    pub needs_fresh_evidence: bool,
+    /// Plain statement of the classification.
+    pub statement: String,
+}
+
+/// Classifies the validation evidence of one split selection.
+///
+/// The validation text holds one split identity as `splitOverlap` states.
+/// The population word is the population statement of the dataset identity,
+/// `development_fixture`, `targeted_challenge_set`, or
+/// `representative_sample`. The used text holds one array of the split
+/// identities that earlier qualification claims consumed; the host records
+/// them, because the core holds no clock and no storage. One reused holdout
+/// is development data however it is renamed, one challenge set or one
+/// development fixture supports no claim, and one empty split holds no
+/// evidence.
+#[napi]
+pub fn validation_evidence(
+    validation_text: String,
+    population_word: String,
+    used_text: String,
+) -> Result<ValidationEvidenceEntry, napi::Error> {
+    let validation = parse_split(&validation_text)?;
+    let population =
+        splits::PopulationStatement::from_word(&population_word).ok_or_else(|| {
+            failure(ValidationError::invalid_field_type(
+                "/population",
+                "The population statement must be development_fixture, targeted_challenge_set, or representative_sample.",
+            ))
+        })?;
+    let used = strict(&used_text)?;
+    let Value::Array(entries) = &used else {
+        return Err(failure(ValidationError::invalid_field_type(
+            "/used",
+            "The used holdouts must hold one array of split identities.",
+        )));
+    };
+    let mut previously_used = Vec::with_capacity(entries.len());
+    for (index, entry) in entries.iter().enumerate() {
+        // One broken entry names its position inside the array of used
+        // holdouts, so the host sees which recorded claim broke.
+        let parsed = splits::parse_split_identity(entry).map_err(|mut error| {
+            error.field_path = format!("/used/{index}{}", error.field_path);
+            error
+        });
+        previously_used.push(lift(parsed)?);
+    }
+    let evidence = splits::validation_evidence(&validation, population, &previously_used);
+    Ok(ValidationEvidenceEntry {
+        class: evidence.class.as_str().to_owned(),
+        representative_sample: evidence.representative_sample,
+        record_count: evidence.record_count as u32,
+        reused_from: evidence.reused_from,
+        needs_fresh_evidence: evidence.needs_fresh_evidence,
+        statement: evidence.statement,
     })
 }
 
@@ -710,6 +950,254 @@ pub fn split_hash(records_text: String) -> Result<String, napi::Error> {
         )));
     };
     lift(hashing::split_hash(&records))
+}
+
+/// Measures one dataset against the stored run reports of its evaluated
+/// cases.
+///
+/// The metadata text, the records text, and the definition text follow the
+/// rules of `validateDataset`, and the definition must be the one that
+/// assessed the cases. Each report text is one stored run report: the parser
+/// of the run report contract rebuilds it, so one edited report fails with
+/// its field path before any metric computes. The core reads each evaluated
+/// case out of its report, measures the outcomes against the reference
+/// labels, and resolves the reference of every check of every case.
+///
+/// The result is the complete measurement as one JSON document: the metric
+/// sets, the slices, and the operational totals under `metrics`, and one
+/// entry per evaluated case under `cases` with its resolved references and
+/// matches. Every failure of the measurement crosses as one native failure,
+/// including `insufficient_evidence` at `/cases` when no report arrived.
+#[napi]
+pub fn evaluate_dataset(
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    reports_text: Vec<String>,
+) -> Result<String, napi::Error> {
+    let validated_definition = lift(definition::validate_definition_str(&definition_text))?;
+    let loaded = lift(dataset::load_dataset(&metadata_text, &records_text))?;
+    let validated = lift(dataset::validate_dataset(&loaded, &validated_definition))?;
+    let mut outcomes = Vec::with_capacity(reports_text.len());
+    for text in &reports_text {
+        let parsed = lift(report::parse_run_report_str(text))?;
+        outcomes.push(metrics::CaseOutcome::from_report(&parsed));
+    }
+    let measurement = lift(metrics::evaluate(&validated, &outcomes))?;
+    Ok(serde_json::to_string(&measurement).expect("the measurement serializes"))
+}
+
+/// Computes the uncertainty intervals of one measured evaluation.
+///
+/// The metadata text, the records text, the definition text, and the report
+/// texts follow the rules of `evaluateDataset`, which this boundary runs
+/// first, so one measurement failure crosses unchanged. The request text
+/// holds one interval request object (`sampling`, `confidence_level`,
+/// `minimum_samples`); one unsupported sampling word, one unsupported
+/// confidence level, and one broken count fail with their field paths
+/// before any interval computes.
+///
+/// The result is the complete interval report as one JSON document: the
+/// method, the confidence level, the sampling model with its assumption,
+/// the minimum sample count, the complete method statement, and one
+/// interval row per metric of every scope and every slice. One row states
+/// the counts of its rate, its draws, and either its bounds or the reason
+/// no bound computes.
+#[napi]
+pub fn uncertainty_intervals(
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    reports_text: Vec<String>,
+    request_text: String,
+) -> Result<String, napi::Error> {
+    let request = lift(intervals::parse_interval_request_str(&request_text))?;
+    let validated_definition = lift(definition::validate_definition_str(&definition_text))?;
+    let loaded = lift(dataset::load_dataset(&metadata_text, &records_text))?;
+    let validated = lift(dataset::validate_dataset(&loaded, &validated_definition))?;
+    let mut outcomes = Vec::with_capacity(reports_text.len());
+    for text in &reports_text {
+        let parsed = lift(report::parse_run_report_str(text))?;
+        outcomes.push(metrics::CaseOutcome::from_report(&parsed));
+    }
+    let report = lift(intervals::evaluate_intervals(
+        &validated, &outcomes, &request,
+    ))?;
+    Ok(serde_json::to_string(&report).expect("the interval report serializes"))
+}
+
+/// Validates one interval request.
+///
+/// The request text holds one interval request object (`sampling`,
+/// `confidence_level`, `minimum_samples`). The core parses it alone, so one
+/// wrapper checks one request before it reads one dataset or runs one case.
+/// The result is the parsed request as one JSON document: the sampling
+/// model, the confidence level, and the minimum sample count.
+#[napi]
+pub fn parse_interval_request(request_text: String) -> Result<String, napi::Error> {
+    let request = lift(intervals::parse_interval_request_str(&request_text))?;
+    Ok(serde_json::to_string(&request).expect("the request serializes"))
+}
+
+/// Moves one failure into one report position, prefixing
+/// `/reports/<index>` onto its field path.
+fn at_report(mut error: ValidationError, index: usize) -> ValidationError {
+    let prefix = format!("/reports/{index}");
+    error.field_path = if error.field_path.is_empty() {
+        prefix
+    } else {
+        format!("{prefix}{}", error.field_path)
+    };
+    error
+}
+
+/// Exports the stored shadow reports that need one human review.
+///
+/// Each report text is one stored run report, rebuilt through the run
+/// report contract; one edited report fails with its field path under
+/// `/reports/<index>` before any selection runs. The meanings text holds
+/// one object that maps every word of the host decision vocabulary to
+/// `pass`, `fail`, `review`, or `silent`. The seed names the sampling seed
+/// and the sample size states how many agreements the sample selects.
+///
+/// The core classifies every report, samples the agreements by the seeded
+/// SHA-256 rank, and returns the complete export as one JSON document: the
+/// review records, the sampling provenance, the inclusion rules, the stated
+/// baseline meanings, the summary counts, and the standing limits.
+#[napi]
+pub fn export_shadow_reviews(
+    reports_text: Vec<String>,
+    meanings_text: String,
+    seed: String,
+    agreement_sample: f64,
+) -> Result<String, napi::Error> {
+    let mut reports = Vec::with_capacity(reports_text.len());
+    for (index, text) in reports_text.iter().enumerate() {
+        let parsed = match report::parse_run_report_str(text) {
+            Ok(parsed) => parsed,
+            Err(error) => return Err(failure(at_report(error, index))),
+        };
+        reports.push(parsed);
+    }
+    let meanings = lift(review::parse_baseline_meanings(&strict(&meanings_text)?))?;
+    // The number is read as a double so that a fractional or wrapped value
+    // cannot slip through an integer conversion unnoticed.
+    if !agreement_sample.is_finite()
+        || agreement_sample.fract() != 0.0
+        || !(0.0..=review::MAX_SAMPLED_AGREEMENTS as f64).contains(&agreement_sample)
+    {
+        return lift(Err(ValidationError::invalid_field_type(
+            "/sample/agreements",
+            format!(
+                "The agreement sample size must be a whole number from 0 to {}.",
+                review::MAX_SAMPLED_AGREEMENTS
+            ),
+        )));
+    }
+    let export = lift(review::export_reviews(
+        &reports,
+        &meanings,
+        &seed,
+        agreement_sample as usize,
+    ))?;
+    Ok(serde_json::to_string(&export).expect("the export serializes"))
+}
+
+/// Validates the labels one human returned for one review export.
+///
+/// The definition text must pass the definition contract. The exported text
+/// holds one JSON array of the case identifiers of one review export. The
+/// labels text holds one complete JSONL return: every nonempty line is one
+/// `{ case_id, expected, label }` object.
+///
+/// The result is the complete validation as one JSON document: the
+/// validated labels, the provenance counts, the flagged conflicts, and the
+/// standing limits. The validation reads no baseline, because baseline
+/// agreement is not correctness.
+#[napi]
+pub fn validate_review_labels(
+    definition_text: String,
+    exported_text: String,
+    labels_text: String,
+) -> Result<String, napi::Error> {
+    let validated = lift(definition::validate_definition_str(&definition_text))?;
+    let exported_value = strict(&exported_text)?;
+    let Value::Array(entries) = &exported_value else {
+        return lift(Err(ValidationError::invalid_field_type(
+            "/exported",
+            "The exported case identifiers must hold one array of strings.",
+        )));
+    };
+    let mut exported = std::collections::BTreeSet::new();
+    for (index, entry) in entries.iter().enumerate() {
+        let Value::String(id) = entry else {
+            return lift(Err(ValidationError::invalid_field_type(
+                format!("/exported/{index}"),
+                "Each exported case identifier must hold one string.",
+            )));
+        };
+        exported.insert(id.clone());
+    }
+    let validation = lift(review::validate_review_labels(
+        &validated,
+        &exported,
+        &labels_text,
+    ))?;
+    Ok(serde_json::to_string(&validation).expect("the validation serializes"))
+}
+
+/// Moves one failure under one report side of the comparison.
+fn at_side(mut error: ValidationError, side: &str) -> ValidationError {
+    let prefix = format!("/{side}");
+    error.field_path = if error.field_path.is_empty() {
+        prefix
+    } else {
+        format!("{prefix}{}", error.field_path)
+    };
+    error
+}
+
+/// Compares two stored evaluation reports on their matching cases.
+///
+/// Each report text is one stored evaluation report artifact, rebuilt
+/// through the evaluation report contract; one edited report fails with
+/// its field path under `/baseline` or `/candidate` before any number
+/// computes. The two reference strings name where the host stored the
+/// reports, and the artifact states them beside the profile references.
+/// The optional costs text maps one usage key to its unit cost; one cost
+/// appears only when the recorded usage of that side and the declared cost
+/// inputs support it.
+///
+/// The result is the complete comparison as one JSON document: the
+/// comparison artifact fields, the metric rows with the counts and the
+/// denominators of both sides, and the standing limits. Every failure
+/// crosses as one native failure, including `definition_mismatch` when
+/// the reports bind different definitions and `insufficient_evidence` at
+/// `/matching` when no case matches.
+#[napi]
+pub fn compare_evaluations(
+    baseline_text: String,
+    candidate_text: String,
+    baseline_report: String,
+    candidate_report: String,
+    costs_text: Option<String>,
+) -> Result<String, napi::Error> {
+    let baseline_value =
+        lift(json::parse_strict(&baseline_text).map_err(|error| at_side(error, "baseline")))?;
+    let candidate_value =
+        lift(json::parse_strict(&candidate_text).map_err(|error| at_side(error, "candidate")))?;
+    let costs = match &costs_text {
+        None => std::collections::BTreeMap::new(),
+        Some(text) => lift(comparison::parse_cost_inputs(&strict(text)?))?,
+    };
+    let comparison = lift(comparison::compare_reports(
+        &baseline_value,
+        &candidate_value,
+        &baseline_report,
+        &candidate_report,
+        &costs,
+    ))?;
+    Ok(serde_json::to_string(&comparison).expect("the comparison serializes"))
 }
 
 /// The observable state of one check of a run.

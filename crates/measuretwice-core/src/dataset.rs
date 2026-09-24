@@ -41,8 +41,12 @@
 //! the complete parsed records in memory and writes no file: report
 //! retention and source snapshots stay with the host.
 //!
-//! The deeper split invariants, group coverage, and content hashes of a
-//! dataset arrive with the split-identity task.
+//! One group appears in one split only. [`parse_dataset_metadata`] rejects
+//! one group that two splits declare, because related conversations must
+//! stay inside one split. [`crate::splits`] owns the deeper split work: it
+//! assigns every record to the split of its group, computes the dataset and
+//! split content hashes over the records as this loader read them, and
+//! classifies the validation evidence of one split.
 
 use crate::artifact::{expect_object, reject_unknown_fields, schema_version};
 use crate::case::{is_case_id, Case, ProjectedInputs, ValidatedCase};
@@ -519,11 +523,19 @@ pub struct DatasetMetadata {
     pub splits: Vec<SplitDeclaration>,
 }
 
-/// One loaded dataset: the metadata artifact and the complete records.
+/// One loaded dataset: the metadata artifact, the complete records, and the
+/// record objects as the file supplied them.
+///
+/// The raw record objects stay beside the parsed records because the content
+/// hashes of [`crate::splits`] cover the record as written: an omitted
+/// `group` and a stated one hash differently, and so do an omitted `tags`
+/// and an empty one. The parsed record materializes the group of one record
+/// without one, so the two views cannot serve one hash boundary.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Dataset {
     metadata: DatasetMetadata,
     records: Vec<CaseRecord>,
+    raws: Vec<Value>,
 }
 
 impl Dataset {
@@ -535,6 +547,12 @@ impl Dataset {
     /// Returns every case record, in file order.
     pub fn records(&self) -> &[CaseRecord] {
         &self.records
+    }
+
+    /// Returns the record objects as the record file supplied them, in file
+    /// order. Each raw object holds exactly the fields its line stated.
+    pub(crate) fn raw_records(&self) -> &[Value] {
+        &self.raws
     }
 
     /// Returns the number of case records.
@@ -615,6 +633,15 @@ impl<'a> ValidatedDataset<'a> {
     /// Returns the definition that validated the inputs.
     pub fn definition(&self) -> &'a ValidatedDefinition {
         self.definition
+    }
+
+    /// Returns the loaded dataset whose inputs this value validated.
+    ///
+    /// The callers that need the grouped splits read them from here, so one
+    /// calibration offers one value and the split grouping stays with the
+    /// split boundary.
+    pub fn dataset(&self) -> &'a Dataset {
+        self.dataset
     }
 
     /// Returns the metadata artifact of this dataset.
@@ -762,40 +789,59 @@ fn parse_tags(items: &[Value], path: &str) -> Result<Vec<String>, ValidationErro
 
 /// Parses one expected-label object of one record.
 fn parse_expected(value: &Value) -> Result<ExpectedLabels, ValidationError> {
-    let root = expect_object(value, "/expected")?;
-    reject_unknown_fields(root, EXPECTED_FIELDS, "/expected")?;
+    parse_expected_at(value, "/expected")
+}
+
+/// Parses one expected-label object at one stated path.
+///
+/// The review-label boundary of `crate::review` reuses these rules under
+/// its own path, so one returned reference and one dataset reference follow
+/// one contract.
+pub(crate) fn parse_expected_at(
+    value: &Value,
+    base: &str,
+) -> Result<ExpectedLabels, ValidationError> {
+    let root = expect_object(value, base)?;
+    reject_unknown_fields(root, EXPECTED_FIELDS, base)?;
 
     let checks = match root.get("checks") {
         None => BTreeMap::new(),
         Some(Value::Object(entries)) => {
             if entries.is_empty() {
                 return Err(ValidationError::invalid_field_type(
-                    "/expected/checks",
+                    format!("{base}/checks"),
                     "The expected checks must name at least one check.",
                 ));
             }
             let mut checks = BTreeMap::new();
             for (check_id, entry) in entries {
-                checks.insert(check_id.clone(), parse_expected_check(entry, check_id)?);
+                checks.insert(
+                    check_id.clone(),
+                    parse_expected_check_at(entry, check_id, base)?,
+                );
             }
             checks
         }
         Some(_) => {
             return Err(ValidationError::invalid_field_type(
-                "/expected/checks",
+                format!("{base}/checks"),
                 "The expected checks must hold one object.",
             ));
         }
     };
 
-    let outcome = parse_expected_outcome(root.get("outcome"), "/expected/outcome")?;
+    let outcome = parse_expected_outcome(root.get("outcome"), &format!("{base}/outcome"))?;
 
     Ok(ExpectedLabels { checks, outcome })
 }
 
-/// Parses one expected check reference of one record.
-fn parse_expected_check(value: &Value, check_id: &str) -> Result<ExpectedCheck, ValidationError> {
-    let path = format!("/expected/checks/{check_id}");
+/// Parses one expected check reference at one stated base path.
+fn parse_expected_check_at(
+    value: &Value,
+    check_id: &str,
+    base: &str,
+) -> Result<ExpectedCheck, ValidationError> {
+    let path = format!("{base}/checks/{check_id}");
     let root = expect_object(value, &path)?;
     reject_unknown_fields(root, EXPECTED_CHECK_FIELDS, &path)?;
 
@@ -863,9 +909,16 @@ fn parse_label(value: &Value) -> Result<LabelProvenance, ValidationError> {
     parse_label_at(value, "/label")
 }
 
-/// Parses one label provenance record at one path. The entries of
+/// Parses one label provenance record at one stated path. The entries of
 /// `label.history` reuse the same rules at their own path.
-fn parse_label_at(value: &Value, path: &str) -> Result<LabelProvenance, ValidationError> {
+///
+/// The review-label boundary of `crate::review` reuses these rules under
+/// its own path, so one returned provenance and one dataset provenance
+/// follow one contract.
+pub(crate) fn parse_label_at(
+    value: &Value,
+    path: &str,
+) -> Result<LabelProvenance, ValidationError> {
     let root = expect_object(value, path)?;
     reject_unknown_fields(root, LABEL_FIELDS, path)?;
 
@@ -983,8 +1036,8 @@ pub fn parse_dataset_metadata_str(text: &str) -> Result<DatasetMetadata, Validat
 ///
 /// Returns a [`ValidationError`] when the value breaks the dataset
 /// metadata contract: an unknown field, a missing field, a wrong type, an
-/// invalid identifier, a repeated split identifier, or one repeated
-/// language tag.
+/// invalid identifier, a repeated split identifier, one group that two
+/// splits declare, or one repeated language tag.
 pub fn parse_dataset_metadata(value: &Value) -> Result<DatasetMetadata, ValidationError> {
     let root = expect_object(value, "")?;
     reject_unknown_fields(root, METADATA_FIELDS, "")?;
@@ -1101,6 +1154,26 @@ pub fn parse_dataset_metadata(value: &Value) -> Result<DatasetMetadata, Validati
                         format!("/splits/{index}/id"),
                         format!("Two splits share one identifier: {}.", fragment(&split.id)),
                     ));
+                }
+            }
+            // One group appears in one split only. Related conversations stay
+            // inside one split, so one group that two splits declare is one
+            // fitting and validation overlap that no later check can repair.
+            for (index, split) in splits.iter().enumerate() {
+                for (position, group) in split.groups.iter().enumerate() {
+                    let shared = splits[..index]
+                        .iter()
+                        .any(|other| other.groups.contains(group));
+                    if shared {
+                        return Err(ValidationError::new(
+                            ReasonCode::DuplicateId,
+                            format!("/splits/{index}/groups/{position}"),
+                            format!(
+                                "Two splits share one group: {}. One group appears in one split only.",
+                                fragment(group)
+                            ),
+                        ));
+                    }
                 }
             }
             splits
@@ -1294,6 +1367,7 @@ pub fn load_case_records(records_text: &str) -> Result<Vec<CaseRecord>, Validati
         MAX_DATASET_RECORDS,
         MAX_DATASET_BYTES,
     )
+    .map(|(records, _)| records)
 }
 
 /// Loads one dataset: the metadata artifact and the complete records.
@@ -1308,7 +1382,12 @@ pub fn load_case_records(records_text: &str) -> Result<Vec<CaseRecord>, Validati
 /// when one record fails the checks of [`load_case_records`].
 pub fn load_dataset(metadata_text: &str, records_text: &str) -> Result<Dataset, ValidationError> {
     let metadata = parse_dataset_metadata_str(metadata_text)?;
-    let records = load_case_records(records_text)?;
+    let (records, raws) = load_case_records_bounded(
+        records_text,
+        MAX_RECORD_BYTES,
+        MAX_DATASET_RECORDS,
+        MAX_DATASET_BYTES,
+    )?;
     if let Some(declared) = metadata.record_count {
         if declared != records.len() {
             return Err(ValidationError::invalid_field_type(
@@ -1320,7 +1399,11 @@ pub fn load_dataset(metadata_text: &str, records_text: &str) -> Result<Dataset, 
             ));
         }
     }
-    Ok(Dataset { metadata, records })
+    Ok(Dataset {
+        metadata,
+        records,
+        raws,
+    })
 }
 
 /// Validates every input object and every reference label of one dataset
@@ -1412,6 +1495,10 @@ fn count_record_labels(record: &CaseRecord, findings: &[LabelFinding], summary: 
 /// acceptance meaning of one reference and its stated outcome is one
 /// finding, not one failure, as the contracts README states.
 ///
+/// The review-label boundary of `crate::review` runs the same rules over
+/// one returned label, so one reference follows one meaning wherever it
+/// enters.
+///
 /// # Errors
 ///
 /// Returns a [`ValidationError`] when one reference names no declared
@@ -1419,7 +1506,7 @@ fn count_record_labels(record: &CaseRecord, findings: &[LabelFinding], summary: 
 /// when one answer or level appears on a check of the other question kind,
 /// or when one reference answer, level, or review marker appears on one
 /// rule check.
-fn validate_record_labels(
+pub(crate) fn validate_record_labels(
     record: &CaseRecord,
     definition: &ValidatedDefinition,
 ) -> Result<Vec<LabelFinding>, ValidationError> {
@@ -1631,10 +1718,10 @@ fn load_case_records_bounded(
     max_record_bytes: usize,
     max_records: usize,
     max_dataset_bytes: usize,
-) -> Result<Vec<CaseRecord>, ValidationError> {
+) -> Result<(Vec<CaseRecord>, Vec<Value>), ValidationError> {
     if records_text.is_empty() {
         // One file with no bytes holds no line, so no empty line exists.
-        return Ok(Vec::new());
+        return Ok((Vec::new(), Vec::new()));
     }
     if records_text.len() > max_dataset_bytes {
         return Err(ValidationError::new(
@@ -1645,6 +1732,7 @@ fn load_case_records_bounded(
     }
 
     let mut records: Vec<CaseRecord> = Vec::new();
+    let mut raws: Vec<Value> = Vec::new();
     let mut lines_of: BTreeMap<String, usize> = BTreeMap::new();
     for (index, line) in record_lines(records_text).enumerate() {
         let number = index + 1;
@@ -1681,6 +1769,7 @@ fn load_case_records_bounded(
             line: number,
             ..record
         });
+        raws.push(value);
         if records.len() > max_records {
             return Err(ValidationError::new(
                 ReasonCode::OversizedInput,
@@ -1689,7 +1778,7 @@ fn load_case_records_bounded(
             ));
         }
     }
-    Ok(records)
+    Ok((records, raws))
 }
 
 /// Splits one record file into its lines. A single trailing newline ends
@@ -2079,6 +2168,16 @@ mod tests {
         let error = parse_dataset_metadata(&value).expect_err("one repeated group");
         assert_eq!(error.field_path, "/splits/0/groups/1", "{error}");
 
+        // One group that two splits declare is fitting and validation
+        // overlap, so it fails like one repeated identifier. The second
+        // split names the position, because the first declared the group.
+        let mut value = metadata();
+        value["splits"][0]["groups"] = json!(["a", "c"]);
+        let error = parse_dataset_metadata(&value).expect_err("one shared group");
+        assert_eq!(error.code, ReasonCode::DuplicateId, "{error}");
+        assert_eq!(error.field_path, "/splits/1/groups/0", "{error}");
+        assert!(error.message.contains('c'), "{error}");
+
         let mut value = metadata();
         value["splits"][0]["content_hash"] = json!("nothex");
         let error = parse_dataset_metadata(&value).expect_err("one malformed split hash");
@@ -2192,9 +2291,11 @@ mod tests {
         assert_eq!(error.field_path, "/records", "{error}");
 
         // The same file inside every bound loads.
-        let loaded = load_case_records_bounded(&file, MAX_RECORD_BYTES, 2, MAX_DATASET_BYTES)
-            .expect("the file loads");
+        let (loaded, raws) =
+            load_case_records_bounded(&file, MAX_RECORD_BYTES, 2, MAX_DATASET_BYTES)
+                .expect("the file loads");
         assert_eq!(loaded.len(), 2);
+        assert_eq!(raws.len(), 2);
     }
 
     #[test]

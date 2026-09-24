@@ -4,125 +4,406 @@
   "status": "Frozen for v0 on 23 September 2026",
   "description": "Shared cross-language conformance fixtures for the portable contracts in contracts/v0. Every wrapper runs every group through the Rust core. The fixtures are mandatory for the TypeScript SDK and for the later Python SDK.",
   "contracts": "../contracts/v0",
-  "mandatory_for": ["typescript-sdk", "python-sdk"],
+  "mandatory_for": [
+    "typescript-sdk",
+    "python-sdk"
+  ],
   "groups": [
     {
       "id": "definitions-valid",
       "path": "definitions/valid",
       "kind": "artifact-set",
-      "covers": ["categorical question", "binary question", "ordered scale", "exact rules", "every input type", "when_uncertain default"],
+      "covers": [
+        "categorical question",
+        "binary question",
+        "ordered scale",
+        "exact rules",
+        "every input type",
+        "when_uncertain default"
+      ],
       "runner": "Validate each file as one definition artifact. Compare canonical content and hashes with the hashing group."
     },
     {
       "id": "definitions-invalid",
       "path": "definitions/invalid.json",
       "kind": "rejection-set",
-      "covers": ["duplicate_id", "unknown_input_name", "accept_review_overlap", "unknown_label", "invalid_scale", "empty_check_set", "unsupported_keyword", "missing_field", "unknown_field", "invalid_field_type", "unsupported_schema_version"],
+      "covers": [
+        "duplicate_id",
+        "unknown_input_name",
+        "accept_review_overlap",
+        "unknown_label",
+        "invalid_scale",
+        "empty_check_set",
+        "unsupported_keyword",
+        "missing_field",
+        "unknown_field",
+        "invalid_field_type",
+        "unsupported_schema_version"
+      ],
       "runner": "Reject each raw artifact with the stated reason code and field path, before any evaluator runs."
     },
     {
       "id": "inputs-validation",
       "path": "inputs/validation.json",
       "kind": "record-set",
-      "covers": ["string code point length", "number bounds", "integer zero fraction", "boolean without coercion", "array bounds and items", "nested object closure", "absent optional properties", "oversized inputs"],
+      "covers": [
+        "string code point length",
+        "number bounds",
+        "integer zero fraction",
+        "boolean without coercion",
+        "array bounds and items",
+        "nested object closure",
+        "absent optional properties",
+        "oversized inputs"
+      ],
       "runner": "Validate each input object against its root schema in the Rust core. Materialize the described oversized inputs as stated in their notes."
     },
     {
       "id": "datasets-loading",
       "path": "datasets/loading.json",
       "kind": "record-set",
-      "covers": ["valid records with labels, groups, tags, and provenance", "empty record file", "trailing newline", "record count agreement", "malformed lines with line numbers", "empty and blank lines", "repeated case identifiers", "oversized records", "invalid inputs against the definition", "metadata population, sampling, revision, and label guidelines", "split structure"],
+      "covers": [
+        "valid records with labels, groups, tags, and provenance",
+        "empty record file",
+        "trailing newline",
+        "record count agreement",
+        "malformed lines with line numbers",
+        "empty and blank lines",
+        "repeated case identifiers",
+        "oversized records",
+        "invalid inputs against the definition",
+        "metadata population, sampling, revision, and label guidelines",
+        "split structure"
+      ],
       "runner": "Load each valid dataset through the Rust core with the named definition file, then validate every input object. Reject each invalid metadata artifact or record set with the stated reason code and field path. Materialize the stated oversized record as its note describes."
     },
     {
       "id": "datasets-labels",
       "path": "datasets/labels.json",
       "kind": "record-set",
-      "covers": ["human-reviewed references", "agent proposals without review", "missing labels", "ambiguous references with review markers", "corrected references that keep their history", "flagged check-outcome conflicts", "flagged overall-outcome conflicts", "ordered-scale levels against at_least", "rule checks with one expected outcome", "unknown check", "unknown answer", "unknown level", "level on an answers check", "answer on an ordered check", "reference answer or review marker on a rule check", "answer beside one level"],
+      "covers": [
+        "human-reviewed references",
+        "agent proposals without review",
+        "missing labels",
+        "ambiguous references with review markers",
+        "corrected references that keep their history",
+        "flagged check-outcome conflicts",
+        "flagged overall-outcome conflicts",
+        "ordered-scale levels against at_least",
+        "rule checks with one expected outcome",
+        "unknown check",
+        "unknown answer",
+        "unknown level",
+        "level on an answers check",
+        "answer on an ordered check",
+        "reference answer or review marker on a rule check",
+        "answer beside one level"
+      ],
       "runner": "Load each valid dataset through the Rust core with the definition file that its record names, then validate every input object and every reference label. Compare every flagged conflict, kept as written, and every provenance count with the stated expectation. Reject each record set whose reference breaks the meaning of its check with the stated reason code and field path."
+    },
+    {
+      "id": "datasets-splits",
+      "path": "datasets/splits.json",
+      "kind": "record-set",
+      "covers": [
+        "dataset identity with revision, kind, population statement, sampling provenance, and content hash",
+        "group assignments and unassigned groups",
+        "split identities with record counts, case identifiers, and split-domain hashes",
+        "deterministic reproduction under any file order",
+        "changed input changes the hash of its split only",
+        "one group in two splits",
+        "stored dataset or split hash mismatch",
+        "fresh, reused, renamed, challenge-set, and empty validation evidence",
+        "shared group names and duplicated case identifiers across datasets"
+      ],
+      "runner": "Load each valid dataset through the Rust core with the named definition file and compare the computed identity, the group assignments, and the split identities with the stated expectation, including every content hash. Reject each invalid dataset with the stated reason code and field path. Classify each evidence row through the split identity boundary of the core, and compare each overlap row with the stated shared groups and shared cases."
+    },
+    {
+      "id": "metrics-evaluation",
+      "path": "metrics/evaluation.json",
+      "kind": "record-set",
+      "covers": [
+        "confusion matrix over reference pass, fail, review, and unlabeled rows",
+        "false acceptance rate among reference fail and review cases",
+        "error among accepted cases over labeled predicted passes",
+        "false rejection rate among reference pass cases",
+        "review rate and automatic coverage over all evaluated cases",
+        "label coverage per scope with partial labels",
+        "zero denominators as null values",
+        "errors and skips preserved in every denominator",
+        "per-slice metric sets",
+        "attempts, latency with its case count, and usage totals",
+        "no independence between checks"
+      ],
+      "runner": "Load each valid dataset through the Rust core with the named definition file, validate it, and measure it against the stated evaluated outcomes. Compare every metric set: the predicted outcome counts, the confusion matrix, and every rate with its numerator, denominator, and value, with one null value for one zero denominator. Compare the slices, the case counts, the unevaluated records, and the attempts, latency, and usage totals. Reject each invalid row with the stated reason code and field path."
+    },
+    {
+      "id": "metrics-intervals",
+      "path": "metrics/intervals.json",
+      "kind": "record-set",
+      "covers": [
+        "wilson score bounds against independent reference values",
+        "zero observed errors with one upper bound above zero",
+        "small denominators and observed-all counts",
+        "independent_cases over one case per group",
+        "grouped_cases with the group as the draw",
+        "unsupported sampling under one repeated group",
+        "insufficient evidence for missing denominators and unmet minimums",
+        "unsupported confidence levels, broken counts, and broken requests",
+        "counts, draws, methods, assumptions, and upper bounds per scope and slice",
+        "the complete method statement for one report or one profile"
+      ],
+      "runner": "Run every count row through the Rust core with the stated confidence level, and compare the bounds with one independent implementation of the documented formula, or the stated rejection. Load each valid dataset through the Rust core with the named definition file, validate it, measure it against the stated evaluated outcomes, and compute its intervals under the stated sampling model, confidence level, and minimum sample count. Compare every interval row of every scope and every slice: the metric, the numerator and denominator of the rate, the draws and the event draws behind the interval, the bounds, or the reason no bound computes, and the complete method statement. Reject each invalid request with the stated reason code and field path."
+    },
+    {
+      "id": "plans-validation",
+      "path": "plans/validation.json",
+      "kind": "record-set",
+      "covers": [
+        "owner goals with metrics, denominators, limits, bases, and confidence levels",
+        "minimum sample counts by denominator name",
+        "important slices with their own minimums",
+        "the bounded candidate grid with cutoffs above 0.5 and optional confidence floors",
+        "the candidate enumeration order and its tie-break rule",
+        "the optimization objective and its direction",
+        "fitting and validation selections of one split each",
+        "stored self-hash verification and the computed plan identity",
+        "the definition, dataset, purpose, split hash, separation, and evaluator bindings"
+      ],
+      "runner": "Validate each valid plan through the Rust core, verify each stored self-hash in the plan domain, and compare the derived facts: the candidate count, the head of the candidate enumeration in the declared order, the objective, the confidence level, and the denominator names, all stated by one implementation of the hashing and enumeration rules outside the core. Reject each invalid plan with the stated reason code and field path. Run each binding row through the plan boundary against the stated loaded definition, the stated split identities of the shared datasets, or the stated registered evaluators, and refuse or load as the row states."
+    },
+    {
+      "id": "fitting-search",
+      "path": "fitting/search.json",
+      "kind": "record-set",
+      "covers": [
+        "one known feasible candidate",
+        "a tie between two cutoffs that decide the same outcomes",
+        "conflicting goals that no permitted candidate meets together",
+        "one unachievable goal that no candidate meets",
+        "the plan minimum gating one goal",
+        "the upper-bound basis reading the Wilson bound",
+        "validation data refused as fitting data",
+        "assessments that name no fitting case or no declared answer"
+      ],
+      "runner": "Validate each plan and run the fitting search through the Rust core over the shared fitting split and the stored assessments. Compare the status, the counts, the selected candidate with its goal rows and per-scope outcome counts, and every enumerated candidate. Reject each invalid row with the stated reason code and field path."
+    },
+    {
+      "id": "frozen-validation",
+      "path": "qualification/validation.json",
+      "kind": "record-set",
+      "covers": [
+        "a validated scope on the observed value and on the upper confidence bound",
+        "an unmet goal with the frozen candidate unchanged",
+        "a plan minimum above the validation counts",
+        "an important slice below its own floor and one the validation holds no case of",
+        "a reused holdout as development data",
+        "unsupported sampling under independent cases and one bound under grouped cases",
+        "validation selections of the wrong purpose, of an absent split, and of another dataset",
+        "fitting results of another plan or with one patched identity",
+        "one candidate outside the permitted grid and one search with no feasible candidate"
+      ],
+      "runner": "Validate each plan, run the fitting search through the Rust core over the shared fitting split, and qualify the frozen candidate through the Rust qualification boundary with the stated request and assessments. Compare the status, the reason codes in decision order, the evidence class, the candidate, every goal row with its counts, bounds, draws, and evidence state, the sample requirements, the slice floors, and the predicted outcome counts of the complete check set. Reject each invalid row with the stated reason code and field path."
     },
     {
       "id": "hashing-canonical",
       "path": "hashing/canonical.json",
       "kind": "hash-set",
-      "covers": ["every hash domain", "key order invariance", "number boundaries", "Unicode preservation", "ordered record arrays", "self-hash removal", "worked examples from hashing.md"],
+      "covers": [
+        "every hash domain",
+        "key order invariance",
+        "number boundaries",
+        "Unicode preservation",
+        "ordered record arrays",
+        "self-hash removal",
+        "worked examples from hashing.md"
+      ],
       "runner": "Canonicalize each value in the Rust core and compare the canonical text and the digest. The record shape follows contracts/v0/hashing.schema.json."
     },
     {
       "id": "hashing-string-rules",
       "path": "hashing/string-rules.json",
       "kind": "rule-set",
-      "covers": ["maxLength boundaries", "includes containment", "excludes containment", "code point length", "case sensitivity", "no normalization", "empty strings", "null character", "astral plane"],
+      "covers": [
+        "maxLength boundaries",
+        "includes containment",
+        "excludes containment",
+        "code point length",
+        "case sensitivity",
+        "no normalization",
+        "empty strings",
+        "null character",
+        "astral plane"
+      ],
       "runner": "Assess each record with the Rust exact rules and compare the outcome and, for maxLength, the code point count."
     },
     {
       "id": "hashing-invalid",
       "path": "hashing/invalid.json",
       "kind": "rejection-set",
-      "covers": ["duplicate keys", "non-finite numbers", "unpaired surrogates", "ill-formed UTF-8", "invalid_json", "nonportable_value"],
+      "covers": [
+        "duplicate keys",
+        "non-finite numbers",
+        "unpaired surrogates",
+        "ill-formed UTF-8",
+        "invalid_json",
+        "nonportable_value"
+      ],
       "runner": "Reject each text or byte string with the stated reason code. No hash of invalid content is published."
     },
     {
       "id": "authoring-typebox",
       "path": "authoring/typebox-pairs.json",
       "kind": "pair-set",
-      "covers": ["TypeBox to JSON equivalence", "version to schema_version rename", "annotation removal", "optional modifier in nested objects", "scale order", "identical hashes for both sides"],
+      "covers": [
+        "TypeBox to JSON equivalence",
+        "version to schema_version rename",
+        "annotation removal",
+        "optional modifier in nested objects",
+        "scale order",
+        "identical hashes for both sides"
+      ],
       "runner": "Convert each TypeBox source with the documented conversion, validate it, and compare the canonical content and the definition-domain hash with the named definition file."
     },
     {
       "id": "serialization",
       "path": "serialization/round-trips.json",
       "kind": "value-set",
-      "covers": ["round trips", "ordered arrays", "set-like order strictness", "absence stays absence", "rejected executable values"],
+      "covers": [
+        "round trips",
+        "ordered arrays",
+        "set-like order strictness",
+        "absence stays absence",
+        "rejected executable values"
+      ],
       "runner": "Serialize and parse each value and compare the canonical form. Reject each authoring kind with nonportable_value before serialization."
     },
     {
       "id": "assessments",
       "path": "assessments/samples.json",
       "kind": "record-set",
-      "covers": ["categorical", "binary", "ordered", "label only", "absent optional measurements", "invalid_assessment"],
+      "covers": [
+        "categorical",
+        "binary",
+        "ordered",
+        "label only",
+        "absent optional measurements",
+        "invalid_assessment"
+      ],
       "runner": "Validate each assessment against the assessment contract and the using list of its check."
     },
     {
       "id": "adapters-conformance",
       "path": "adapters/conformance.json",
       "kind": "case-set",
-      "covers": ["label-only success", "review label", "full optional measurements", "operational failure", "thrown error", "malformed resolution", "delayed response", "aborted signal", "exhausted script", "missing scripted answer", "wrong answer type", "undeclared answer", "absent optionals stay absent", "label-only decision rule", "check meaning unchanged across evaluators", "independent profile binding"],
+      "covers": [
+        "label-only success",
+        "review label",
+        "full optional measurements",
+        "operational failure",
+        "thrown error",
+        "malformed resolution",
+        "delayed response",
+        "aborted signal",
+        "exhausted script",
+        "missing scripted answer",
+        "wrong answer type",
+        "undeclared answer",
+        "absent optionals stay absent",
+        "label-only decision rule",
+        "check meaning unchanged across evaluators",
+        "independent profile binding"
+      ],
       "runner": "Drive each case through the wrapper test adapters and the dispatch contract. Compare the normalized execution, the failure code, and the message fragment, and observe the stated delays through one injected sleep. Decide each label-rule row with the separately specified rule. Verify that replacing the evaluator changes no request field and no definition hash, and that one rebound profile needs its own binding and its own content hash."
     },
     {
       "id": "jev-normalization",
       "path": "adapters/jev-normalization.json",
       "kind": "normalization-set",
-      "covers": ["Choice to categorical", "Noul to binary", "Score to ordered", "fractional position unrounded", "nearest level with ties up", "Noul confidence not consumed", "distribution over declared names", "undeclared label rejected", "missing distribution rejected", "value outside range rejected", "undeclared level index rejected", "incomplete usage rejected", "missing model rejected", "unknown answer type rejected", "mass sum checked by the core", "operational record with model, usage, and adapter-measured latency"],
+      "covers": [
+        "Choice to categorical",
+        "Noul to binary",
+        "Score to ordered",
+        "fractional position unrounded",
+        "nearest level with ties up",
+        "Noul confidence not consumed",
+        "distribution over declared names",
+        "undeclared label rejected",
+        "missing distribution rejected",
+        "value outside range rejected",
+        "undeclared level index rejected",
+        "incomplete usage rejected",
+        "missing model rejected",
+        "unknown answer type rejected",
+        "mass sum checked by the core",
+        "operational record with model, usage, and adapter-measured latency"
+      ],
       "runner": "Drive each case through the Jev adapter and the dispatch contract with one injected clock and one fake call boundary. Compare the normalized assessment, the failure code, the message fragment, and the record fields. Every response of one case comes from the provider fixture of the same name, so every wrapper normalizes the same shapes. The later Python adapter must pass the same cases."
     },
     {
       "id": "translations-jev",
       "path": "translations/jev.json",
       "kind": "translation-set",
-      "covers": ["categorical to Choice", "binary to Noul", "ordered to Score", "question wording preserved", "answer descriptions preserved", "scale order preserved", "evidence state envelope", "labels and baselines excluded", "translation hash identity", "changed translation changes the binding"],
+      "covers": [
+        "categorical to Choice",
+        "binary to Noul",
+        "ordered to Score",
+        "question wording preserved",
+        "answer descriptions preserved",
+        "scale order preserved",
+        "evidence state envelope",
+        "labels and baselines excluded",
+        "translation hash identity",
+        "changed translation changes the binding"
+      ],
       "runner": "Translate each referenced question check with the versioned Jev translation and compare the complete translated question, the canonical text, and the translation-domain digest through the Rust core. Build the request state from the projected inputs and the using list, and reject every state that carries one field outside the using list. Verify that each identity variant changes the digest, so one changed translated question changes the evaluator binding that records it."
     },
     {
       "id": "reports-outcomes",
       "path": "reports/outcomes.json",
       "kind": "table-set",
-      "covers": ["aggregate order", "every check outcome", "error beside fail", "skipped as review", "completion statuses", "case references with and without one host snapshot reference", "no raw case content and no credential in report data"],
+      "covers": [
+        "aggregate order",
+        "every check outcome",
+        "error beside fail",
+        "skipped as review",
+        "completion statuses",
+        "case references with and without one host snapshot reference",
+        "no raw case content and no credential in report data"
+      ],
       "runner": "Build one report for each table row and compare the aggregate outcome. Check each sample record against the run report contract. Parse each valid case reference through the case reference boundary and refuse each invalid one with the stated reason code and field path, materializing the stated size tokens."
     },
     {
       "id": "profiles-states",
       "path": "profiles/states.json",
       "kind": "record-set",
-      "covers": ["every qualification status", "exploration", "calibration", "exact", "self-hash verification", "definition_mismatch", "policy_mismatch"],
+      "covers": [
+        "every qualification status",
+        "exploration",
+        "calibration",
+        "exact",
+        "self-hash verification",
+        "definition_mismatch",
+        "policy_mismatch"
+      ],
       "runner": "Validate each artifact, verify each self-hash, and check each compatibility pairing before execution."
     },
     {
       "id": "runtime-traces",
       "path": "runtime/traces.json",
       "kind": "trace-set",
-      "covers": ["queue_full", "deadline_before_start", "deadline_exceeded", "cancelled_before_start", "run_cancelled", "retries_exhausted", "retry then success", "partial failure", "late_result_rejected", "invalid_state_transition"],
+      "covers": [
+        "queue_full",
+        "deadline_before_start",
+        "deadline_exceeded",
+        "cancelled_before_start",
+        "run_cancelled",
+        "retries_exhausted",
+        "retry then success",
+        "partial failure",
+        "late_result_rejected",
+        "invalid_state_transition"
+      ],
       "runner": "Replay each trace through the wrapper scheduler with the fake clock and compare every expected check record, the aggregate outcome, the completion status, and the rejected events."
     }
   ]
