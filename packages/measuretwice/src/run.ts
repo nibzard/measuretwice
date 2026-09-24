@@ -27,8 +27,12 @@
  * `probability_mass_v0` parameters of the profile, and builds the record
  * with the assessment, the applied policy, the evaluator versions, the
  * timing, and the usage. One enforcement run repeats the compatibility
- * check of the core in enforcement mode first, so the qualification clause
- * refuses an unvalidated profile before any case work starts. A definition
+ * check of the core in enforcement mode first, so the declared scope, the
+ * qualification clause, and the host-selection clause all refuse before
+ * any case work starts: enforcement needs one profile validated for the
+ * requested scope that the host selected by its reviewed content hash
+ * through `selectedProfileHash`. No run promotes one profile, changes one
+ * qualification, or selects one profile for the host. A definition
  * with one question check and no bound profile refuses the run before any
  * work starts, because no policy states how its answers decide.
  *
@@ -203,6 +207,22 @@ export interface RunOptions {
   /** How the host declares the run. The default is `shadow`. */
   readonly mode?: RunMode;
   /**
+   * The reviewed profile content hash that the host selected for
+   * enforcement, through its own code or configuration review. Enforcement
+   * mode requires it: the run refuses with `profile_not_selected` when the
+   * option is absent or names another hash, because the library never
+   * selects one profile for the host. Shadow runs state no gate, so the
+   * option changes nothing there. Optional.
+   */
+  readonly selectedProfileHash?: string;
+  /**
+   * The use scope that this run requests. Enforcement compares it with the
+   * declared scope of the profile and refuses with `scope_mismatch` when
+   * the two differ, because one hash cannot detect population drift.
+   * Optional.
+   */
+  readonly scope?: string;
+  /**
    * The cancellation signal of the caller. The run cancels when it aborts:
    * every in-flight adapter receives the abort, queued work records one
    * skip, and the report freezes with completion status `cancelled`.
@@ -341,12 +361,15 @@ export interface Reviewer<TInput> {
    * their registered evaluators inside the bounds of the effective
    * execution configuration of the profile, and the core validates, decides,
    * and records every answer. The report is reporting-only: it authorizes
-   * no application action.
+   * no application action, whatever its mode and outcome.
    *
    * @throws {ValidationError} when the case breaks the contract, when the
    * definition holds one question check and no bound profile states its
-   * decision policy, or when enforcement mode meets one profile without one
-   * validated qualification. Every failure happens before execution.
+   * decision policy, or when enforcement mode meets one profile that the
+   * compatibility gate refuses: one scope it does not declare, one
+   * qualification below `validated_for_scope`, or one content hash that the
+   * host did not select through {@link RunOptions.selectedProfileHash}.
+   * Every failure happens before execution.
    */
   run(caseInput: RunCase<TInput>, options?: RunOptions): Promise<RunReport>;
 }
@@ -675,12 +698,22 @@ export async function load(
         );
       }
       // Enforcement runs the complete compatibility gate of the core again,
-      // in enforcement mode: the bindings, then the qualification clause.
-      // One unvalidated profile refuses here, before any case work starts,
-      // whatever checks the definition holds.
+      // in enforcement mode: the bindings, then the declared scope, then
+      // the qualification clause, then the host selection. One unvalidated
+      // profile refuses with `qualification_insufficient`, and one run that
+      // states no selected reviewed hash or another hash refuses with
+      // `profile_not_selected`, before any case work starts, whatever
+      // checks the definition holds.
       if (mode === "enforcement" && profile !== undefined && profileText !== undefined) {
         throughCore(() =>
-          nativeCheckProfileCompatibility(profileText, definitionText, liveBindings, "enforcement"),
+          nativeCheckProfileCompatibility(
+            profileText,
+            definitionText,
+            liveBindings,
+            "enforcement",
+            runOptions.scope,
+            runOptions.selectedProfileHash,
+          ),
         );
       }
       // One question check needs one bound profile: its binding names the

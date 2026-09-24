@@ -259,7 +259,9 @@ export interface LiveBindingEntry {
  *
  * Every material mismatch throws one compatibility failure with a stable
  * reason code, before any evaluator runs. Shadow mode compares the bindings
- * alone; enforcement adds the scope and qualification clauses.
+ * alone; enforcement adds the scope, qualification, and selection clauses,
+ * so it also needs the requested scope and the reviewed content hash that
+ * the host selected.
  */
 export function nativeCheckProfileCompatibility(
   profileText: string,
@@ -267,6 +269,7 @@ export function nativeCheckProfileCompatibility(
   live: readonly LiveBindingEntry[],
   mode: "shadow" | "enforcement",
   requestedScope?: string,
+  selectedHash?: string,
 ): void {
   call(() =>
     binding.checkProfileCompatibility(
@@ -275,6 +278,7 @@ export function nativeCheckProfileCompatibility(
       JSON.stringify(live),
       mode,
       requestedScope ?? null,
+      selectedHash ?? null,
     ),
   );
 }

@@ -935,6 +935,10 @@ fn compatibility_pairings_fail_or_load_with_the_stated_codes() {
                 .get("requested_scope")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
+            selected_hash: row
+                .get("selected_hash")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
         };
         let outcome = profile::check_compatibility(
             &validated,
@@ -970,7 +974,8 @@ fn compatibility_pairings_fail_or_load_with_the_stated_codes() {
 
     // The group covers every compatibility family of the registry that one
     // pairing can state: the definition, the policy, the evaluator, the
-    // translation, the model, the scope, and the qualification.
+    // translation, the model, the scope, the qualification, and the host
+    // selection.
     for code in [
         "definition_mismatch",
         "policy_mismatch",
@@ -979,6 +984,7 @@ fn compatibility_pairings_fail_or_load_with_the_stated_codes() {
         "model_resolution_changed",
         "scope_mismatch",
         "qualification_insufficient",
+        "profile_not_selected",
     ] {
         assert!(refused.contains(code), "no pairing states {code}");
     }

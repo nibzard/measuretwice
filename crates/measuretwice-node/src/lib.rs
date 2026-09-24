@@ -355,9 +355,10 @@ pub fn validate_profile(profile_text: String) -> Result<ProfileInfo, napi::Error
 /// `{ check, evaluator, adapter_version, translation?, resolved_model?,
 /// preprocessing? }` entries, one per bound check that one registered
 /// evaluator serves. The mode is shadow or enforcement. Shadow compares the
-/// bindings alone; enforcement adds the scope and the qualification
-/// clauses. Every material mismatch throws one compatibility reason code
-/// before any evaluator runs.
+/// bindings alone; enforcement adds the scope, the qualification, and the
+/// selection clauses, so it also needs the reviewed content hash that the
+/// host selected. Every material mismatch throws one compatibility reason
+/// code before any evaluator runs.
 #[napi]
 pub fn check_profile_compatibility(
     profile_text: String,
@@ -365,6 +366,7 @@ pub fn check_profile_compatibility(
     live_text: String,
     mode: String,
     requested_scope: Option<String>,
+    selected_hash: Option<String>,
 ) -> Result<(), napi::Error> {
     let validated_profile = lift(profile::validate_profile_str(&profile_text))?;
     let validated = lift(definition::validate_definition_str(&definition_text))?;
@@ -394,9 +396,22 @@ pub fn check_profile_compatibility(
             Some(scope.to_owned())
         }
     };
+    let selected_hash = match selected_hash.as_deref() {
+        None => None,
+        Some(hash) => {
+            if !hashing::is_hash_hex(hash) {
+                return lift(Err(ValidationError::invalid_field_type(
+                    "/selected_profile_hash",
+                    "The selected profile hash must hold 64 lowercase hexadecimal characters.",
+                )));
+            }
+            Some(hash.to_owned())
+        }
+    };
     let request = profile::CompatibilityRequest {
         mode,
         requested_scope,
+        selected_hash,
     };
     lift(profile::check_compatibility(
         &validated_profile,

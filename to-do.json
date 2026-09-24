@@ -1329,8 +1329,8 @@
       "id": "T035",
       "title": "Enforce profile selection for runtime modes",
       "priority": 2,
-      "status": "todo",
-      "details": "Only compatible profiles validated for the declared scope can be selected for enforcement. Sources: MVP_SPEC.md sections 8-10; AGENTS.md section 7.",
+      "status": "done",
+      "details": "Only compatible profiles validated for the declared scope can be selected for enforcement. Sources: MVP_SPEC.md sections 8-10; AGENTS.md section 7. Done: the enforcement gate of measuretwice_core::profile closes with the selection clause of the checked qualification model. CompatibilityRequest gained selected_hash, and check_enforcement_gate applies it last, so one refusal names one clause: the declared scope, then the qualification, then the selection. One enforcement request without a selection, or with one that names another artifact, refuses with the new registry code profile_not_selected at /profile/content_hash before any evaluator runs; the code entered the registry through the permitted additive contract change, because one missing selection is a different defect from one unvalidated qualification, and the contracts README, the reason-code list of the repository checks, and the conformance fixtures record it in the same change. The wrapper wires the clause through RunOptions: enforcement runs state the reviewed content hash with selectedProfileHash and may state the requested use scope with scope, and run passes both through the core compatibility boundary, so scope_mismatch, qualification_insufficient, and profile_not_selected are all reachable from the public API and all fire before any case work. The derived exact profile of one exact-only definition needs one selection too, because the host selects every enforced hash. Shadow mode states no gate and the admission stays as T028 built it; the evaluate operation of T044 reuses that admission, and the wrapper tests drive every qualification status (unvalidated, insufficient_evidence, criteria_not_met, validated_for_scope) through shadow runs and through the three enforcement refusals, with the scripted adapter keeping its steps to prove no evaluator ran. Qualification flags, host selection, and application authorization stay separate: the selection clause authenticates nothing, the forged-dataset proof still passes it, and no run promotes one profile, writes one frozen field, or leaves one sticky selection, because each enforcement request states its own selection and the wrapper holds no profile state beyond the frozen artifact that load read. One enforced operational failure records one error outcome and never one pass, and the report keeps exactly its contract fields, with no authorization concept. The Rust unit tests hold the clause order, every status, and the exact-profile selection; fixtures/profiles/states.json grew five compatibility rows (profile_not_selected without and with one foreign hash, one loadable selected pairing, one selected but stale resolved model, and criteria_not_met with one correct selection), and the Rust integration suite, the native boundary suite, and the repository checks run every row. models/qualification/README.md records the closed gap and the implemented mapping.",
       "steps": [
         "Write tests for every qualification status in evaluation, shadow, and enforcement modes.",
         "Require the host to select a specific reviewed profile hash for enforcement.",
@@ -1348,6 +1348,27 @@
         "T008",
         "T028",
         "T034"
+      ],
+      "updated_at": "2026-09-24T08:54:09Z",
+      "files": [
+        "contracts/README.md",
+        "crates/measuretwice-core/src/error.rs",
+        "crates/measuretwice-core/src/hashing.rs",
+        "crates/measuretwice-core/src/profile.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "DEVELOPING.md",
+        "fixtures/README.md",
+        "fixtures/profiles/states.json",
+        "models/qualification/README.md",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/profile-selection.test.ts",
+        "packages/measuretwice/test/run.test.ts",
+        "TESTING.md",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
       ]
     },
     {

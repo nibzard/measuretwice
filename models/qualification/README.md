@@ -190,11 +190,14 @@ scenario in a later task:
 | Control 5: after the drift, a stale binding keeps `validated_for_scope`. | T028: a changed model resolution invalidates the qualification. |
 | Control 6: enforcement runs on a stale binding when both barriers are broken. | T035: enforcement rejects a stale binding with reason `model_resolution_changed`. |
 
-One gap needs a decision in T035. The gate clause `selected = p` has no
+One gap needed a decision in T035. The gate clause `selected = p` had no
 stable reason code in the [contracts README](../../contracts/README.md).
-The registry freezes its codes. T035 must either report an existing
-code, such as `qualification_insufficient`, or extend the registry
-through a contract change. Do not invent an unregistered code.
+T035 extended the registry through the permitted additive contract change
+instead of reusing one existing code, because one missing selection is a
+different defect from one unvalidated qualification: the new code
+`profile_not_selected` names it. The regression scenarios below map to
+the implemented gate, whose clause order is scope, then qualification,
+then selection.
 
 ## 7. Mapping to the implementation
 
@@ -205,18 +208,18 @@ Each transition maps to one implementation obligation:
 | --- | --- | --- |
 | `PublishStarter` | Rust validates | T029: an exploration profile is generated `unvalidated` with reason `starter_policy`. |
 | `Qualify` | Rust computes | T049 and T050: frozen validation computes the status. The candidate is returned, never selected. |
-| `RunEvaluation` | Wrapper runs, Rust validates | T044: `evaluate` reports metrics and changes no qualification and no selection. |
+| `RunEvaluation` | Wrapper runs, Rust validates | T044: `evaluate` reports metrics and changes no qualification and no selection. It reuses the shadow admission of the implemented gate. |
 | `RunShadow` | Wrapper runs, Rust validates | T038: a shadow report records the outcome next to the baseline. No application action follows. |
-| `RunEnforcement` | Rust admits | T035: enforcement mode checks the complete gate before any evaluator runs. |
-| `RefuseRun` | Rust refuses | T035 and T028: typed rejections before execution. See the reason mapping below. |
-| `HostSelect`, `HostDeselect` | Host | T035: the host selects one reviewed profile hash through code or configuration review. The library never selects. |
+| `RunEnforcement` | Rust admits | T035, implemented: enforcement mode checks the complete gate before any evaluator runs. The wrapper passes the requested scope and the host-selected hash through `RunOptions.scope` and `RunOptions.selectedProfileHash`. |
+| `RefuseRun` | Rust refuses | T035 and T028, implemented: typed rejections before execution. See the reason mapping below. |
+| `HostSelect`, `HostDeselect` | Host | T035, implemented: the host selects one reviewed profile hash through code or configuration review and states it per enforcement run. The library never selects, and no accepted run leaves one sticky selection. |
 | `HostAuthorize`, `HostRevoke` | Host | T036 and T038: application authorization stays in the host application. No report or profile grants it. |
 | `ModelDrift` | Rust detects | T028: a changed model resolution reports `model_resolution_changed` and invalidates the qualification. |
 
 Refusal reasons map to the stable registry. Evaluation and shadow
 refuse with `definition_mismatch` or `model_resolution_changed`.
-Enforcement adds `qualification_insufficient` and `scope_mismatch`. The
-unselected-slot clause is the open gap from section 6.
+Enforcement adds `qualification_insufficient`, `scope_mismatch`, and
+`profile_not_selected`, the code that closes the section 6 gap.
 
 Omitted behavior. The implementation must add what the model leaves
 out:

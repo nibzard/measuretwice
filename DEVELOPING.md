@@ -316,7 +316,9 @@ time of the injected clock. The returned report is parsed from the frozen
 core report and deep-frozen again on the TypeScript side. A definition with
 one question check and no bound profile fails `run` with `evaluator_mismatch`
 before any work, and enforcement mode requires one `validated_for_scope`
-qualification.
+qualification plus the host-selected reviewed hash through
+`RunOptions.selectedProfileHash`, as the selection clause of the profile
+gate states.
 
 Decided in T019: the exact-rule vertical slice is verified as one path, not
 as separate per-layer suites. `packages/measuretwice/test/slice.test.ts`
@@ -532,12 +534,13 @@ state in one fixed order: the definition reference (or, for one exact-only
 definition, the structural exact rule first), the registered evaluator and
 its adapter version, the preprocessing identity, the translated question,
 the resolved model version, the binding coverage, the policy coverage and
-fit, then, for enforcement, the declared scope and the qualification. The
+fit, then, for enforcement, the declared scope, the qualification, and
+the host selection. The
 live state crosses as data, one entry per bound check, because the core
 never sees an evaluator object. Shadow mode compares the bindings alone;
-enforcement adds the scope and qualification clauses of the checked
-qualification model. The comparison verifies content consistency and
-authenticates nothing: one forged dataset that states
+enforcement adds the scope, qualification, and selection clauses of the
+checked qualification model. The comparison verifies content consistency
+and authenticates nothing: one forged dataset that states
 `validated_for_scope` passes, and the host review owns that trust. The
 Node binding exposes `validateProfile` and `checkProfileCompatibility`;
 `load` in the wrapper routes every supplied profile through both and
@@ -547,10 +550,21 @@ exposes the optional `translate` operation of the evaluator contract, so
 live one; the Jev adapter exposes `translateJevQuestion` this way. The
 `run` repeats the
 check in enforcement mode, so the qualification clause refuses one
-unvalidated profile through the same boundary. The selected-hash clause of
-enforcement stays with task T035. The shared
-`fixtures/profiles/states.json` compatibility rows carry the live state
-and the mode, and the Rust, native-boundary, and repository suites run
+unvalidated profile through the same boundary. Decided in T035: the
+selection clause closes the gate. One enforcement run must state the
+reviewed content hash of the bound profile through
+`RunOptions.selectedProfileHash`, and may state its requested use scope
+through `RunOptions.scope`; one absent or foreign selection refuses with
+`profile_not_selected` at `/profile/content_hash` before any case work.
+The gate keeps its clause order, so one refusal names one clause: the
+scope, then the qualification, then the selection. The exact profile of
+one exact-only definition needs one selection too, because the host
+selects every enforced hash. No run selects, promotes, or rewrites one
+profile: the wrapper holds no profile state beyond the frozen artifact
+that `load` read. The shared
+`fixtures/profiles/states.json` compatibility rows carry the live state,
+the mode, the requested scope, and the selected hash, and the Rust,
+native-boundary, and repository suites run
 every row through the boundary.
 
 Decided in T029: exploration profiles are generated, never hand-authored.

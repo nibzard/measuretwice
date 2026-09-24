@@ -511,6 +511,7 @@ test("compatibility pairings answer through the binding with the stated codes", 
           row.live ?? [],
           mode,
           row.requested_scope,
+          row.selected_hash,
         ),
       );
       expect(failure.code, where).toBe(row.expected.reason_code);
@@ -527,6 +528,7 @@ test("compatibility pairings answer through the binding with the stated codes", 
           row.live ?? [],
           mode,
           row.requested_scope,
+          row.selected_hash,
         ),
       ).not.toThrow();
     }
@@ -539,6 +541,7 @@ test("compatibility pairings answer through the binding with the stated codes", 
     "model_resolution_changed",
     "scope_mismatch",
     "qualification_insufficient",
+    "profile_not_selected",
   ]) {
     expect(refused.has(code), `no pairing states ${code}`).toBe(true);
   }
@@ -569,6 +572,20 @@ test("compatibility pairings answer through the binding with the stated codes", 
   );
   expect(live.code).toBe("unknown_field");
   expect(live.fieldPath).toBe("/live/0/client");
+  // One selected hash outside the content-hash shape rejects as one bridge
+  // input before any comparison runs.
+  const selection = failureOf(() =>
+    nativeCheckProfileCompatibility(
+      profileText,
+      definitionText,
+      [],
+      "enforcement",
+      undefined,
+      "not-a-hash",
+    ),
+  );
+  expect(selection.code).toBe("invalid_field_type");
+  expect(selection.fieldPath).toBe("/selected_profile_hash");
 });
 
 /** Builds one single-rule definition and case around one string rule record. */

@@ -166,9 +166,12 @@ and evidence. It contains no credentials and no private case content.
 - Qualification is `unvalidated`, `insufficient_evidence`, `criteria_not_met`,
   or `validated_for_scope`. The flag records measured evidence for a declared
   scope. It is not an authenticated approval.
-- The host selects one reviewed profile hash for enforcement. Runtime checks
-  verify content consistency and required references. They cannot verify the
-  truth of a forged dataset.
+- The host selects one reviewed profile hash for enforcement. An enforcement
+  run states the selected hash, and the runtime admits the selected artifact
+  alone: one absent or foreign selection fails with `profile_not_selected`.
+  Runtime checks verify content consistency and required references. They
+  cannot verify the truth of a forged dataset. No run selects, promotes, or
+  rewrites one profile.
 - Changed question wording, criteria, schema, projection, preprocessing, model
   resolution, translation, or evaluator code invalidates the qualification.
   Policy-only changes may reuse compatible stored assessments for fitting, but
@@ -293,6 +296,7 @@ Compatibility reasons, reported before execution:
 | `policy_mismatch` | The policy family or parameters do not fit the definition. |
 | `scope_mismatch` | The declared scope differs from the requested use. |
 | `qualification_insufficient` | Enforcement needs a validated profile. |
+| `profile_not_selected` | Enforcement needs the profile that the host selected by its reviewed content hash. |
 
 Qualification reasons, recorded in profiles:
 
@@ -324,7 +328,7 @@ types stay independent of provider SDK classes and native binding types.
 | --- | --- | --- | --- | --- |
 | `defineChecks` | Authoring object with TypeBox inputs | Validated portable definition with inferred types | None | Rejects invalid definitions and nonportable values with field paths. |
 | `load` | Trusted definition object, or an explicit JSON path; optional profile path | A bound reviewer | None | Rejects invalid artifacts, incompatible profiles, and unknown evaluator references. |
-| `run` | One case with `id` and `input`; mode; shadow baseline | Run report | `shadow`, `enforcement` | Rejects invalid cases and incompatible bindings before any evaluator call. Keeps operational failures in the report. |
+| `run` | One case with `id` and `input`; mode; shadow baseline; the host-selected profile hash and the requested scope for enforcement | Run report | `shadow`, `enforcement` | Rejects invalid cases and incompatible bindings before any evaluator call. Enforcement also rejects one wrong scope, one unvalidated qualification, and one profile the host did not select. Keeps operational failures in the report. |
 | `calibrate` | Calibration plan, datasets, evaluator configuration | Candidate profile and calibration report | None | Invalid plans and dataset errors are explicit. No feasible policy is a valid result. Never promotes. |
 | `evaluate` | Definition, profile, JSONL dataset, purpose | Evaluation report | None | Keeps errors, skips, and partial labels visible. Never changes qualification. |
 | `compare` | Two stored report sets | Comparison | None | Lists unmatched and changed cases. Never matches on changed inputs. |
@@ -406,6 +410,9 @@ Related contracts published after this freeze:
 - [Canonical hashing and string semantics](v0/hashing.md), with the
   machine-checkable [fixture schema](v0/hashing.schema.json). Published on
   23 September 2026. Adds the reason code `hash_mismatch`.
+- The enforcement selection clause of task T035, published on 24 September
+  2026. Adds the reason code `profile_not_selected` and the enforcement
+  input of the host-selected profile hash.
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.

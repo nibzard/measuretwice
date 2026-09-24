@@ -48,6 +48,7 @@ const REASON_CODES = new Set([
   // Compatibility reasons.
   "definition_mismatch", "evaluator_mismatch", "translation_mismatch",
   "model_resolution_changed", "policy_mismatch", "scope_mismatch", "qualification_insufficient",
+  "profile_not_selected",
   // Qualification reasons.
   "starter_policy", "measured_evidence", "exact_rules_only",
   // Statistics reasons.
@@ -1432,6 +1433,12 @@ test("compatibility fixtures pair profiles with definitions and live evaluator s
         ).toBe(true);
       }
     }
+    // One stated host selection names one reviewed content hash, and only
+    // an enforcement row states one.
+    if (record.selected_hash !== undefined) {
+      expect(HASH_PATTERN.test(String(record.selected_hash)), String(record.note)).toBe(true);
+      expect(String(record.mode), String(record.note)).toBe("enforcement");
+    }
     // Every stated field path of one refusal names one pairing under
     // /profile, never one artifact defect.
     if (expected?.field_path !== undefined) {
@@ -1457,6 +1464,7 @@ test("compatibility fixtures pair profiles with definitions and live evaluator s
   for (const code of [
     "definition_mismatch", "evaluator_mismatch", "translation_mismatch",
     "model_resolution_changed", "policy_mismatch", "scope_mismatch", "qualification_insufficient",
+    "profile_not_selected",
   ]) {
     expect(refused.has(code), `no pairing states ${code}`).toBe(true);
   }

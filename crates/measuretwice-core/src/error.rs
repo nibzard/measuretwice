@@ -88,6 +88,9 @@ pub enum ReasonCode {
     ScopeMismatch,
     /// Enforcement needs a validated profile.
     QualificationInsufficient,
+    /// Enforcement needs the profile that the host selected by its
+    /// reviewed content hash.
+    ProfileNotSelected,
     // Qualification reasons, recorded in profiles.
     /// The profile uses starter thresholds without qualification evidence.
     StarterPolicy,
@@ -144,6 +147,7 @@ impl ReasonCode {
             Self::PolicyMismatch => "policy_mismatch",
             Self::ScopeMismatch => "scope_mismatch",
             Self::QualificationInsufficient => "qualification_insufficient",
+            Self::ProfileNotSelected => "profile_not_selected",
             Self::StarterPolicy => "starter_policy",
             Self::MeasuredEvidence => "measured_evidence",
             Self::ExactRulesOnly => "exact_rules_only",
@@ -296,6 +300,7 @@ mod tests {
                 "qualification_insufficient",
                 ReasonCode::QualificationInsufficient,
             ),
+            ("profile_not_selected", ReasonCode::ProfileNotSelected),
             ("starter_policy", ReasonCode::StarterPolicy),
             ("measured_evidence", ReasonCode::MeasuredEvidence),
             ("exact_rules_only", ReasonCode::ExactRulesOnly),

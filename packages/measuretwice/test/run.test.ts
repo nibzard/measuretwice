@@ -582,19 +582,25 @@ test("run validates the case through the core before execution", async () => {
 
 test("enforcement mode needs one validated profile", async () => {
   // The structural exact profile carries the structural basis, so an
-  // enforcement run reports its mode.
+  // enforcement run reports its mode when the host selects its hash.
   const reviewer = await load(typedLimits, {
     now: () => START_MS,
     nextRunId: sequenceIds("run"),
   });
+  const synthesized = reviewer.profile;
+  expect(synthesized?.content_hash).toMatch(/^[0-9a-f]{64}$/);
   const report = await reviewer.run(
     { id: "enforced-case", input: PASSING_INPUT },
-    { mode: "enforcement" },
+    {
+      mode: "enforcement",
+      ...(synthesized !== undefined ? { selectedProfileHash: synthesized.content_hash } : {}),
+    },
   );
   expect(report.mode).toBe("enforcement");
   expect(report.aggregate.outcome).toBe("pass");
 
-  // An unvalidated profile cannot enter enforcement.
+  // An unvalidated profile cannot enter enforcement, and the qualification
+  // clause refuses before the selection clause runs.
   const unvalidatedArtifact: Record<string, unknown> = {
     ...EXACT_PROFILE,
     definition: { name: "typed-delivery-limits", content_hash: reviewer.definitionHash },
@@ -618,10 +624,18 @@ test("enforcement mode needs one validated profile", async () => {
   });
   expect(unvalidatedReviewer.profile?.id).toBe("delivery-limits-exact");
   const failure = await failureOf(() =>
-    unvalidatedReviewer.run({ id: "enforced-case", input: PASSING_INPUT }, { mode: "enforcement" }),
+    unvalidatedReviewer.run(
+      { id: "enforced-case", input: PASSING_INPUT },
+      {
+        mode: "enforcement",
+        ...(unvalidatedReviewer.profile !== undefined
+          ? { selectedProfileHash: unvalidatedReviewer.profile.content_hash }
+          : {}),
+      },
+    ),
   );
   expect(failure.code).toBe("qualification_insufficient");
-  // The same reviewer still runs in shadow mode.
+  // The same reviewer still runs in shadow mode, which states no gate.
   const shadow = await unvalidatedReviewer.run({ id: "shadow-case", input: PASSING_INPUT });
   expect(shadow.mode).toBe("shadow");
 });

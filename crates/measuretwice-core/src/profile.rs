@@ -28,7 +28,8 @@
 //! codes of the registry. One changed definition, evaluator, adapter
 //! version, translation, preprocessing identity, or resolved model breaks
 //! the binding, as MVP_SPEC.md section 8 states. Enforcement adds the
-//! scope and qualification clauses of the checked qualification model.
+//! scope, qualification, and selection clauses of the checked
+//! qualification model.
 //!
 //! The comparison verifies content consistency. It cannot authenticate
 //! one label, one population claim, or one host approval: one forged
@@ -1116,11 +1117,16 @@ pub fn parse_live_bindings(value: &Value, base: &str) -> Result<Vec<LiveBinding>
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompatibilityRequest {
     /// The run mode of the requested use. Shadow compares the bindings
-    /// alone. Enforcement adds the scope and qualification clauses.
+    /// alone. Enforcement adds the scope, qualification, and selection
+    /// clauses.
     pub mode: RunMode,
     /// The scope that the host requests, when it states one. Enforcement
     /// compares it with the declared scope of the profile.
     pub requested_scope: Option<String>,
+    /// The reviewed profile content hash that the host selected, when it
+    /// states one. Enforcement requires one selection, and the bound
+    /// artifact must be the selected one.
+    pub selected_hash: Option<String>,
 }
 
 /// Checks one validated profile against one loaded definition and the live
@@ -1136,8 +1142,9 @@ pub struct CompatibilityRequest {
 ///    question, and the resolved model version.
 /// 3. The bindings cover every question check of the definition.
 /// 4. The numerical policy covers every question check and fits it.
-/// 5. Enforcement compares the declared scope and requires one profile
-///    validated for scope.
+/// 5. Enforcement compares the declared scope, requires one profile
+///    validated for scope, and requires the artifact that the host
+///    selected by its reviewed content hash.
 ///
 /// `base` is the JSON Pointer that failures report under, for example
 /// `/profile` inside one load.
@@ -1407,8 +1414,8 @@ fn check_policy_coverage(
     Ok(())
 }
 
-/// Applies the enforcement clauses: the declared scope and the
-/// qualification.
+/// Applies the enforcement clauses: the declared scope, the qualification,
+/// and the host selection.
 fn check_enforcement_gate(
     profile: &ValidatedProfile,
     request: &CompatibilityRequest,
@@ -1437,6 +1444,35 @@ fn check_enforcement_gate(
                 profile.qualification().as_str()
             ),
         ));
+    }
+    // The selection clause closes the qualification model's gate: the host
+    // selects one reviewed hash through its own code or configuration
+    // review, and the library admits the selected artifact alone. The
+    // clause authenticates nothing; the host review carries that trust.
+    match request.selected_hash.as_deref() {
+        None => {
+            return Err(ValidationError::new(
+                ReasonCode::ProfileNotSelected,
+                format!("{base}/content_hash"),
+                format!(
+                    "Enforcement selects one profile through host review, and no selection crossed. State the reviewed content hash of the profile {} with the enforcement run.",
+                    fragment(profile.id())
+                ),
+            ));
+        }
+        Some(selected) if selected != profile.content_hash() => {
+            return Err(ValidationError::new(
+                ReasonCode::ProfileNotSelected,
+                format!("{base}/content_hash"),
+                format!(
+                    "The host selected the content hash {}, but the bound profile {} carries {}. Bind the selected artifact or select the bound hash through host review.",
+                    fragment(selected),
+                    fragment(profile.id()),
+                    fragment(profile.content_hash())
+                ),
+            ));
+        }
+        _ => {}
     }
     Ok(())
 }
@@ -1858,16 +1894,31 @@ mod tests {
         CompatibilityRequest {
             mode: RunMode::Shadow,
             requested_scope: None,
+            selected_hash: None,
         }
     }
 
-    /// One enforcement request for the stated scope.
+    /// One enforcement request for the stated scope, with no host selection.
     fn enforcement(scope: Option<&str>) -> CompatibilityRequest {
         CompatibilityRequest {
             mode: RunMode::Enforcement,
             requested_scope: scope.map(str::to_owned),
+            selected_hash: None,
         }
     }
+
+    /// One enforcement request that selects the stated profile by its
+    /// reviewed content hash.
+    fn enforcement_of(scope: Option<&str>, profile: &ValidatedProfile) -> CompatibilityRequest {
+        CompatibilityRequest {
+            mode: RunMode::Enforcement,
+            requested_scope: scope.map(str::to_owned),
+            selected_hash: Some(profile.content_hash().to_owned()),
+        }
+    }
+
+    /// The scope that the calibration artifact declares.
+    const CALIBRATION_SCOPE: &str = "The pilot conversation population declared in the plan.";
 
     #[test]
     fn one_valid_exploration_profile_validates() {
@@ -2259,7 +2310,13 @@ mod tests {
             validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
         let definition = validated(CATEGORICAL);
         let scope = "The pilot conversation population declared in the plan.";
-        for request in [shadow(), enforcement(None), enforcement(Some(scope))] {
+        for request in [
+            shadow(),
+            // One enforcement request that selects this artifact, with and
+            // without one stated scope.
+            enforcement_of(None, &profile),
+            enforcement_of(Some(scope), &profile),
+        ] {
             check_compatibility(
                 &profile,
                 &definition,
@@ -2345,15 +2402,26 @@ mod tests {
         assert_eq!(error.field_path, "/profile/policy");
 
         // The structural exact profile fits its definition and needs no
-        // registered evaluator.
+        // registered evaluator. Its structural basis satisfies the
+        // qualification clause, and enforcement still needs the host
+        // selection of its reviewed hash.
         check_compatibility(
+            &exact_profile,
+            &exact_definition,
+            &[],
+            &enforcement_of(None, &exact_profile),
+            "/profile",
+        )
+        .expect("the structural exact profile fits");
+        let error = check_compatibility(
             &exact_profile,
             &exact_definition,
             &[],
             &enforcement(None),
             "/profile",
         )
-        .expect("the structural exact profile fits");
+        .expect_err("one unselected exact profile cannot enforce");
+        assert_eq!(error.code, ReasonCode::ProfileNotSelected);
     }
 
     #[test]
@@ -2669,7 +2737,7 @@ mod tests {
             &profile,
             &definition,
             &matching_live(),
-            &enforcement(Some(scope)),
+            &enforcement_of(Some(scope), &profile),
             "/profile",
         )
         .expect("the declared scope fits");
@@ -2686,9 +2754,7 @@ mod tests {
             &unscoped,
             &definition,
             &matching_live(),
-            &enforcement(Some(
-                "The pilot conversation population declared in the plan.",
-            )),
+            &enforcement_of(Some(CALIBRATION_SCOPE), &unscoped),
             "/profile",
         )
         .expect("the intended use satisfies the request");
@@ -2745,6 +2811,157 @@ mod tests {
     }
 
     #[test]
+    fn enforcement_requires_the_profile_that_the_host_selected() {
+        let definition = validated(CATEGORICAL);
+        let profile =
+            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+
+        // No selection crossed: the gate refuses before any evaluator runs,
+        // whatever the qualification of the artifact.
+        let error = check_compatibility(
+            &profile,
+            &definition,
+            &matching_live(),
+            &enforcement(Some(CALIBRATION_SCOPE)),
+            "/profile",
+        )
+        .expect_err("enforcement without one selection fails");
+        assert_eq!(error.code, ReasonCode::ProfileNotSelected);
+        assert_eq!(error.field_path, "/profile/content_hash");
+        assert!(error.message.contains("no selection crossed"), "{error}");
+
+        // One selection of another hash names another artifact, not this
+        // one. The sanitized cause truncates both digests, so the check
+        // reads their visible prefixes.
+        let mut foreign = enforcement_of(Some(CALIBRATION_SCOPE), &profile);
+        foreign.selected_hash = Some(HASH_B.to_owned());
+        let error = check_compatibility(
+            &profile,
+            &definition,
+            &matching_live(),
+            &foreign,
+            "/profile",
+        )
+        .expect_err("one foreign selection fails");
+        assert_eq!(error.code, ReasonCode::ProfileNotSelected);
+        assert_eq!(error.field_path, "/profile/content_hash");
+        assert!(error.message.contains(&HASH_B[..32]), "{error}");
+
+        // The selected hash admits the validated profile.
+        check_compatibility(
+            &profile,
+            &definition,
+            &matching_live(),
+            &enforcement_of(Some(CALIBRATION_SCOPE), &profile),
+            "/profile",
+        )
+        .expect("the selected hash admits the artifact");
+
+        // The clauses keep their order: the scope and the qualification
+        // refuse before the selection, so one refusal names its own clause.
+        let error = check_compatibility(
+            &profile,
+            &definition,
+            &matching_live(),
+            &enforcement_of(Some("One other population."), &profile),
+            "/profile",
+        )
+        .expect_err("the scope refuses first");
+        assert_eq!(error.code, ReasonCode::ScopeMismatch);
+        let mut edited = calibration_artifact();
+        edited["qualification"]["status"] = json!("insufficient_evidence");
+        let weak = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let error = check_compatibility(
+            &weak,
+            &definition,
+            &matching_live(),
+            &enforcement_of(Some(CALIBRATION_SCOPE), &weak),
+            "/profile",
+        )
+        .expect_err("the qualification refuses first");
+        assert_eq!(error.code, ReasonCode::QualificationInsufficient);
+
+        // Shadow states no gate, so one selection changes nothing there.
+        let mut shadow_selected = shadow();
+        shadow_selected.selected_hash = Some(HASH_B.to_owned());
+        check_compatibility(
+            &profile,
+            &definition,
+            &matching_live(),
+            &shadow_selected,
+            "/profile",
+        )
+        .expect("shadow ignores the selection");
+    }
+
+    #[test]
+    fn every_status_admits_shadow_and_only_validated_admits_enforcement() {
+        let definition = validated(CATEGORICAL);
+        // One artifact per qualification status. The exploration origin
+        // stays unvalidated, so the other statuses use the calibration
+        // artifact with one edited status.
+        let rows: [(&str, String); 4] = [
+            (
+                "unvalidated",
+                serde_json::to_string(&exploration_artifact()).expect("serializes"),
+            ),
+            ("insufficient_evidence", {
+                let mut edited = calibration_artifact();
+                edited["qualification"]["status"] = json!("insufficient_evidence");
+                resigned(&edited)
+            }),
+            ("criteria_not_met", {
+                let mut edited = calibration_artifact();
+                edited["qualification"]["status"] = json!("criteria_not_met");
+                resigned(&edited)
+            }),
+            (
+                "validated_for_scope",
+                serde_json::to_string(&calibration_artifact()).expect("serializes"),
+            ),
+        ];
+        for (word, text) in rows {
+            let profile = validate_profile_str(&text).expect("the artifact validates");
+            assert_eq!(profile.qualification().as_str(), word);
+            // Shadow, the admission that evaluation reuses, admits every
+            // compatible profile whatever its status.
+            check_compatibility(
+                &profile,
+                &definition,
+                &matching_live(),
+                &shadow(),
+                "/profile",
+            )
+            .unwrap_or_else(|error| panic!("{word}: {error}"));
+            // Enforcement admits the validated status alone, and it needs
+            // the host selection of the artifact. The exploration profile
+            // declares another scope, so its request states none: the
+            // qualification clause must refuse before any selection
+            // question.
+            let scope = match word {
+                "unvalidated" => None,
+                _ => Some(CALIBRATION_SCOPE),
+            };
+            let outcome = check_compatibility(
+                &profile,
+                &definition,
+                &matching_live(),
+                &enforcement_of(scope, &profile),
+                "/profile",
+            );
+            match word {
+                "validated_for_scope" => {
+                    outcome.unwrap_or_else(|error| panic!("{word}: {error}"));
+                }
+                _ => {
+                    let error = outcome.expect_err("only one validated profile enforces");
+                    assert_eq!(error.code, ReasonCode::QualificationInsufficient, "{word}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn content_consistency_authenticates_no_label_or_approval() {
         // One forged calibration profile that states validated_for_scope
         // over invented evidence passes every structural check and the
@@ -2760,9 +2977,7 @@ mod tests {
             &profile,
             &validated(CATEGORICAL),
             &matching_live(),
-            &enforcement(Some(
-                "The pilot conversation population declared in the plan.",
-            )),
+            &enforcement_of(Some(CALIBRATION_SCOPE), &profile),
             "/profile",
         )
         .expect("the gate reports content consistency, never authenticity");
