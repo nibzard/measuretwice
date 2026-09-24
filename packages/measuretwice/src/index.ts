@@ -17,8 +17,12 @@
  * one developer can try semantic checks before any qualification evidence
  * exists. `loadDataset` loads one versioned JSONL case dataset with its
  * metadata through the Rust core, which checks every record line and
- * validates every input object, so reference labels and label provenance
- * stay outside every evaluator request. The package also ships
+ * validates every input object and every reference label against the
+ * meaning of its check, so reference labels and label provenance
+ * stay outside every evaluator request, one conflicting reference loads
+ * with one flagged finding, and the returned `labels` review counts the
+ * provenance that keeps human judgments apart from model proposals. The
+ * package also ships
  * two test adapters, `createScriptedEvaluator` and
  * `createLabelOnlyEvaluator`, that stay offline and prove the contract
  * needs no Jev response shape, `translateJevQuestion`, the versioned
@@ -135,8 +139,12 @@ export type {
   ExpectedLabels,
   ExpectedOutcome,
   LabelAuthorType,
+  LabelFinding,
+  LabelFindingKind,
   LabelOrigin,
   LabelProvenance,
+  LabelReview,
+  LabelSummary,
   LoadDatasetOptions,
   SplitPurpose,
 } from "./dataset.js";

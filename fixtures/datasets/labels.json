@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "description": "Reference-label meaning and provenance through the Rust core. Each record set loads with the named definition file, then validates every input object and every reference label. One answer or level outside the declared labels of its check rejects the load. One reference whose acceptance meaning disagrees with its stated expected outcome loads, stays as written, and appears as one finding, because one human must decide the conflict. The summary counts keep human judgments apart from model proposals.",
+  "definition": "categorical-question.json",
+  "metadata": {
+    "schema_version": 1,
+    "id": "label-cases",
+    "name": "Label provenance cases",
+    "revision": "2026-09-24.1",
+    "kind": "development_fixture",
+    "intended_population": "Proposed messages in support conversations.",
+    "sampling_method": "Selected from reviewed development work. No prevalence claim.",
+    "label_guidelines": "See docs/labeling.md revision 3.",
+    "languages": [
+      "en"
+    ],
+    "splits": [
+      {
+        "id": "fit",
+        "purpose": "fitting",
+        "groups": [
+          "dates",
+          "notices-a"
+        ]
+      },
+      {
+        "id": "holdout",
+        "purpose": "validation",
+        "groups": [
+          "limits",
+          "notices-b"
+        ]
+      }
+    ]
+  },
+  "valid": [
+    {
+      "note": "One human-reviewed reference, one agent proposal, and one record without labels. Only the reviewed reference counts as reviewed evidence.",
+      "records": "{\"id\": \"message-supported-101\", \"group\": \"dates\", \"tags\": [\"date-change\", \"pass\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}, \"outcome\": \"pass\"}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}\n{\"id\": \"message-supported-102\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"contradicted\", \"outcome\": \"fail\"}}, \"outcome\": \"fail\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal. No human review yet.\"}}\n{\"id\": \"message-supported-103\", \"group\": \"limits\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal. No human review yet.\"}}",
+      "expected": {
+        "findings": [],
+        "summary": {
+          "records": 3,
+          "labeled": 2,
+          "unlabeled": 1,
+          "human_reviewed": 1,
+          "human_unreviewed": 0,
+          "model_reviewed": 0,
+          "model_unreviewed": 1,
+          "corrected": 0,
+          "review_required": 0
+        }
+      }
+    },
+    {
+      "note": "One ambiguous reference keeps its review marker and states one review outcome. It needs one human review before it serves as a reference.",
+      "records": "{\"id\": \"message-supported-110\", \"group\": \"limits\", \"tags\": [\"missing-context\", \"review\"], \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"review\": true}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal. No human review yet.\"}}",
+      "expected": {
+        "findings": [],
+        "summary": {
+          "records": 1,
+          "labeled": 1,
+          "unlabeled": 0,
+          "human_reviewed": 0,
+          "human_unreviewed": 0,
+          "model_reviewed": 0,
+          "model_unreviewed": 1,
+          "corrected": 0,
+          "review_required": 1
+        }
+      }
+    },
+    {
+      "note": "One accepted answer beside one failing outcome stays as written and is flagged for review. No field of the record changes.",
+      "records": "{\"id\": \"message-supported-201\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"fail\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "findings": [
+          {
+            "kind": "check_outcome_conflict",
+            "line": 1,
+            "case": "message-supported-201",
+            "check": "message-supported",
+            "field_path": "/records/1/expected/checks/message-supported/outcome"
+          }
+        ],
+        "summary": {
+          "records": 1,
+          "labeled": 1,
+          "unlabeled": 0,
+          "human_reviewed": 1,
+          "human_unreviewed": 0,
+          "model_reviewed": 0,
+          "model_unreviewed": 0,
+          "corrected": 0,
+          "review_required": 1
+        }
+      }
+    },
+    {
+      "note": "The stated check outcome passes, but the overall outcome fails. The aggregate of the stated outcomes disagrees, so the record is flagged.",
+      "records": "{\"id\": \"message-supported-202\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}, \"outcome\": \"fail\"}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "findings": [
+          {
+            "kind": "overall_outcome_conflict",
+            "line": 1,
+            "case": "message-supported-202",
+            "check": null,
+            "field_path": "/records/1/expected/outcome"
+          }
+        ],
+        "summary": {
+          "records": 1,
+          "labeled": 1,
+          "unlabeled": 0,
+          "human_reviewed": 1,
+          "human_unreviewed": 0,
+          "model_reviewed": 0,
+          "model_unreviewed": 0,
+          "corrected": 0,
+          "review_required": 1
+        }
+      }
+    },
+    {
+      "note": "Ordered levels follow the acceptance meaning of at_least. The consistent record reports nothing; the level below acceptance with one pass outcome conflicts.",
+      "definition": "ordered-scale.json",
+      "records": "{\"id\": \"consequence-301\", \"group\": \"limits\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"consequence\": {\"level\": \"meaningful\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}\n{\"id\": \"consequence-302\", \"group\": \"limits\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"consequence\": {\"level\": \"minor\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "findings": [
+          {
+            "kind": "check_outcome_conflict",
+            "line": 2,
+            "case": "consequence-302",
+            "check": "consequence",
+            "field_path": "/records/2/expected/checks/consequence/outcome"
+          }
+        ],
+        "summary": {
+          "records": 2,
+          "labeled": 2,
+          "unlabeled": 0,
+          "human_reviewed": 2,
+          "human_unreviewed": 0,
+          "model_reviewed": 0,
+          "model_unreviewed": 0,
+          "corrected": 0,
+          "review_required": 1
+        }
+      }
+    },
+    {
+      "note": "One rule check states one expected outcome alone. Its rule decides the answer, so no reference answer exists and nothing conflicts.",
+      "definition": "exact-rules.json",
+      "records": "{\"id\": \"delivery-401\", \"group\": \"notices-a\", \"input\": {\"summary\": \"The delivery limit is 900 characters\", \"notice\": \"One notice.\"}, \"expected\": {\"checks\": {\"summary-length\": {\"outcome\": \"pass\"}}, \"outcome\": \"pass\"}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}\n{\"id\": \"delivery-402\", \"group\": \"notices-b\", \"input\": {\"summary\": \"The delivery limit is 900 characters\", \"notice\": \"One notice.\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"Agent proposal. No human review yet.\"}}",
+      "expected": {
+        "findings": [],
+        "summary": {
+          "records": 2,
+          "labeled": 1,
+          "unlabeled": 1,
+          "human_reviewed": 1,
+          "human_unreviewed": 0,
+          "model_reviewed": 0,
+          "model_unreviewed": 0,
+          "corrected": 0,
+          "review_required": 0
+        }
+      }
+    },
+    {
+      "note": "One corrected reference keeps its earlier provenance in label.history. The original proposal stays visible beside the review attribution.",
+      "records": "{\"id\": \"message-supported-501\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"incomplete\", \"outcome\": \"review\"}}, \"outcome\": \"review\"}, \"label\": {\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The reference is ambiguous, so the check reviews.\", \"history\": [{\"author_type\": \"model\", \"origin\": \"synthetic\", \"reviewed\": false, \"reason\": \"First proposal stated supported.\"}]}}",
+      "expected": {
+        "findings": [],
+        "summary": {
+          "records": 1,
+          "labeled": 1,
+          "unlabeled": 0,
+          "human_reviewed": 0,
+          "human_unreviewed": 0,
+          "model_reviewed": 1,
+          "model_unreviewed": 0,
+          "corrected": 1,
+          "review_required": 0
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "note": "One reference that names no check of the definition fails.",
+      "records": "{\"id\": \"message-supported-601\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"tone\": {\"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "unknown_field",
+        "field_path": "/records/1/expected/checks/tone"
+      }
+    },
+    {
+      "note": "One answer that names no declared answer of its check fails.",
+      "records": "{\"id\": \"message-supported-602\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"maybe\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "unknown_label",
+        "field_path": "/records/1/expected/checks/message-supported/answer"
+      }
+    },
+    {
+      "note": "One level that names no declared level of the ordered check fails.",
+      "definition": "ordered-scale.json",
+      "records": "{\"id\": \"consequence-603\", \"group\": \"limits\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"consequence\": {\"level\": \"critical\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "unknown_label",
+        "field_path": "/records/1/expected/checks/consequence/level"
+      }
+    },
+    {
+      "note": "One scale level on one answers check fails.",
+      "records": "{\"id\": \"message-supported-604\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"level\": \"supported\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/records/1/expected/checks/message-supported/level"
+      }
+    },
+    {
+      "note": "One named answer on one ordered check fails.",
+      "definition": "ordered-scale.json",
+      "records": "{\"id\": \"consequence-605\", \"group\": \"limits\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"consequence\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/records/1/expected/checks/consequence/answer"
+      }
+    },
+    {
+      "note": "One reference answer on one rule check fails. The executed rule decides the answer.",
+      "definition": "exact-rules.json",
+      "records": "{\"id\": \"delivery-606\", \"group\": \"notices-a\", \"input\": {\"summary\": \"The delivery limit is 900 characters\", \"notice\": \"One notice.\"}, \"expected\": {\"checks\": {\"summary-length\": {\"answer\": \"supported\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/records/1/expected/checks/summary-length/answer"
+      }
+    },
+    {
+      "note": "One review marker on one rule check fails.",
+      "definition": "exact-rules.json",
+      "records": "{\"id\": \"delivery-607\", \"group\": \"notices-a\", \"input\": {\"summary\": \"The delivery limit is 900 characters\", \"notice\": \"One notice.\"}, \"expected\": {\"checks\": {\"summary-length\": {\"review\": true, \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/records/1/expected/checks/summary-length/review"
+      }
+    },
+    {
+      "note": "One answer and one level together fail. A reference states one of them.",
+      "records": "{\"id\": \"message-supported-608\", \"group\": \"dates\", \"input\": {\"prior_decision\": \"Ship on Friday.\", \"conversation\": \"We agreed to ship on Thursday.\", \"proposed_message\": \"We now ship on Thursday.\"}, \"expected\": {\"checks\": {\"message-supported\": {\"answer\": \"supported\", \"level\": \"minor\", \"outcome\": \"pass\"}}}, \"label\": {\"author_type\": \"human\", \"origin\": \"collected\", \"reviewed\": true, \"reviewer\": \"Reviewer One\", \"reason\": \"The answer follows from the supplied evidence.\"}}",
+      "expected": {
+        "reason_code": "invalid_field_type",
+        "field_path": "/records/1/expected/checks/message-supported"
+      }
+    }
+  ]
+}

@@ -237,17 +237,21 @@ fn question_check<'a>(
 }
 
 /// The three answer sets of one question check, from its authored meaning.
-struct AnswerSets {
+pub(crate) struct AnswerSets {
     /// Accepted answers or levels. Scale acceptance expands over the order.
-    acceptable: Vec<String>,
+    pub(crate) acceptable: Vec<String>,
     /// Declared review answers or levels.
-    review: Vec<String>,
+    pub(crate) review: Vec<String>,
     /// Declared answers or levels that are neither accepted nor review.
-    unacceptable: Vec<String>,
+    pub(crate) unacceptable: Vec<String>,
 }
 
 /// Resolves the three answer sets of one question check.
-fn answer_sets(check: &Check) -> AnswerSets {
+///
+/// The sets state the acceptance meaning of the authored labels. The policy
+/// family reads them for one assessment, and the dataset boundary reads
+/// them for one reference label, so both answer from the same meaning.
+pub(crate) fn answer_sets(check: &Check) -> AnswerSets {
     let review: Vec<String> = check
         .review
         .as_ref()

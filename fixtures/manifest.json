@@ -35,6 +35,13 @@
       "runner": "Load each valid dataset through the Rust core with the named definition file, then validate every input object. Reject each invalid metadata artifact or record set with the stated reason code and field path. Materialize the stated oversized record as its note describes."
     },
     {
+      "id": "datasets-labels",
+      "path": "datasets/labels.json",
+      "kind": "record-set",
+      "covers": ["human-reviewed references", "agent proposals without review", "missing labels", "ambiguous references with review markers", "corrected references that keep their history", "flagged check-outcome conflicts", "flagged overall-outcome conflicts", "ordered-scale levels against at_least", "rule checks with one expected outcome", "unknown check", "unknown answer", "unknown level", "level on an answers check", "answer on an ordered check", "reference answer or review marker on a rule check", "answer beside one level"],
+      "runner": "Load each valid dataset through the Rust core with the definition file that its record names, then validate every input object and every reference label. Compare every flagged conflict, kept as written, and every provenance count with the stated expectation. Reject each record set whose reference breaks the meaning of its check with the stated reason code and field path."
+    },
+    {
       "id": "hashing-canonical",
       "path": "hashing/canonical.json",
       "kind": "hash-set",

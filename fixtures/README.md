@@ -19,6 +19,7 @@ one group through the Rust core is not conformant.
 | Invalid definitions | [definitions/invalid.json](definitions/invalid.json) | One rejection record per contract invariant, with reason code and field path. |
 | Input validation | [inputs/validation.json](inputs/validation.json) | Data validation for each input type, code point length, closed objects, and size limits. |
 | Dataset loading | [datasets/loading.json](datasets/loading.json) | JSONL case records and dataset metadata: labels, provenance, groups, line-numbered rejections, duplicate identifiers, oversized records, and invalid inputs. |
+| Reference labels | [datasets/labels.json](datasets/labels.json) | Reference-label meaning and provenance: human-reviewed references, agent proposals, missing labels, ambiguous review markers, corrected history, flagged outcome conflicts kept as written, and answers or levels that break the meaning of their check. |
 | Canonical hashing | [hashing/canonical.json](hashing/canonical.json) | Every hash domain, the canonical form, and the digest. Includes the two worked examples from [hashing.md](../contracts/v0/hashing.md). |
 | Exact string rules | [hashing/string-rules.json](hashing/string-rules.json) | `maxLength`, `includes`, and `excludes` boundaries, including the table in [hashing.md](../contracts/v0/hashing.md). |
 | Hashing rejections | [hashing/invalid.json](hashing/invalid.json) | Text and bytes that no hash may cover. |
@@ -48,6 +49,17 @@ with the stable `reason_code` and the `field_path`. A record with
 `materialize` states one padded input field: the runner replaces
 `input.<pad_field>` with `<pad_bytes>` filler characters, which puts the
 serialized line above the published record limit.
+- A reference-label record holds `note`, the records text under `records`,
+an optional `definition` file name in `definitions/valid/`, and `expected`.
+One invalid record states the stable `reason_code` and the `field_path` of
+the reference that breaks the meaning of its check. One valid record states
+`findings`, one list of `{kind, line, case, check, field_path}` conflicts
+the loader keeps as written, and `summary`, the provenance counts `records`,
+`labeled`, `unlabeled`, `human_reviewed`, `human_unreviewed`,
+`model_reviewed`, `model_unreviewed`, `corrected`, and `review_required`.
+The finding `kind` is `check_outcome_conflict` or
+`overall_outcome_conflict`; `check` is null when the conflict belongs to the
+overall outcome alone.
 - A string rule record follows `string_rules` in the same schema: `note`,
   `rule`, `parameter`, `input`, `outcome`, and `length` for `maxLength`.
 - A TypeBox pair holds `note`, `definition` (a file name in

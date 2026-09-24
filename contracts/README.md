@@ -102,6 +102,13 @@ holds exactly one case record. An empty line is invalid.
 - `expected.checks` holds reference answers, review markers, or expected policy
   outcomes. A reference answer that conflicts with an expected outcome is kept
   and flagged for review. The conflict is not resolved silently.
+- Validation checks every reference against the definition it loads with: one
+  reference names a declared check, one answer names a declared answer, one
+  level names a declared level, one answer or level fits the question kind of
+  its check, and one rule check states an expected outcome alone. The loader
+  reports the flagged conflicts and the provenance counts of the dataset, so a
+  model proposal that no human reviewed never appears as one reviewed human
+  judgment.
 - The metadata file declares population, sampling method, revision, label
   guidelines, and splits. A synthetic challenge set is not a representative
   sample. Dataset kind states which one it is.
@@ -447,6 +454,12 @@ Related contracts published after this freeze:
 - The dataset loader limits of task T039, published on 24 September 2026.
   States the published numbers for record size, dataset size, and retained
   results that the case-record section names.
+- The reference-label meaning and provenance rules of task T040, published on
+  24 September 2026. Adds the clause that validation checks every reference
+  against the definition it loads with, records the flagged conflict kinds
+  `check_outcome_conflict` and `overall_outcome_conflict`, and states that
+  the loader reports the provenance counts that keep human judgments apart
+  from model proposals.
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.

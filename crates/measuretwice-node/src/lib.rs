@@ -404,6 +404,52 @@ pub struct DatasetCaseEntry {
     pub label: Value,
 }
 
+/// One flagged label conflict of one validated dataset, as data.
+#[napi(object)]
+pub struct LabelFindingEntry {
+    /// Line of the record inside the record file, counted from 1.
+    pub line: u32,
+    /// Stable case identifier of the record.
+    pub case_id: String,
+    /// Check identifier, when the conflict belongs to one check.
+    pub check_id: Option<String>,
+    /// Kind of the conflict: check_outcome_conflict or
+    /// overall_outcome_conflict.
+    pub kind: String,
+    /// Field path of the conflicting reference, prefixed with the record
+    /// line.
+    pub field_path: String,
+    /// Short statement of the conflict.
+    pub message: String,
+}
+
+/// The provenance summary of the reference labels of one dataset.
+#[napi(object)]
+pub struct DatasetLabelsEntry {
+    /// Number of case records of the dataset.
+    pub records: u32,
+    /// Number of records that state one expected-label object.
+    pub labeled: u32,
+    /// Number of records without reference labels.
+    pub unlabeled: u32,
+    /// Human-written references with one recorded human review.
+    pub human_reviewed: u32,
+    /// Human-written references with no recorded review.
+    pub human_unreviewed: u32,
+    /// Model-proposed references with one recorded human review.
+    pub model_reviewed: u32,
+    /// Model-proposed references that no human reviewed.
+    pub model_unreviewed: u32,
+    /// References with one correction, so their history keeps the earlier
+    /// provenance records.
+    pub corrected: u32,
+    /// References that state one review marker or carry one flagged
+    /// conflict.
+    pub review_required: u32,
+    /// Every flagged conflict, in record order.
+    pub findings: Vec<LabelFindingEntry>,
+}
+
 /// The result of validating one dataset through the core.
 #[napi(object)]
 pub struct DatasetInfo {
@@ -417,6 +463,9 @@ pub struct DatasetInfo {
     pub record_count: u32,
     /// Every case record, in file order.
     pub records: Vec<DatasetCaseEntry>,
+    /// The label review: the provenance summary of every reference label
+    /// and every flagged conflict that one human must decide.
+    pub labels: DatasetLabelsEntry,
 }
 
 /// Validates one JSONL case dataset with its metadata through the core.
@@ -425,9 +474,14 @@ pub struct DatasetInfo {
 /// metadata contract. The records text holds one complete record file:
 /// every nonempty line is one case record, and one failure names its line
 /// and its field. Every input object must satisfy the input schema of the
-/// definition text. Reference labels and label provenance stay outside the
-/// input object; the run-case boundary keeps them out of every evaluator
-/// request.
+/// definition text, and every reference label must satisfy the meaning of
+/// its check: one reference that names no declared check, one answer or
+/// level outside the declared labels, and one reference answer on one rule
+/// check each fail with their line and field. One reference whose
+/// acceptance meaning disagrees with its stated expected outcome loads and
+/// appears under `labels.findings`, because one human must decide it.
+/// Reference labels and label provenance stay outside the input object; the
+/// run-case boundary keeps them out of every evaluator request.
 #[napi]
 pub fn validate_dataset(
     metadata_text: String,
@@ -438,6 +492,8 @@ pub fn validate_dataset(
     let loaded = lift(dataset::load_dataset(&metadata_text, &records_text))?;
     let validated = lift(dataset::validate_dataset(&loaded, &validated_definition))?;
     let metadata = validated.metadata();
+    let review = validated.label_review();
+    let summary = review.summary();
     let mut records = Vec::with_capacity(validated.len());
     for index in 0..validated.len() {
         let record = validated.record(index).expect("the index is in range");
@@ -478,6 +534,29 @@ pub fn validate_dataset(
         },
         record_count: validated.len() as u32,
         records,
+        labels: DatasetLabelsEntry {
+            records: summary.records as u32,
+            labeled: summary.labeled as u32,
+            unlabeled: summary.unlabeled as u32,
+            human_reviewed: summary.human_reviewed as u32,
+            human_unreviewed: summary.human_unreviewed as u32,
+            model_reviewed: summary.model_reviewed as u32,
+            model_unreviewed: summary.model_unreviewed as u32,
+            corrected: summary.corrected as u32,
+            review_required: summary.review_required as u32,
+            findings: review
+                .findings()
+                .iter()
+                .map(|finding| LabelFindingEntry {
+                    line: finding.line as u32,
+                    case_id: finding.case_id.clone(),
+                    check_id: finding.check_id.clone(),
+                    kind: finding.kind.as_str().to_owned(),
+                    field_path: finding.field_path.clone(),
+                    message: finding.message.clone(),
+                })
+                .collect(),
+        },
     })
 }
 

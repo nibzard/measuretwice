@@ -23,6 +23,17 @@
 //! of one validated definition and returns one [`ValidatedDataset`] whose
 //! records project only the inputs that each check `using` list names.
 //!
+//! The same call checks every reference label against the meaning of the
+//! definition. One reference that names no declared check, one answer or
+//! level outside the declared labels, and one reference answer on a rule
+//! check each fail with their field path. One reference answer whose
+//! acceptance meaning disagrees with the stated expected outcome stays as
+//! written and becomes one [`LabelFinding`] of the [`LabelReview`] that
+//! [`ValidatedDataset::label_review`] returns, because the contracts state
+//! that such a conflict is flagged for review, never resolved silently. The
+//! review also summarizes the provenance of every reference, so one
+//! unreviewed model proposal cannot appear as one reviewed human judgment.
+//!
 //! The loader enforces the published limits: one record line holds at most
 //! [`MAX_RECORD_BYTES`] bytes, one dataset holds at most
 //! [`MAX_DATASET_RECORDS`] records, and the record file holds at most
@@ -31,14 +42,14 @@
 //! retention and source snapshots stay with the host.
 //!
 //! The deeper split invariants, group coverage, and content hashes of a
-//! dataset arrive with the split-identity task. This module checks the
-//! structural contract alone.
+//! dataset arrive with the split-identity task.
 
 use crate::artifact::{expect_object, reject_unknown_fields, schema_version};
 use crate::case::{is_case_id, Case, ProjectedInputs, ValidatedCase};
-use crate::definition::{is_artifact_id, ValidatedDefinition};
+use crate::definition::{is_artifact_id, CheckKind, ValidatedDefinition};
 use crate::error::{fragment, ReasonCode, ValidationError};
 use crate::hashing::is_hash_hex;
+use crate::report::Outcome;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
@@ -187,8 +198,8 @@ pub struct LabelProvenance {
 ///
 /// The reference holds a named answer, a scale level, a review marker for
 /// an ambiguous case, or an expected policy outcome. A conflict between an
-/// answer and an outcome stays as written; the deeper meaning check that
-/// flags conflicts arrives with the label-provenance task.
+/// answer and an outcome stays as written; [`validate_dataset`] flags it
+/// through the label review instead of changing either field.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ExpectedCheck {
     /// Reference answer label, for a question with named answers.
@@ -213,6 +224,158 @@ pub struct ExpectedLabels {
     /// Expected overall outcome, where labeled.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outcome: Option<String>,
+}
+
+/// The kind of one flagged label conflict.
+///
+/// A finding reports one reference that one human must review. It states no
+/// rejection: the record keeps every field as written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LabelFindingKind {
+    /// One reference answer or review marker implies one outcome that
+    /// differs from the stated expected outcome of the same check.
+    CheckOutcomeConflict,
+    /// The stated overall outcome differs from the aggregate of the stated
+    /// per-check outcomes.
+    OverallOutcomeConflict,
+}
+
+impl LabelFindingKind {
+    /// Returns the contract word of this kind.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CheckOutcomeConflict => "check_outcome_conflict",
+            Self::OverallOutcomeConflict => "overall_outcome_conflict",
+        }
+    }
+
+    /// Returns the kind of one contract word, or `None` for any other text.
+    pub fn from_word(word: &str) -> Option<Self> {
+        match word {
+            "check_outcome_conflict" => Some(Self::CheckOutcomeConflict),
+            "overall_outcome_conflict" => Some(Self::OverallOutcomeConflict),
+            _ => None,
+        }
+    }
+}
+
+/// One flagged label conflict of one validated dataset.
+///
+/// The finding names the record, the check, and the field that needs one
+/// human decision. It never changes the record, and it carries no case
+/// content: the message names the labels and the outcomes alone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LabelFinding {
+    /// Line of the record inside the record file, counted from 1.
+    pub line: usize,
+    /// Stable case identifier of the record.
+    pub case_id: String,
+    /// Check identifier, when the conflict belongs to one check.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub check_id: Option<String>,
+    /// Kind of the conflict.
+    pub kind: LabelFindingKind,
+    /// Field path of the conflicting reference, prefixed with the record
+    /// line, for example `/records/3/expected/checks/support/outcome`.
+    pub field_path: String,
+    /// Short statement of the conflict.
+    pub message: String,
+}
+
+/// The provenance summary of the reference labels of one dataset.
+///
+/// Every count covers the records that state one expected-label object,
+/// except `records` and `unlabeled`, which cover the complete dataset. Only
+/// the reviewed counts are reviewed evidence: one model proposal that no
+/// human reviewed stays inside `model_unreviewed`, whatever the dataset
+/// metadata states.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct LabelSummary {
+    /// Number of case records of the dataset.
+    pub records: usize,
+    /// Number of records that state one expected-label object.
+    pub labeled: usize,
+    /// Number of records without reference labels. Missing labels leave the
+    /// metrics that need them, never the records that carry them.
+    pub unlabeled: usize,
+    /// Human-written references with one recorded human review.
+    pub human_reviewed: usize,
+    /// Human-written references with no recorded review.
+    pub human_unreviewed: usize,
+    /// Model-proposed references with one recorded human review.
+    pub model_reviewed: usize,
+    /// Model-proposed references that no human reviewed.
+    pub model_unreviewed: usize,
+    /// References with one correction, so `label.history` keeps the earlier
+    /// provenance records.
+    pub corrected: usize,
+    /// References that state one review marker or carry one flagged
+    /// conflict. One human must review them before they serve as reference
+    /// labels.
+    pub review_required: usize,
+}
+
+impl LabelFinding {
+    /// Moves one finding into one record line, prefixing `/records/<line>`
+    /// onto its field path, the way one validation failure states its
+    /// location.
+    fn at_line(mut self, line: usize) -> Self {
+        if line > 0 {
+            let prefix = format!("/records/{line}");
+            self.field_path = if self.field_path.is_empty() {
+                prefix
+            } else {
+                format!("{prefix}{}", self.field_path)
+            };
+        }
+        self
+    }
+}
+
+impl LabelSummary {
+    /// Returns the number of references that carry one recorded human
+    /// review. This is the only count that states reviewed evidence.
+    pub fn reviewed(&self) -> usize {
+        self.human_reviewed + self.model_reviewed
+    }
+
+    /// Returns the number of references that no human reviewed. These are
+    /// proposals, not judgments.
+    pub fn unreviewed(&self) -> usize {
+        self.human_unreviewed + self.model_unreviewed
+    }
+}
+
+/// The label review of one validated dataset.
+///
+/// The review keeps human judgments distinct from model suggestions: the
+/// summary counts the provenance of every reference, and the findings name
+/// the references whose stated outcome disagrees with the acceptance
+/// meaning of their check.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LabelReview {
+    /// Provenance summary of every reference label.
+    summary: LabelSummary,
+    /// Every flagged conflict, in record order.
+    findings: Vec<LabelFinding>,
+}
+
+impl LabelReview {
+    /// Returns the provenance summary of every reference label.
+    pub fn summary(&self) -> &LabelSummary {
+        &self.summary
+    }
+
+    /// Returns every flagged conflict, in record order.
+    pub fn findings(&self) -> &[LabelFinding] {
+        &self.findings
+    }
+
+    /// Returns true when no reference carries one flagged conflict.
+    pub fn is_conflict_free(&self) -> bool {
+        self.findings.is_empty()
+    }
 }
 
 /// One parsed case record.
@@ -445,6 +608,7 @@ pub struct ValidatedDataset<'a> {
     definition: &'a ValidatedDefinition,
     dataset: &'a Dataset,
     cases: Vec<ValidatedCase<'a>>,
+    labels: LabelReview,
 }
 
 impl<'a> ValidatedDataset<'a> {
@@ -456,6 +620,13 @@ impl<'a> ValidatedDataset<'a> {
     /// Returns the metadata artifact of this dataset.
     pub fn metadata(&self) -> &DatasetMetadata {
         self.dataset.metadata()
+    }
+
+    /// Returns the label review of this dataset: the provenance summary of
+    /// every reference label and every flagged conflict that one human must
+    /// decide.
+    pub fn label_review(&self) -> &LabelReview {
+        &self.labels
     }
 
     /// Returns every case record, in file order.
@@ -1152,22 +1323,37 @@ pub fn load_dataset(metadata_text: &str, records_text: &str) -> Result<Dataset, 
     Ok(Dataset { metadata, records })
 }
 
-/// Validates every input object of one dataset against one definition.
+/// Validates every input object and every reference label of one dataset
+/// against one definition.
 ///
 /// Each record crosses the run-case boundary of [`crate::case`], so the
 /// input object satisfies the definition input schema and every published
-/// data limit before any evaluator exists. One failure names its line and
-/// its field inside the record.
+/// data limit before any evaluator exists. Each reference label then
+/// crosses the meaning of its check: one reference that names no declared
+/// check, one answer or level outside the declared labels, and one
+/// reference answer on a rule check each fail. One failure names its line
+/// and its field inside the record.
+///
+/// One reference answer whose acceptance meaning disagrees with the stated
+/// expected outcome fails nothing. The conflict stays as written and
+/// appears in the [`LabelReview`] of the returned dataset, because one
+/// human must decide it.
 ///
 /// # Errors
 ///
 /// Returns a [`ValidationError`] with one `/records/<line>` path when one
-/// input object fails the definition input schema.
+/// input object fails the definition input schema or one reference label
+/// fails the meaning of its check.
 pub fn validate_dataset<'a>(
     dataset: &'a Dataset,
     definition: &'a ValidatedDefinition,
 ) -> Result<ValidatedDataset<'a>, ValidationError> {
     let mut cases = Vec::with_capacity(dataset.records.len());
+    let mut findings = Vec::new();
+    let mut summary = LabelSummary {
+        records: dataset.records.len(),
+        ..LabelSummary::zeroed()
+    };
     for record in &dataset.records {
         let case = Case {
             id: record.id.clone(),
@@ -1176,12 +1362,266 @@ pub fn validate_dataset<'a>(
         let validated = crate::case::validate_case(&case, definition)
             .map_err(|error| error.at_line(record.line))?;
         cases.push(validated);
+        let record_findings = validate_record_labels(record, definition)
+            .map_err(|error| error.at_line(record.line))?;
+        count_record_labels(record, &record_findings, &mut summary);
+        findings.extend(
+            record_findings
+                .into_iter()
+                .map(|finding| finding.at_line(record.line)),
+        );
     }
     Ok(ValidatedDataset {
         definition,
         dataset,
         cases,
+        labels: LabelReview { summary, findings },
     })
+}
+
+/// Counts the provenance of the reference labels of one record.
+///
+/// Every count except `records` covers the records that state one
+/// expected-label object, because one record without references carries no
+/// label provenance to summarize.
+fn count_record_labels(record: &CaseRecord, findings: &[LabelFinding], summary: &mut LabelSummary) {
+    let Some(expected) = record.expected.as_ref() else {
+        summary.unlabeled += 1;
+        return;
+    };
+    summary.labeled += 1;
+    match (record.label.author_type, record.label.reviewed) {
+        (LabelAuthor::Human, true) => summary.human_reviewed += 1,
+        (LabelAuthor::Human, false) => summary.human_unreviewed += 1,
+        (LabelAuthor::Model, true) => summary.model_reviewed += 1,
+        (LabelAuthor::Model, false) => summary.model_unreviewed += 1,
+    }
+    if !record.label.history.is_empty() {
+        summary.corrected += 1;
+    }
+    let ambiguous = expected.checks.values().any(|check| check.review);
+    if ambiguous || !findings.is_empty() {
+        summary.review_required += 1;
+    }
+}
+
+/// Checks the reference labels of one record against the meaning of the
+/// definition and returns every conflict that needs one human review.
+///
+/// The reference stays as written in every case. A conflict between the
+/// acceptance meaning of one reference and its stated outcome is one
+/// finding, not one failure, as the contracts README states.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when one reference names no declared
+/// check, when one answer or level names no declared label of its check,
+/// when one answer or level appears on a check of the other question kind,
+/// or when one reference answer, level, or review marker appears on one
+/// rule check.
+fn validate_record_labels(
+    record: &CaseRecord,
+    definition: &ValidatedDefinition,
+) -> Result<Vec<LabelFinding>, ValidationError> {
+    let mut findings = Vec::new();
+    let Some(expected) = record.expected.as_ref() else {
+        return Ok(findings);
+    };
+
+    // The stated outcome of each check, kept for the overall comparison.
+    let mut stated: Vec<&str> = Vec::new();
+    for (check_id, reference) in &expected.checks {
+        let base = format!("/expected/checks/{check_id}");
+        let check = definition
+            .as_definition()
+            .checks
+            .iter()
+            .find(|check| check.id == *check_id)
+            .ok_or_else(|| {
+                ValidationError::new(
+                    ReasonCode::UnknownField,
+                    &base,
+                    format!(
+                        "The reference names no check of the definition: {}.",
+                        fragment(check_id)
+                    ),
+                )
+            })?;
+        let kind = definition.check_kind(check_id).expect("the check exists");
+
+        // One reference states one answer or one level, and it fits the
+        // question kind of its check. One rule check takes one expected
+        // outcome alone.
+        let label = match (&reference.answer, &reference.level) {
+            (Some(_), Some(_)) => {
+                return Err(ValidationError::invalid_field_type(
+                    &base,
+                    "One reference states one answer or one level, never both.",
+                ));
+            }
+            (Some(answer), None) => Some(answer.as_str()),
+            (None, Some(level)) => Some(level.as_str()),
+            (None, None) => None,
+        };
+        match kind {
+            CheckKind::Rule => {
+                if label.is_some() || reference.review {
+                    let field = if reference.answer.is_some() {
+                        "answer"
+                    } else if reference.level.is_some() {
+                        "level"
+                    } else {
+                        "review"
+                    };
+                    return Err(ValidationError::invalid_field_type(
+                        format!("{base}/{field}"),
+                        "One rule check states one expected outcome only. Its rule decides the answer.",
+                    ));
+                }
+            }
+            CheckKind::Categorical | CheckKind::Binary => {
+                if reference.level.is_some() {
+                    return Err(ValidationError::invalid_field_type(
+                        format!("{base}/level"),
+                        "An answers check states one named answer, not one scale level.",
+                    ));
+                }
+                if let Some(answer) = label {
+                    if !check
+                        .answers
+                        .as_ref()
+                        .is_some_and(|answers| answers.contains_key(answer))
+                    {
+                        return Err(unknown_reference_label(&format!("{base}/answer"), answer));
+                    }
+                }
+            }
+            CheckKind::Ordered => {
+                if reference.answer.is_some() {
+                    return Err(ValidationError::invalid_field_type(
+                        format!("{base}/answer"),
+                        "One ordered check states one scale level, not one named answer.",
+                    ));
+                }
+                if let Some(level) = label {
+                    let scale = check.scale.as_ref().expect("one scale check holds a scale");
+                    if !scale.iter().any(|entry| entry.name == level) {
+                        return Err(unknown_reference_label(&format!("{base}/level"), level));
+                    }
+                }
+            }
+        }
+
+        // The acceptance meaning of the reference implies one outcome. The
+        // review marker states one ambiguous reference, so it implies one
+        // review whatever answer the record also states.
+        let implied = if reference.review {
+            Some(Outcome::Review)
+        } else if let Some(label) = label {
+            let sets = crate::policy::answer_sets(check);
+            if sets.acceptable.iter().any(|name| name == label) {
+                Some(Outcome::Pass)
+            } else if sets.review.iter().any(|name| name == label) {
+                Some(Outcome::Review)
+            } else {
+                Some(Outcome::Fail)
+            }
+        } else {
+            None
+        };
+        if let (Some(stated_outcome), Some(implied)) = (reference.outcome.as_deref(), implied) {
+            if stated_outcome != implied.as_str() {
+                findings.push(LabelFinding {
+                    line: record.line,
+                    case_id: record.id.clone(),
+                    check_id: Some(check_id.clone()),
+                    kind: LabelFindingKind::CheckOutcomeConflict,
+                    field_path: format!("{base}/outcome"),
+                    message: format!(
+                        "The reference {} means {}, but the expected outcome states {}.",
+                        reference_word(reference, label),
+                        implied.as_str(),
+                        stated_outcome
+                    ),
+                });
+            }
+        }
+        if let Some(stated_outcome) = reference.outcome.as_deref() {
+            stated.push(stated_outcome);
+        }
+    }
+
+    // The overall outcome follows the aggregate order of the run report
+    // with no error and no skip: any fail gives fail, otherwise any review
+    // gives review, otherwise pass.
+    if expected.outcome.is_some() && !stated.is_empty() {
+        let overall = expected.outcome.as_deref().expect("one outcome exists");
+        let aggregate = if stated.contains(&"fail") {
+            "fail"
+        } else if stated.contains(&"review") {
+            "review"
+        } else {
+            "pass"
+        };
+        if overall != aggregate {
+            findings.push(LabelFinding {
+                line: record.line,
+                case_id: record.id.clone(),
+                check_id: None,
+                kind: LabelFindingKind::OverallOutcomeConflict,
+                field_path: "/expected/outcome".to_owned(),
+                message: format!(
+                    "The stated check outcomes aggregate to {aggregate}, but the overall outcome states {overall}."
+                ),
+            });
+        }
+    }
+    Ok(findings)
+}
+
+/// Builds one `unknown_label` failure for one reference answer or level.
+fn unknown_reference_label(path: &str, label: &str) -> ValidationError {
+    ValidationError::new(
+        ReasonCode::UnknownLabel,
+        path,
+        format!(
+            "The reference label {} is not an answer or a level of this check.",
+            fragment(label)
+        ),
+    )
+}
+
+/// Returns the word that names one reference in one finding message.
+///
+/// The message quotes the answer or the level when the record states one,
+/// so the reviewer sees the exact reference that conflicts. One ambiguous
+/// reference names its review marker alone.
+fn reference_word(reference: &ExpectedCheck, label: Option<&str>) -> String {
+    if reference.review {
+        "marker review".to_owned()
+    } else if reference.answer.is_some() {
+        format!("answer {}", fragment(label.expect("one answer exists")))
+    } else {
+        format!("level {}", fragment(label.expect("one level exists")))
+    }
+}
+
+impl LabelSummary {
+    /// Returns one summary with every count at zero, so the caller fills
+    /// the fields it counts.
+    const fn zeroed() -> Self {
+        Self {
+            records: 0,
+            labeled: 0,
+            unlabeled: 0,
+            human_reviewed: 0,
+            human_unreviewed: 0,
+            model_reviewed: 0,
+            model_unreviewed: 0,
+            corrected: 0,
+            review_required: 0,
+        }
+    }
 }
 
 /// Loads case records under explicit bounds, so tests exercise each limit
@@ -1859,5 +2299,498 @@ mod tests {
         let error = validate_dataset(&dataset, &definition).expect_err("one hidden label field");
         assert_eq!(error.code, ReasonCode::UnknownField, "{error}");
         assert_eq!(error.field_path, "/records/1/input/label", "{error}");
+    }
+
+    /// One categorical question with one accepted, one review, and one
+    /// unacceptable answer.
+    fn question_definition() -> ValidatedDefinition {
+        let artifact = json!({
+            "schema_version": 1,
+            "name": "message-review",
+            "inputs": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "minLength": 1}
+                },
+                "required": ["text"],
+                "additionalProperties": false
+            },
+            "checks": [{
+                "id": "message-supported",
+                "name": "Our message describes the evidence",
+                "using": ["text"],
+                "question": "Does every claim follow from the evidence?",
+                "answers": {
+                    "supported": "Every claim follows.",
+                    "contradicted": "One claim conflicts.",
+                    "incomplete": "Support is missing."
+                },
+                "accept": "supported",
+                "review": "incomplete"
+            }]
+        });
+        crate::definition::validate_definition_str(&artifact.to_string())
+            .expect("the definition validates")
+    }
+
+    /// One ordered scale with acceptance from one level upward.
+    fn ordered_definition() -> ValidatedDefinition {
+        let artifact = json!({
+            "schema_version": 1,
+            "name": "consequence-level",
+            "inputs": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "minLength": 1}
+                },
+                "required": ["text"],
+                "additionalProperties": false
+            },
+            "checks": [{
+                "id": "consequence",
+                "name": "The concern warrants an interruption",
+                "using": ["text"],
+                "question": "What consequence does this concern have?",
+                "scale": [
+                    {"minor": "No identified consequence."},
+                    {"meaningful": "Rework or delay."},
+                    {"serious": "One explicit commitment breaks."}
+                ],
+                "accept": {"at_least": "meaningful"}
+            }]
+        });
+        crate::definition::validate_definition_str(&artifact.to_string())
+            .expect("the definition validates")
+    }
+
+    /// One record that states one reference label of one question check.
+    fn labeled_record(id: &str, reference: Value, provenance: Value) -> Value {
+        let mut value = record(id);
+        value["expected"] = json!({"checks": {"message-supported": reference}, "outcome": "pass"});
+        value["label"] = provenance;
+        value
+    }
+
+    /// One human-reviewed provenance record with one correction.
+    fn reviewed_label() -> Value {
+        json!({
+            "author_type": "model",
+            "origin": "synthetic",
+            "reviewed": true,
+            "reviewer": "Reviewer One",
+            "reason": "The reference matches the evidence.",
+            "history": [
+                {"author_type": "model", "origin": "synthetic", "reviewed": false,
+                 "reason": "First proposal."}
+            ]
+        })
+    }
+
+    /// Loads one records text and returns the label review of its
+    /// validation.
+    fn review_of(file: &str, definition: &ValidatedDefinition) -> LabelReview {
+        let dataset = load_dataset(&text(&metadata()), file).expect("the dataset loads");
+        let validated = validate_dataset(&dataset, definition).expect("the labels validate");
+        validated.label_review().clone()
+    }
+
+    /// Loads one records text and returns the first record of its validated
+    /// dataset, unchanged.
+    fn record_of(file: &str, definition: &ValidatedDefinition) -> CaseRecord {
+        let dataset = load_dataset(&text(&metadata()), file).expect("the dataset loads");
+        let validated = validate_dataset(&dataset, definition).expect("the labels validate");
+        validated.records()[0].clone()
+    }
+
+    #[test]
+    fn the_summary_keeps_human_judgments_apart_from_model_proposals() {
+        let human = json!({"author_type": "human", "reviewed": true, "reviewer": "Owner"});
+        let proposal = json!({"author_type": "model", "origin": "synthetic", "reviewed": false});
+        let reviewed = json!({"author_type": "model", "origin": "synthetic",
+            "reviewed": true, "reviewer": "Owner"});
+        let human_unreviewed = json!({"author_type": "human", "reviewed": false});
+        let reference = json!({"answer": "supported", "outcome": "pass"});
+        let file = [
+            text(&labeled_record("case-1", reference.clone(), human)),
+            text(&labeled_record(
+                "case-2",
+                reference.clone(),
+                proposal.clone(),
+            )),
+            text(&labeled_record("case-3", reference.clone(), reviewed)),
+            text(&labeled_record("case-4", reference, human_unreviewed)),
+            text(&record("case-5")),
+        ]
+        .join("\n");
+        let review = review_of(&file, &question_definition());
+        let summary = review.summary();
+        assert_eq!(summary.records, 5);
+        assert_eq!(summary.labeled, 4);
+        assert_eq!(summary.unlabeled, 1);
+        assert_eq!(summary.human_reviewed, 1);
+        assert_eq!(summary.human_unreviewed, 1);
+        assert_eq!(summary.model_reviewed, 1);
+        assert_eq!(summary.model_unreviewed, 1);
+        assert_eq!(summary.reviewed(), 2);
+        assert_eq!(summary.unreviewed(), 2);
+        assert!(review.is_conflict_free());
+
+        // One dataset of proposals alone states no reviewed evidence,
+        // whatever its metadata declares.
+        let file = [text(&labeled_record("case-1", reference_only(), proposal))].join("\n");
+        let review = review_of(&file, &question_definition());
+        assert_eq!(review.summary().reviewed(), 0);
+        assert_eq!(review.summary().unreviewed(), 1);
+    }
+
+    /// One reference with no expected outcome, so no conflict can arise.
+    fn reference_only() -> Value {
+        json!({"answer": "supported"})
+    }
+
+    #[test]
+    fn corrected_references_keep_their_earlier_provenance() {
+        let file = [text(&labeled_record(
+            "case-1",
+            reference_only(),
+            reviewed_label(),
+        ))]
+        .join("\n");
+        assert_eq!(
+            review_of(&file, &question_definition()).summary().corrected,
+            1
+        );
+
+        // The record exports with the original provenance: the history keeps
+        // the unreviewed proposal, and the current record names the reviewer.
+        let exported =
+            serde_json::to_value(record_of(&file, &question_definition())).expect("serializes");
+        assert_eq!(exported["label"]["author_type"], "model");
+        assert_eq!(exported["label"]["reviewed"], true);
+        assert_eq!(exported["label"]["reviewer"], "Reviewer One");
+        assert_eq!(exported["label"]["history"][0]["reviewed"], false);
+        assert_eq!(exported["label"]["history"][0]["reason"], "First proposal.");
+    }
+
+    #[test]
+    fn consistent_references_report_no_conflict() {
+        for (reference, outcome) in [
+            (json!({"answer": "supported"}), Some("pass")),
+            (json!({"answer": "incomplete"}), Some("review")),
+            (json!({"answer": "contradicted"}), Some("fail")),
+            (json!({"review": true}), Some("review")),
+            // One accepted answer beside one ambiguous marker keeps the
+            // review meaning, so one review outcome agrees.
+            (
+                json!({"answer": "supported", "review": true}),
+                Some("review"),
+            ),
+        ] {
+            let mut value = record("case-1");
+            let mut reference = reference;
+            if let Some(outcome) = outcome {
+                reference["outcome"] = json!(outcome);
+            }
+            value["expected"] = json!({"checks": {"message-supported": reference}});
+            value["label"] = reviewed_label();
+            let review = review_of(&text(&value), &question_definition());
+            assert!(
+                review.is_conflict_free(),
+                "{reference}: one conflict was reported"
+            );
+        }
+
+        // One ordered level follows the same acceptance meaning.
+        for (level, outcome) in [
+            (json!("serious"), json!("pass")),
+            (json!("meaningful"), json!("pass")),
+            (json!("minor"), json!("fail")),
+        ] {
+            let mut value = record("case-1");
+            value["expected"] =
+                json!({"checks": {"consequence": {"level": level, "outcome": outcome}}});
+            value["label"] = reviewed_label();
+            let review = review_of(&text(&value), &ordered_definition());
+            assert!(
+                review.is_conflict_free(),
+                "{level}: one conflict was reported"
+            );
+        }
+
+        // One rule check states one expected outcome alone.
+        let mut value = record("case-1");
+        value["expected"] =
+            json!({"checks": {"text-length": {"outcome": "pass"}}, "outcome": "pass"});
+        value["label"] = reviewed_label();
+        assert!(review_of(&text(&value), &definition()).is_conflict_free());
+    }
+
+    #[test]
+    fn conflicting_outcomes_are_flagged_and_kept_as_written() {
+        // One accepted answer beside one failing outcome.
+        let conflicting = labeled_record(
+            "case-1",
+            json!({"answer": "supported", "outcome": "fail"}),
+            reviewed_label(),
+        );
+        let review = review_of(&text(&conflicting), &question_definition());
+        let findings = review.findings();
+        // Both conflicts surface: the answer disagrees with its check
+        // outcome, and the stated check outcome disagrees with the overall
+        // outcome.
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].kind, LabelFindingKind::CheckOutcomeConflict);
+        assert_eq!(findings[0].case_id, "case-1");
+        assert_eq!(findings[0].check_id.as_deref(), Some("message-supported"));
+        assert_eq!(
+            findings[0].field_path,
+            "/records/1/expected/checks/message-supported/outcome"
+        );
+        assert_eq!(findings[0].line, 1);
+        assert!(
+            findings[0].message.contains("supported"),
+            "{}",
+            findings[0].message
+        );
+        assert!(
+            findings[0].message.contains("fail"),
+            "{}",
+            findings[0].message
+        );
+        assert_eq!(findings[1].kind, LabelFindingKind::OverallOutcomeConflict);
+
+        // Nothing was resolved: the record keeps both fields as written.
+        let kept = record_of(&text(&conflicting), &question_definition());
+        let expected = kept.expected.as_ref().expect("labels exist");
+        assert_eq!(
+            expected.checks["message-supported"].answer.as_deref(),
+            Some("supported")
+        );
+        assert_eq!(
+            expected.checks["message-supported"].outcome.as_deref(),
+            Some("fail")
+        );
+
+        // One ambiguous reference beside one passing outcome conflicts too.
+        let ambiguous = labeled_record(
+            "case-2",
+            json!({"review": true, "outcome": "pass"}),
+            reviewed_label(),
+        );
+        let review = review_of(&text(&ambiguous), &question_definition());
+        let findings = review.findings();
+        assert_eq!(findings.len(), 1, "{}", findings[0].message);
+        assert_eq!(findings[0].kind, LabelFindingKind::CheckOutcomeConflict);
+
+        // One ordered level below acceptance states one fail, not one pass.
+        let mut level = record("case-3");
+        level["expected"] =
+            json!({"checks": {"consequence": {"level": "minor", "outcome": "pass"}}});
+        level["label"] = reviewed_label();
+        assert_eq!(
+            review_of(&text(&level), &ordered_definition())
+                .findings()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn one_overall_outcome_that_disagrees_with_its_checks_is_flagged() {
+        // The stated check outcome passes, so the overall outcome cannot
+        // fail.
+        let mut value = record("case-1");
+        value["expected"] = json!({
+            "checks": {"message-supported": {"answer": "supported", "outcome": "pass"}},
+            "outcome": "fail"
+        });
+        value["label"] = reviewed_label();
+        let review = review_of(&text(&value), &question_definition());
+        let findings = review.findings();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].kind, LabelFindingKind::OverallOutcomeConflict);
+        assert_eq!(findings[0].check_id, None);
+        assert_eq!(findings[0].field_path, "/records/1/expected/outcome");
+        assert_eq!(review.summary().review_required, 1);
+
+        // Any review aggregates to review, not pass.
+        let mut value = record("case-1");
+        value["expected"] = json!({
+            "checks": {
+                "message-supported": {"answer": "supported", "outcome": "pass"},
+                "text-length": {"outcome": "review"}
+            },
+            "outcome": "pass"
+        });
+        value["label"] = reviewed_label();
+        let review = review_of(&text(&value), &mixed_definition());
+        let findings = review.findings();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].kind, LabelFindingKind::OverallOutcomeConflict);
+
+        // One overall outcome with no stated check outcome stays
+        // unverified: no finding invents one.
+        let mut value = record("case-1");
+        value["expected"] =
+            json!({"checks": {"message-supported": {"answer": "supported"}}, "outcome": "fail"});
+        value["label"] = reviewed_label();
+        assert!(review_of(&text(&value), &question_definition()).is_conflict_free());
+    }
+
+    /// One definition with one categorical question and one rule check, so
+    /// one record states two expected outcomes.
+    fn mixed_definition() -> ValidatedDefinition {
+        let artifact = json!({
+            "schema_version": 1,
+            "name": "message-review",
+            "inputs": {
+                "type": "object",
+                "properties": {"text": {"type": "string", "minLength": 1}},
+                "required": ["text"],
+                "additionalProperties": false
+            },
+            "checks": [
+                {
+                    "id": "message-supported",
+                    "name": "Our message describes the evidence",
+                    "using": ["text"],
+                    "question": "Does every claim follow?",
+                    "answers": {
+                        "supported": "Every claim follows.",
+                        "contradicted": "One claim conflicts."
+                    },
+                    "accept": "supported"
+                },
+                {
+                    "id": "text-length",
+                    "name": "The text fits the limit",
+                    "using": ["text"],
+                    "rule": {"maxLength": 80}
+                }
+            ]
+        });
+        crate::definition::validate_definition_str(&artifact.to_string())
+            .expect("the definition validates")
+    }
+
+    #[test]
+    fn references_outside_the_check_meaning_fail_with_their_field() {
+        // One reference that names no declared check.
+        let mut value = record("case-1");
+        value["expected"] = json!({"checks": {"unknown-check": {"outcome": "pass"}}});
+        value["label"] = reviewed_label();
+        let error = label_error(&value, &question_definition());
+        assert_eq!(error.code, ReasonCode::UnknownField, "{error}");
+        assert_eq!(
+            error.field_path, "/records/1/expected/checks/unknown-check",
+            "{error}"
+        );
+        assert!(
+            error.message.contains("unknown-check"),
+            "{error}: the cause names the check"
+        );
+
+        // One answer that names no declared answer.
+        let mut value = record("case-1");
+        value["expected"] =
+            json!({"checks": {"message-supported": {"answer": "maybe", "outcome": "pass"}}});
+        value["label"] = reviewed_label();
+        let error = label_error(&value, &question_definition());
+        assert_eq!(error.code, ReasonCode::UnknownLabel, "{error}");
+        assert_eq!(
+            error.field_path, "/records/1/expected/checks/message-supported/answer",
+            "{error}"
+        );
+
+        // One level that names no declared level.
+        let mut value = record("case-1");
+        value["expected"] =
+            json!({"checks": {"consequence": {"level": "critical", "outcome": "pass"}}});
+        value["label"] = reviewed_label();
+        let error = label_error(&value, &ordered_definition());
+        assert_eq!(error.code, ReasonCode::UnknownLabel, "{error}");
+        assert_eq!(
+            error.field_path, "/records/1/expected/checks/consequence/level",
+            "{error}"
+        );
+
+        // One scale level on one answers check.
+        let mut value = record("case-1");
+        value["expected"] =
+            json!({"checks": {"message-supported": {"level": "supported", "outcome": "pass"}}});
+        value["label"] = reviewed_label();
+        let error = label_error(&value, &question_definition());
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(
+            error.field_path, "/records/1/expected/checks/message-supported/level",
+            "{error}"
+        );
+
+        // One named answer on one ordered check.
+        let mut value = record("case-1");
+        value["expected"] =
+            json!({"checks": {"consequence": {"answer": "supported", "outcome": "pass"}}});
+        value["label"] = reviewed_label();
+        let error = label_error(&value, &ordered_definition());
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(
+            error.field_path, "/records/1/expected/checks/consequence/answer",
+            "{error}"
+        );
+
+        // One answer and one level together.
+        let mut value = record("case-1");
+        value["expected"] = json!({"checks":
+            {"message-supported": {"answer": "supported", "level": "minor", "outcome": "pass"}}
+        });
+        value["label"] = reviewed_label();
+        let error = label_error(&value, &question_definition());
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(
+            error.field_path, "/records/1/expected/checks/message-supported",
+            "{error}"
+        );
+
+        // One rule check takes one expected outcome alone.
+        for (field, reference) in [
+            ("answer", json!({"answer": "supported", "outcome": "pass"})),
+            ("level", json!({"level": "minor", "outcome": "pass"})),
+            ("review", json!({"review": true, "outcome": "pass"})),
+        ] {
+            let mut value = record("case-1");
+            value["expected"] = json!({"checks": {"text-length": reference}});
+            value["label"] = reviewed_label();
+            let error = label_error(&value, &definition());
+            assert_eq!(error.code, ReasonCode::InvalidFieldType, "{field}: {error}");
+            assert_eq!(
+                error.field_path,
+                format!("/records/1/expected/checks/text-length/{field}"),
+                "{field}: {error}"
+            );
+        }
+    }
+
+    /// Loads one record and returns the label failure of its validation.
+    fn label_error(value: &Value, definition: &ValidatedDefinition) -> ValidationError {
+        let dataset = load_dataset(&text(&metadata()), &text(value)).expect("the dataset loads");
+        validate_dataset(&dataset, definition).expect_err("the reference loaded")
+    }
+
+    #[test]
+    fn ambiguous_references_need_one_human_review() {
+        // One review marker with no stated outcome and no conflict still
+        // needs one human decision, and the count names it.
+        let mut value = record("case-1");
+        value["expected"] = json!({"checks": {"message-supported": {"review": true}}});
+        value["label"] = json!({"author_type": "model", "origin": "synthetic", "reviewed": false});
+        let mut value2 = record("case-2");
+        value2["expected"] = json!({"checks": {"message-supported": {"answer": "supported"}}});
+        value2["label"] = json!({"author_type": "model", "origin": "synthetic", "reviewed": false});
+        let file = format!("{}\n{}", text(&value), text(&value2));
+        let review = review_of(&file, &question_definition());
+        let summary = review.summary();
+        assert_eq!(summary.review_required, 1);
+        assert_eq!(summary.model_unreviewed, 2);
+        assert_eq!(summary.reviewed(), 0);
     }
 }

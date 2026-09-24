@@ -36,10 +36,11 @@ layout.
 | Shadow integration | `packages/measuretwice/test/shadow.test.ts` | Vitest | The shadow reports and host integration of task T038: one shadow run records the stated baseline beside the new outcome in every mode path, with no evaluator for exact rules and no field when the host states none; one pass, one fail, one review, one operational error, one queue-full skip, and one cancellation each leave the existing decision, its revision, and the host actions untouched, because the library holds no handle to any of them; the same case under two baselines measures identically, and no report field states one agreement, one accuracy, or one authorization; the awaited call records its per-check latency and never holds its caller past the total deadline; one resolved call disarms every wake-up it armed, so the library leaves no detached work; the public surface exports no delivery, permission, storage, or scheduling operation; one baseline in enforcement mode refuses under one selected qualified profile, and the malformed baselines refuse before any evaluator runs. |
 | Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
 | Dataset loading | `packages/measuretwice/test/dataset.test.ts` | Vitest | The dataset loader of task T039: one metadata path and one JSONL records path through injected file access, the complete core validation of records and metadata, line and field locations on every failure, the record-count agreement, the published size limits, wrong path formats, unreadable paths, and the `runCase` strip that keeps reference labels and label provenance out of every evaluator request while the stripped case runs end to end. |
+| Reference labels | `packages/measuretwice/test/dataset-labels.test.ts` | Vitest | The label meaning and provenance of task T040: the label review that `loadDataset` returns, where one reference whose acceptance meaning disagrees with its stated expected outcome loads, stays as written, and is flagged with its line, case, check, and field path; the overall outcome that disagrees with the stated check outcomes; the ambiguous references that keep their review marker and need one human review; the corrected references that keep their earlier provenance; the provenance summary that keeps human judgments apart from model proposals, so one dataset of proposals alone states no reviewed evidence; every reference that breaks the meaning of its check rejected with its code and field path; and the complete shared group `fixtures/datasets/labels.json` answered through the public boundary. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, the project name, and the prebuilt packages. |
 | Packaging | `tests/repo/packaging.test.ts` | Vitest | The published shape: the three declared-target lists stay equal, the public manifest ships the built package without private content, every platform package carries its target fields and the license, the staged manifest selects the native artifact, and the packed tarballs hold the required content only. The suite runs the assembly script, so `npm run build` must run first. |
 | Installation gate wiring | `tests/repo/install-gate.test.ts` | Vitest | The offline wiring of the clean-installation gate: the command exists, the check script imports installed packages only, the artifact workflow requires one clean installation per declared Node version, and the guides document the gate. |
-| Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, dataset loading, canonical hashing, string rules, TypeBox pairing, assessments, adapter conformance cases, Jev translations, Jev normalization, outcomes, profile states, and runtime traces. |
+| Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, dataset loading, reference labels, canonical hashing, string rules, TypeBox pairing, assessments, adapter conformance cases, Jev translations, Jev normalization, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
 
 The package tests load the native binding and the compiled CLI. Run
@@ -207,7 +208,11 @@ its runner rule.
   `crates/measuretwice-core/tests/contract_fixtures.rs` run the fixture
   groups that the core owns so far: the valid definition artifacts with
   their check kinds, every definition rejection record, the input
-  validation records through the complete case path, the hashing rejection
+  validation records through the complete case path, the dataset loading
+  records, the reference-label meaning and provenance records of
+  `fixtures/datasets/labels.json` (every flagged conflict, every provenance
+  count, and every reference that breaks the meaning of its check), the
+  hashing rejection
   records, the canonical hash fixtures across every domain, the exact
   string rule records through the Rust rules, the serialization round
   trips, the TypeBox pair hashes, the profile artifacts through the
@@ -219,7 +224,9 @@ its runner rule.
   report builder and parser, and the runtime traces replayed event by
   event through the run state boundary, compared on every expected record,
   the aggregate, the completion, and the rejected events. Each validation
-  task adds its own groups when its boundary lands.
+  task adds its own groups when its boundary lands. The label suite in
+  `packages/measuretwice/test/dataset-labels.test.ts` answers the same
+  label group through the public boundary and the native binding.
 - Every wrapper runs every group through the Rust core. A wrapper never
   recomputes a rule, a canonical form, or a hash.
 - The test evaluator suite in

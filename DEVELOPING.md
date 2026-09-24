@@ -918,6 +918,37 @@ injectable file access, `packages/measuretwice/test/dataset.test.ts`
 drives the public boundary, and `fixtures/datasets/loading.json` pins
 the shared group, including one materialized oversized record.
 
+Decided in T040: the same `validate_dataset` call checks every reference
+label against the meaning of the definition it loads with. One reference
+that names no declared check fails with `unknown_field`, one answer or
+level outside the declared labels of its check fails with `unknown_label`,
+one answer or level on a check of the other question kind and one
+reference answer, level, or review marker on one rule check fail with
+`invalid_field_type`, and one answer beside one level fails the same way.
+One reference whose acceptance meaning disagrees with its stated expected
+outcome is no failure: the record keeps every field as written, and the
+`LabelReview` of the validated dataset flags it. The acceptance meaning
+comes from the same answer sets the `probability_mass_v0` policy reads, so
+a reference and an assessment answer from one meaning. One review marker
+states one ambiguous reference, so it implies one review outcome whatever
+answer the record also states. The finding kinds are
+`check_outcome_conflict`, for one reference against the expected outcome
+of its check, and `overall_outcome_conflict`, for the stated overall
+outcome against the aggregate of the stated per-check outcomes. Every
+finding names its line, case, check, and field path, and no field of the
+record changes. The review also summarizes the provenance of every
+reference: counts by author and review status, the corrected references
+that keep `label.history`, and the references that need one human review.
+Only the reviewed counts are reviewed evidence, so one model proposal
+that no human reviewed never appears as one reviewed human judgment;
+`reviewed()` of the summary states that count directly. The Node binding
+returns the review under `labels` of `validateDataset`, and the public
+`Dataset` exposes it as `labels` with `summary` and `findings`, frozen
+like the records. `fixtures/datasets/labels.json` pins the shared group,
+`crates/measuretwice-core/tests/contract_fixtures.rs` runs it through the
+core, and `packages/measuretwice/test/dataset-labels.test.ts` answers the
+same group through the public boundary.
+
 ## Generated files
 
 `git` ignores the generated output: `target/`, `node_modules/`, `dist/`,

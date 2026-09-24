@@ -6,6 +6,7 @@
 //! and the run state boundary own: the valid definition artifacts, the
 //! structural definition rejections, the input validation records, the
 //! dataset loading records, the
+//! reference-label meaning and provenance records, the
 //! hashing rejection records, the canonical hash fixtures, the Jev
 //! translation questions with their translation-domain digests, the
 //! serialization round trips, the profile self-hashes, the outcome and
@@ -316,6 +317,160 @@ fn dataset_records_text(record: &Value) -> String {
     let mut value: Value = serde_json::from_str(template).expect("the template record parses");
     value["input"][field] = Value::String("a".repeat(bytes));
     serde_json::to_string(&value).expect("the materialized record serializes")
+}
+
+/// The reference-label group pins the label meaning and the provenance
+/// summary of the dataset boundary, as the fixture manifest states.
+const LABEL_REJECTION_CODES: &[&str] = &["invalid_field_type", "unknown_field", "unknown_label"];
+
+/// Loads the definition file that one dataset fixture record names.
+fn dataset_definition(record: &Value, document: &Value) -> definition::ValidatedDefinition {
+    let name = record
+        .get("definition")
+        .or_else(|| document.get("definition"))
+        .and_then(Value::as_str)
+        .expect("one definition file name");
+    let text = fs::read_to_string(fixture(&format!("definitions/valid/{name}")))
+        .unwrap_or_else(|error| panic!("{name}: {error}"));
+    definition::validate_definition_str(&text).unwrap_or_else(|error| panic!("{name}: {error}"))
+}
+
+#[test]
+fn reference_label_records_flag_conflicts_and_count_provenance() {
+    let document = fixture_document("datasets/labels.json");
+    let default_metadata = &document["metadata"];
+
+    let valid = document["valid"].as_array().expect("valid records");
+    assert!(valid.len() >= 6, "the fixture group lost valid records");
+    let mut conflicts_seen = false;
+    let mut ambiguous_seen = false;
+    for record in valid {
+        let note = record["note"].as_str().expect("a note");
+        let metadata = record
+            .get("metadata")
+            .unwrap_or(default_metadata)
+            .to_owned();
+        let metadata_text = serde_json::to_string(&metadata).expect("the metadata serializes");
+        let records = record["records"].as_str().expect("the records text");
+        let definition = dataset_definition(record, &document);
+        let loaded = dataset::load_dataset(&metadata_text, records)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let validated = dataset::validate_dataset(&loaded, &definition)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+
+        // Every flagged conflict matches its stated kind, line, case, check,
+        // and field path.
+        let findings = validated.label_review().findings();
+        let stated = record["expected"]["findings"].as_array().expect("findings");
+        assert_eq!(
+            findings.len(),
+            stated.len(),
+            "{note}: {} findings",
+            findings.len()
+        );
+        for (finding, expected) in findings.iter().zip(stated) {
+            let line = expected["line"].as_u64().expect("a line") as usize;
+            assert_eq!(
+                finding.kind.as_str(),
+                expected["kind"].as_str().expect("a kind"),
+                "{note}"
+            );
+            assert_eq!(finding.line, line, "{note}");
+            assert_eq!(
+                finding.case_id,
+                expected["case"].as_str().expect("a case"),
+                "{note}"
+            );
+            assert_eq!(
+                finding.check_id.as_deref(),
+                expected["check"].as_str(),
+                "{note}"
+            );
+            assert_eq!(
+                finding.field_path,
+                expected["field_path"].as_str().expect("a path"),
+                "{note}"
+            );
+            assert!(!finding.message.is_empty(), "{note}: the cause is empty");
+            conflicts_seen |= finding.kind.as_str() == "check_outcome_conflict"
+                || finding.kind.as_str() == "overall_outcome_conflict";
+        }
+
+        // The provenance summary keeps human judgments apart from model
+        // proposals.
+        let summary = validated.label_review().summary();
+        let stated = &record["expected"]["summary"];
+        for field in [
+            "records",
+            "labeled",
+            "unlabeled",
+            "human_reviewed",
+            "human_unreviewed",
+            "model_reviewed",
+            "model_unreviewed",
+            "corrected",
+            "review_required",
+        ] {
+            assert_eq!(
+                serde_json::to_value(summary).expect("serializes")[field],
+                stated[field],
+                "{note}: {field}"
+            );
+        }
+        assert_eq!(
+            summary.labeled + summary.unlabeled,
+            summary.records,
+            "{note}"
+        );
+        assert_eq!(
+            summary.human_reviewed
+                + summary.human_unreviewed
+                + summary.model_reviewed
+                + summary.model_unreviewed,
+            summary.labeled,
+            "{note}"
+        );
+        ambiguous_seen |= summary.review_required > 0 && findings.is_empty();
+    }
+    assert!(conflicts_seen, "no fixture record covered one conflict");
+    assert!(
+        ambiguous_seen,
+        "no fixture record covered one ambiguous reference"
+    );
+
+    let invalid = document["invalid"].as_array().expect("invalid records");
+    assert!(invalid.len() >= 8, "the fixture group lost invalid records");
+    let mut covered = BTreeSet::new();
+    for record in invalid {
+        let note = record["note"].as_str().expect("a note");
+        let metadata = record
+            .get("metadata")
+            .unwrap_or(default_metadata)
+            .to_owned();
+        let metadata_text = serde_json::to_string(&metadata).expect("the metadata serializes");
+        let records = record["records"].as_str().expect("the records text");
+        let definition = dataset_definition(record, &document);
+        let error = match dataset::load_dataset(&metadata_text, records) {
+            Ok(loaded) => dataset::validate_dataset(&loaded, &definition)
+                .err()
+                .unwrap_or_else(|| panic!("{note}: the dataset was accepted")),
+            Err(error) => error,
+        };
+        let expected = &record["expected"];
+        assert_eq!(
+            error.code.as_str(),
+            expected["reason_code"].as_str().expect("a code"),
+            "{note}: {error}"
+        );
+        assert_eq!(
+            error.field_path,
+            expected["field_path"].as_str().expect("a path"),
+            "{note}: {error}"
+        );
+        covered.insert(error.code.as_str().to_owned());
+    }
+    let covered: Vec<&str> = covered.iter().map(String::as_str).collect();
+    assert_eq!(covered, LABEL_REJECTION_CODES);
 }
 
 #[test]
