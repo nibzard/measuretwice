@@ -1145,12 +1145,12 @@
         "T022",
         "T023"
       ],
-      "updated_at": "2026-09-24T06:48:53Z",
+      "updated_at": "2026-09-24T06:50:06Z",
       "files": [
-        "packages/measuretwice/src/scheduler.ts",
-        "packages/measuretwice/test/scheduler.test.ts",
         "DEVELOPING.md",
         "TESTING.md",
+        "packages/measuretwice/src/scheduler.ts",
+        "packages/measuretwice/test/scheduler.test.ts",
         "to-do.json"
       ]
     },
@@ -1158,8 +1158,8 @@
       "id": "T031",
       "title": "Enforce total deadlines and cancellation",
       "priority": 2,
-      "status": "todo",
-      "details": "Deadlines cover queue time, attempts, and backoff. Terminal reports cannot accept late changes. Sources: MVP_SPEC.md sections 5, 12.",
+      "status": "done",
+      "details": "Deadlines cover queue time, attempts, and backoff. Terminal reports cannot accept late changes. Sources: MVP_SPEC.md sections 5, 12. Done: packages/measuretwice/src/scheduler.ts enforces the total deadline and the caller cancellation inside scheduleRun, with no core change. One deadline covers queue time, every attempt, and the backoff between attempts: the scheduler arms one wake-up at the deadline instant through one injectable timer operation (the default arms one Node timer for the remaining time of the injected clock) and re-reads the injected clock before each resolution and each start, so one delayed wake-up admits no late result. At the deadline the run ends through runDeadline of the boundary, so active work records one deadline_exceeded error, never-started work records one deadline_before_start skip, and completed records stay. The caller cancels through one signal option, also before any work starts: cancellation aborts every attempt context with the reason of the caller, clears the queue, and ends the run through runCancel. Every terminal path disarms the wake-up, removes the listener on the caller signal, and drops one resolution that arrives afterwards with one late_result_rejected event, so one adapter that ignores the signal cannot mutate one terminal report. packages/measuretwice/test/support/deterministic.ts grew one timer queue on the fake clock, which fires the armed wake-ups in instant order when the clock advances. packages/measuretwice/test/scheduler.test.ts drives the deadline, the cancellation, and the late results with the controlled clock, proves the deadline invariant without one delivered wake-up, and replays eight shared runtime traces (deadline-before-start, cancel-before-start, and late-result-after-cancel joined the five of T030); the other four traces stay boundary-level rows of the native suite, because one duplicate result and one second resolution of one execution fit no promise, and two traces state one check_started order that disagrees with the first-in-first-out drain. The model record and the guides state the new wrapper rows.",
       "steps": [
         "Write controlled-clock tests for queued, active, and partially completed cancellation.",
         "Apply one total execution deadline across the complete attempt lifecycle.",
@@ -1177,6 +1177,16 @@
         "T007",
         "T015",
         "T030"
+      ],
+      "updated_at": "2026-09-24T07:11:38Z",
+      "files": [
+        "packages/measuretwice/src/scheduler.ts",
+        "packages/measuretwice/test/scheduler.test.ts",
+        "packages/measuretwice/test/support/deterministic.ts",
+        "packages/measuretwice/test/support/deterministic.test.ts",
+        "models/execution/README.md",
+        "TESTING.md",
+        "DEVELOPING.md"
       ]
     },
     {

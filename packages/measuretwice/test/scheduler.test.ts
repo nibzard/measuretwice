@@ -4,14 +4,16 @@
  *
  * These tests cover the bounded scheduling that MVP_SPEC.md sections 5, 9,
  * and 12 assign to the TypeScript wrapper: active-work limits, pending-work
- * limits, saturation records, and the attempt of every required check. Every
- * transition crosses the Rust run state boundary, so one drifted offer, one
- * late result, and one invalid record meet the core refusal there.
+ * limits, saturation records, the attempt of every required check, the
+ * total deadline, and caller cancellation. Every transition crosses the
+ * Rust run state boundary, so one drifted offer, one late result, and one
+ * invalid record meet the core refusal there.
  *
  * The tests stay offline and deterministic. One manual executor resolves
- * each execution by hand, one fake clock states the time, and the shared
- * runtime traces of `fixtures/runtime/traces.json` drive the replayable
- * rows. No test reads the system clock and no test contacts one provider.
+ * each execution by hand, one fake clock states the time and fires the
+ * deadline wake-ups, and the shared runtime traces of
+ * `fixtures/runtime/traces.json` drive the replayable rows. No test reads
+ * the system clock and no test contacts one provider.
  */
 import { test, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -197,6 +199,7 @@ function start(
   config: ExecutionConfig,
   executor: ManualExecutor,
   clock: FakeClock,
+  options: { readonly signal?: AbortSignal } = {},
 ): Promise<RunReport> {
   return scheduleRun({
     state: run.state,
@@ -205,6 +208,8 @@ function start(
     execution: config,
     execute: executor.execute,
     now: () => clock.nowMs(),
+    setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
     observe: executor.observe,
   });
 }
@@ -555,17 +560,293 @@ test("one invalid execution configuration fails before any work starts", async (
   }
 });
 
+test("one invalid timer or signal option fails before any work starts", async () => {
+  const clock = new FakeClock(START_MS);
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, execution());
+  for (const [options, fieldPath] of [
+    [{ setTimer: "no function" }, "/setTimer"],
+    [{ signal: { aborted: "yes" } }, "/signal"],
+    [{ signal: {} }, "/signal"],
+  ] as const) {
+    const executor = new ManualExecutor();
+    const failure = await scheduleRun({
+      state: run.state,
+      caseReferenceText: run.caseReference,
+      profileReferenceText: TRACE_PROFILE,
+      execution: execution(),
+      execute: executor.execute,
+      now: () => clock.nowMs(),
+      ...(options as Record<string, unknown>),
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(failure, fieldPath).toBeInstanceOf(Error);
+    expect((failure as { code?: string }).code, fieldPath).toBe("invalid_field_type");
+    expect((failure as { fieldPath?: string }).fieldPath, fieldPath).toBe(fieldPath);
+    expect(executor.calls, fieldPath).toEqual([]);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The total deadline.
+// ---------------------------------------------------------------------------
+
+test("the total deadline ends active work and skips queued work", async () => {
+  const clock = new FakeClock(START_MS);
+  // One active slot runs one check while two wait, and the deadline of the
+  // trace `deadline-before-start` passes before any resolution arrives.
+  const config = execution({ max_active: 1, max_pending: 2, deadline_ms: 100 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const reportPromise = start(run, config, executor, clock);
+
+  expect(executor.inFlight()).toEqual(["summary-length"]);
+  clock.advanceMs(100);
+  const report = await reportPromise;
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "error", reason: { code: "deadline_exceeded" } },
+    { check: "summary-mentions-limit", outcome: "skipped", reason: { code: "deadline_before_start" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "deadline_before_start" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+  expect(report.completion).toEqual({
+    status: "deadline_exceeded",
+    completed_at: "2026-09-24T00:00:00.100Z",
+  });
+  expect(run.state.phase).toBe("deadline_exceeded");
+  expect(executor.events.filter((event) => event.type === "deadline")).toEqual([{ type: "deadline" }]);
+  // The terminal path released the cancellation signal of the attempt.
+  expect(executor.calls[0]?.signal.aborted).toBe(true);
+});
+
+test("the deadline retains the completed record and ends the started work", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 2, max_pending: 2, deadline_ms: 500 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const reportPromise = start(run, config, executor, clock);
+
+  // Two checks run, one completes before the deadline, and the freed slot
+  // starts the queued check, so two executions outlive the deadline.
+  clock.advanceMs(400);
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  await flush();
+  expect(executor.inFlight()).toEqual(["summary-mentions-limit", "notice-hides-secrets"]);
+
+  clock.advanceMs(100);
+  const report = await reportPromise;
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "pass" },
+    { check: "summary-mentions-limit", outcome: "error", reason: { code: "deadline_exceeded" } },
+    { check: "notice-hides-secrets", outcome: "error", reason: { code: "deadline_exceeded" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+  expect(report.completion.status).toBe("deadline_exceeded");
+});
+
+test("one resolution after the deadline changes no record", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 1, max_pending: 2, deadline_ms: 100 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const reportPromise = start(run, config, executor, clock);
+
+  clock.advanceMs(100);
+  const report = await reportPromise;
+  const frozen = JSON.parse(run.state.reportText()!);
+
+  // The adapter ignores the aborted signal and resolves anyway.
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  await flush();
+  expect(report).toStrictEqual(JSON.parse(run.state.reportText()!));
+  expect(report).toStrictEqual(frozen);
+  expect(report.checks[0]).toMatchObject({
+    outcome: "error",
+    reason: { code: "deadline_exceeded" },
+  });
+  expect(executor.events.filter((event) => event.type === "late_result_rejected")).toEqual([
+    { type: "late_result_rejected", check: "summary-length" },
+  ]);
+});
+
+test("the clock guards the deadline without one delivered wake-up", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 1, max_pending: 2, deadline_ms: 100 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  // The injected timer arms nothing, so one delayed wake-up cannot end the
+  // run. The scheduler must still refuse work past the deadline instant.
+  const reportPromise = scheduleRun({
+    state: run.state,
+    caseReferenceText: run.caseReference,
+    profileReferenceText: TRACE_PROFILE,
+    execution: config,
+    execute: executor.execute,
+    now: () => clock.nowMs(),
+    setTimer: () => () => undefined,
+    observe: executor.observe,
+  });
+
+  clock.advanceMs(250);
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  const report = await reportPromise;
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "error", reason: { code: "deadline_exceeded" } },
+    { check: "summary-mentions-limit", outcome: "skipped", reason: { code: "deadline_before_start" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "deadline_before_start" } },
+  ]);
+  expect(report.completion.status).toBe("deadline_exceeded");
+  expect(executor.events.map((event) => event.type)).toContain("deadline");
+  expect(executor.events.filter((event) => event.type === "late_result_rejected")).toEqual([
+    { type: "late_result_rejected", check: "summary-length" },
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// Caller cancellation.
+// ---------------------------------------------------------------------------
+
+test("one pre-aborted caller signal cancels before any work starts", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 1, max_pending: 2 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const caller = new AbortController();
+  caller.abort();
+
+  const reportPromise = start(run, config, executor, clock, { signal: caller.signal });
+  const report = await reportPromise;
+  expect(executor.calls).toEqual([]);
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+    { check: "summary-mentions-limit", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("review");
+  expect(report.completion.status).toBe("cancelled");
+  expect(run.state.phase).toBe("cancelled");
+  expect(executor.events.map((event) => event.type)).toEqual(["submit", "cancel"]);
+});
+
+test("caller cancellation propagates to adapters and clears queued work", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 1, max_pending: 2 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const caller = new AbortController();
+  const reportPromise = start(run, config, executor, clock, { signal: caller.signal });
+
+  expect(executor.inFlight()).toEqual(["summary-length"]);
+  clock.advanceMs(300);
+  caller.abort();
+  const report = await reportPromise;
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "error", reason: { code: "run_cancelled" } },
+    { check: "summary-mentions-limit", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+  expect(report.completion).toEqual({
+    status: "cancelled",
+    completed_at: "2026-09-24T00:00:00.300Z",
+  });
+  // The cancellation crossed to the adapter: the attempt signal aborted
+  // with the reason of the caller.
+  expect(executor.calls[0]?.signal.aborted).toBe(true);
+  expect(executor.calls[0]?.signal.reason).toBe(caller.signal.reason);
+  expect(executor.events.filter((event) => event.type === "cancel")).toEqual([{ type: "cancel" }]);
+
+  // The adapter ignores the aborted signal and resolves afterwards. The
+  // frozen report accepts no late change.
+  const frozen = JSON.parse(run.state.reportText()!);
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  await flush();
+  expect(report).toStrictEqual(frozen);
+  expect(report).toStrictEqual(JSON.parse(run.state.reportText()!));
+  expect(executor.events.filter((event) => event.type === "late_result_rejected")).toEqual([
+    { type: "late_result_rejected", check: "summary-length" },
+  ]);
+});
+
+test("cancellation retains the records that completed before it", async () => {
+  const clock = new FakeClock(START_MS);
+  // Two active slots and no pending slot: the third check records its
+  // queue-full skip at admission, so one record of each kind exists when
+  // the caller cancels after one completion.
+  const config = execution({ max_active: 2, max_pending: 0 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const caller = new AbortController();
+  const reportPromise = start(run, config, executor, clock, { signal: caller.signal });
+
+  expect(executor.inFlight()).toEqual(["summary-length", "summary-mentions-limit"]);
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  await flush();
+  // The queue holds no work, so the freed slot starts nothing.
+  expect(executor.inFlight()).toEqual(["summary-mentions-limit"]);
+
+  clock.advanceMs(100);
+  caller.abort();
+  const report = await reportPromise;
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "pass" },
+    { check: "summary-mentions-limit", outcome: "error", reason: { code: "run_cancelled" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "queue_full" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+  expect(report.completion.status).toBe("cancelled");
+});
+
+test("one caller abort after one normal completion changes nothing", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 2, max_pending: 2 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const caller = new AbortController();
+  const reportPromise = start(run, config, executor, clock, { signal: caller.signal });
+
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  await executor.resolveCheck("summary-mentions-limit", result(run, "summary-mentions-limit", "pass"));
+  await flush();
+  await executor.resolveCheck("notice-hides-secrets", result(run, "notice-hides-secrets", "pass"));
+  const report = await reportPromise;
+  expect(report.completion.status).toBe("completed");
+
+  // The terminal path removed the listener on the caller signal, so one
+  // abort afterwards mutates no frozen report and states no event.
+  caller.abort();
+  await flush();
+  expect(run.state.phase).toBe("completed");
+  expect(report).toStrictEqual(JSON.parse(run.state.reportText()!));
+  expect(executor.events.filter((event) => event.type === "cancel")).toEqual([]);
+  expect(executor.events.filter((event) => event.type === "late_result_rejected")).toEqual([]);
+});
+
 // ---------------------------------------------------------------------------
 // The shared runtime traces replay through the scheduler.
 // ---------------------------------------------------------------------------
 
-/** The trace events that the scheduler states on its own, without time. */
-const SCHEDULER_EVENT_TYPES = new Set([
-  "submit",
-  "check_started",
-  "check_skipped",
-  "check_result",
-  "attempt_failed",
+/**
+ * The traces that the scheduler reproduces end to end. The environment
+ * events it states itself are the wake-up of the total deadline, one
+ * caller cancellation, and one resolution that one adapter delivers after
+ * one terminal path. Four traces stay boundary-level rows of the native
+ * suite: `duplicate-result` needs one second resolution of one execution,
+ * `late-result-after-completion` needs one execution in flight after one
+ * drained completion, and `deadline-keeps-completed` and `cancel-mid-run`
+ * state one `check_started` order that disagrees with the
+ * first-in-first-out drain of this scheduler.
+ */
+const REPLAYABLE_TRACE_IDS = new Set([
+  "exact-all-pass",
+  "queue-full",
+  "deadline-before-start",
+  "cancel-before-start",
+  "retries-exhausted",
+  "retry-then-success",
+  "late-result-after-cancel",
+  "partial-failure-mix",
 ]);
 
 test("the shared runtime traces replay through the scheduler", async () => {
@@ -574,7 +855,7 @@ test("the shared runtime traces replay through the scheduler", async () => {
     definition: string;
     case_input: Record<string, unknown>;
     config: ExecutionConfig;
-    events: Array<{ type: string; check?: string; outcome?: string; code?: string }>;
+    events: Array<{ at_ms: number; type: string; check?: string; outcome?: string; code?: string }>;
     expected: {
       checks: Array<Record<string, unknown>>;
       aggregate: string;
@@ -583,18 +864,15 @@ test("the shared runtime traces replay through the scheduler", async () => {
     };
   }> = fixtureDocument("runtime/traces.json").traces;
 
-  // The scheduler states no deadline, no cancellation, and no adversarial
-  // result itself, so the replay covers the traces that need none of them.
-  const replayable = traces.filter(
-    (trace) =>
-      trace.events.every((event) => SCHEDULER_EVENT_TYPES.has(event.type)) &&
-      trace.expected.rejected_events.length === 0,
-  );
+  const replayable = traces.filter((trace) => REPLAYABLE_TRACE_IDS.has(trace.id));
   expect(replayable.map((trace) => trace.id)).toEqual([
     "exact-all-pass",
     "queue-full",
+    "deadline-before-start",
+    "cancel-before-start",
     "retries-exhausted",
     "retry-then-success",
+    "late-result-after-cancel",
     "partial-failure-mix",
   ]);
 
@@ -602,12 +880,20 @@ test("the shared runtime traces replay through the scheduler", async () => {
     const clock = new FakeClock(START_MS);
     const run = prepare(`definitions/valid/${trace.definition}`, trace.case_input, trace.config);
     const executor = new ManualExecutor();
-    const reportPromise = start(run, trace.config, executor, clock);
+    const caller = new AbortController();
+    // One cancel event that follows only the submit event precedes every
+    // start, so the harness aborts the caller before the scheduler runs.
+    const cancelBeforeStart = trace.events.some(
+      (event, index) =>
+        event.type === "cancel" &&
+        trace.events.slice(0, index).every((prior) => prior.type === "submit"),
+    );
+    if (cancelBeforeStart) {
+      caller.abort();
+    }
+    const reportPromise = start(run, trace.config, executor, clock, { signal: caller.signal });
 
     // The trace events that state scheduler decisions must appear in order.
-    const stated = trace.events
-      .filter((event) => event.type === "check_started" || event.type === "check_skipped")
-      .map((event) => ({ type: event.type, check: event.check }));
     let cursor = 0;
     const advance = (expected: { type: string; check?: string }): void => {
       while (cursor < executor.events.length) {
@@ -623,7 +909,11 @@ test("the shared runtime traces replay through the scheduler", async () => {
       throw new Error(`${trace.id}: the scheduler stated no event for ${expected.type}`);
     };
 
-    for (const event of trace.events) {
+    const rejections: Array<{ event: number; reason_code: string }> = [];
+    let currentMs = 0;
+    for (const [index, event] of trace.events.entries()) {
+      clock.advanceMs(event.at_ms - currentMs);
+      currentMs = event.at_ms;
       switch (event.type) {
         case "submit":
           expect(executor.events[0]?.type, trace.id).toBe("submit");
@@ -646,6 +936,33 @@ test("the shared runtime traces replay through the scheduler", async () => {
           );
           await flush();
           break;
+        case "deadline":
+          // The clock advance fired the armed wake-up of the total deadline.
+          expect(
+            executor.events.filter((observed) => observed.type === "deadline"),
+            trace.id,
+          ).toEqual([{ type: "deadline" }]);
+          break;
+        case "cancel":
+          caller.abort();
+          await flush();
+          expect(
+            executor.events.filter((observed) => observed.type === "cancel"),
+            trace.id,
+          ).toEqual([{ type: "cancel" }]);
+          break;
+        case "late_result":
+          await executor.resolveCheck(
+            event.check!,
+            result(run, event.check!, event.outcome as "pass" | "fail" | "review"),
+          );
+          await flush();
+          expect(
+            executor.events.filter((observed) => observed.type === "late_result_rejected"),
+            trace.id,
+          ).toEqual([{ type: "late_result_rejected", check: event.check }]);
+          rejections.push({ event: index, reason_code: "late_result_rejected" });
+          break;
         default:
           throw new Error(`${trace.id}: one unsupported event ${event.type}`);
       }
@@ -656,5 +973,6 @@ test("the shared runtime traces replay through the scheduler", async () => {
     expect(report.checks, trace.id).toMatchObject(trace.expected.checks);
     expect(report.aggregate.outcome, trace.id).toBe(trace.expected.aggregate);
     expect(report.completion.status, trace.id).toBe(trace.expected.completion);
+    expect(rejections, trace.id).toEqual(trace.expected.rejected_events);
   }
 });

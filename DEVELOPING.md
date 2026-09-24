@@ -604,14 +604,29 @@ cost-based short-circuiting. One thrown execution becomes one
 `evaluator_error` failure, so one broken executor records one error
 instead of crashing the run. One failed attempt with attempts left returns
 to the shared queue and restarts when one slot frees, with no delay: the
-backoff arrives with task T032, and the total deadline and the
-cancellation with task T031, so this module runs no timer. The terminal
-path releases the wrapper resources: the queue drops, the cancellation
-signal aborts, and one late resolution is dropped instead of stated, so
-the frozen report stays frozen. The suite replays the five shared runtime
-traces that need no deadline, no cancellation, and no adversarial result
-through the scheduler, beside its own bound and saturation tests. Task
-T034 wires the module into the semantic run path of `run`.
+backoff arrives with task T032. Task T034 wires the module into the
+semantic run path of `run`.
+
+Decided in T031: the total deadline and the cancellation are wrapper
+state beside the queue, with no core change. One deadline covers queue
+time, every attempt, and the backoff between attempts, as MVP_SPEC.md
+section 12 requires. The scheduler arms one wake-up at the deadline
+instant through one injectable timer operation, and it re-reads the
+injected clock before each resolution and each start, so one delayed
+wake-up admits no late result: the clock, not the timer delivery, guards
+the invariant. At the deadline the boundary ends the run, so active work
+records one `deadline_exceeded` error, never-started work records one
+`deadline_before_start` skip, and completed records stay. The caller
+cancels through one AbortSignal option. Cancellation aborts every attempt
+context with the reason of the caller, clears the queue, and ends the run
+through the `cancelled` transition of the boundary. Every terminal path
+disarms the wake-up, removes the listener on the caller signal, and drops
+one resolution that arrives afterwards with one `late_result_rejected`
+event, so one adapter that ignores the signal cannot mutate one terminal
+report. The suite drives the deadline and the cancellation with one fake
+clock that fires armed wake-ups, and it replays the eight shared runtime
+traces the scheduler reproduces, beside its own deadline, cancellation,
+and late-result tests.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

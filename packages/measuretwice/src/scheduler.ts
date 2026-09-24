@@ -29,17 +29,28 @@
  * short-circuiting and the aggregate needs every component record. One
  * failed attempt returns to the queue while the boundary reports attempts
  * left, and the scheduler restarts it when one slot frees. The restart
- * keeps no delay: the backoff between attempts arrives with task T032, and
- * the total deadline and the cancellation arrive with task T031. This
- * module runs no timer. Time enters as one injected clock, which states
- * the deadline instant of each attempt context and the terminal time.
+ * keeps no delay: the backoff between attempts arrives with task T032.
  *
- * The terminal path releases the wrapper resources. The run completes
- * through the boundary, the returned report is parsed from the frozen core
- * report and frozen again, and the scheduler drops its queue and aborts
- * its cancellation signal, so no adapter keeps one listener. One resolution
- * that arrives after the terminal path fits no valid transition, so the
- * scheduler drops it instead of stating it, and the report stays frozen.
+ * One total deadline covers the complete attempt lifecycle: queue time,
+ * every attempt, and the backoff between attempts, as MVP_SPEC.md section
+ * 12 requires. The scheduler arms one wake-up at the deadline instant and
+ * re-reads the injected clock before each resolution and each start, so
+ * one delayed wake-up cannot admit one late result. At the deadline the
+ * boundary ends the run: active work records one `deadline_exceeded`
+ * error, never-started work records one `deadline_before_start` skip, and
+ * completed records stay. The caller cancels through one AbortSignal.
+ * Cancellation propagates to every attempt context, clears the queue, and
+ * ends the run through the `cancelled` transition of the boundary.
+ *
+ * Every terminal path releases the wrapper resources. The run ends through
+ * the boundary, the returned report is parsed from the frozen core report
+ * and frozen again, the scheduler drops its queue, disarms its wake-up,
+ * removes its listener on the caller signal, and aborts its cancellation
+ * signal, so no adapter keeps one listener. One resolution that arrives
+ * after any terminal path fits no valid transition, so the scheduler drops
+ * it, states one `late_result_rejected` event, and the report stays
+ * frozen: one adapter that ignores the signal cannot mutate one terminal
+ * report.
  *
  * Failure behavior: one execution configuration outside the contract
  * bounds, one terminal run state, or one option outside its shape rejects
@@ -53,7 +64,9 @@
 import {
   NativeFailure,
   runAcceptResult,
+  runCancel,
   runComplete,
+  runDeadline,
   runFailAttempt,
   runSkipQueueFull,
   runStartAttempt,
@@ -119,8 +132,10 @@ export type ScheduledResolution =
  *
  * The event vocabulary follows the shared runtime traces of
  * `fixtures/runtime/traces.json`, so one observer log reads like one trace.
- * The scheduler emits no deadline, no cancellation, and no late result,
- * because it states no event that the core boundary would refuse.
+ * The `deadline` and `cancel` events name the terminal transitions that
+ * the scheduler stated through the boundary, and `late_result_rejected`
+ * names one resolution that arrived after one terminal path and changed
+ * no record.
  */
 export type SchedulerEvent =
   | { readonly type: "submit"; readonly checks: readonly string[] }
@@ -128,7 +143,10 @@ export type SchedulerEvent =
   | { readonly type: "check_skipped"; readonly check: string; readonly code: "queue_full" }
   | { readonly type: "check_started"; readonly check: string; readonly attempt: number }
   | { readonly type: "attempt_failed"; readonly check: string; readonly code: string }
-  | { readonly type: "check_result"; readonly check: string; readonly outcome: "pass" | "fail" | "review" };
+  | { readonly type: "check_result"; readonly check: string; readonly outcome: "pass" | "fail" | "review" }
+  | { readonly type: "deadline" }
+  | { readonly type: "cancel" }
+  | { readonly type: "late_result_rejected"; readonly check: string };
 
 /** The options of `scheduleRun`. */
 export interface ScheduleOptions {
@@ -144,6 +162,15 @@ export interface ScheduleOptions {
   readonly execute: (attempt: ScheduledAttempt) => Promise<ScheduledResolution>;
   /** The clock of the wrapper, in epoch milliseconds. */
   readonly now: () => number;
+  /** The cancellation signal of the caller. The run cancels when it aborts. Optional. */
+  readonly signal?: AbortSignal;
+  /**
+   * Arms one wake-up at one epoch-millisecond instant, and returns one
+   * operation that cancels the wake-up. The default arms one Node timer
+   * for the remaining time of the injected clock. Controlled-clock tests
+   * inject one timer queue that fires when the clock advances.
+   */
+  readonly setTimer?: (atMs: number, onWake: () => void) => () => void;
   /** One observer of the scheduling decisions. Optional. */
   readonly observe?: (event: SchedulerEvent) => void;
 }
@@ -159,8 +186,9 @@ export interface ScheduleOptions {
  * The caller creates the run state with the same attempt limit that the
  * configuration states, so the boundary holds the budget that the attempt
  * contexts report. Every admission, every attempt start, every resolution,
- * and the completion cross the Rust boundary. The returned promise settles
- * when the run reaches its terminal path.
+ * and every terminal transition cross the Rust boundary. The returned
+ * promise settles when the run reaches one terminal path: completion,
+ * caller cancellation through `signal`, or the total deadline.
  *
  * @throws {ValidationError} when the execution configuration breaks its
  * contract bounds, when the run state already reached one terminal phase,
@@ -181,6 +209,20 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
       "invalid_field_type",
       "The scheduler received no clock. Pass one function that returns the epoch milliseconds.",
       "/now",
+    );
+  }
+  if (options.setTimer !== undefined && typeof options.setTimer !== "function") {
+    throw new ValidationError(
+      "invalid_field_type",
+      "The scheduler received no timer operation. Pass one function that arms one wake-up at one instant.",
+      "/setTimer",
+    );
+  }
+  if (options.signal !== undefined && !isAbortSignal(options.signal)) {
+    throw new ValidationError(
+      "invalid_field_type",
+      "The scheduler received no caller cancellation signal. Pass one AbortSignal or nothing.",
+      "/signal",
     );
   }
   if (typeof options.caseReferenceText !== "string" || options.caseReferenceText === "") {
@@ -208,6 +250,7 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
   const checks = [...options.state.checkIds()];
   const deadlineAtMs = options.now() + options.execution.deadline_ms;
   const controller = new AbortController();
+  const caller = options.signal;
 
   // The scheduler places of the model: active work, one shared queue, and
   // the never-started part of that queue, which alone counts against the
@@ -216,6 +259,7 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
   let unfinished = checks.length;
   let ended = false;
   let settled = false;
+  let disarmWake: (() => void) | undefined;
   const waiting: string[] = [];
   const neverStarted = new Set<string>();
 
@@ -226,12 +270,54 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     rejectReport = reject;
   });
 
-  /** Drops every wrapper resource of the run. */
-  const release = (): void => {
+  /** Answers one caller cancellation: the run ends and every adapter stops. */
+  const onCallerAbort = (): void => {
+    terminate("cancel", caller?.reason);
+  };
+
+  /** Drops every wrapper resource of the run, and aborts the adapters. */
+  const release = (reason?: unknown): void => {
     ended = true;
-    controller.abort();
+    disarmWake?.();
+    disarmWake = undefined;
+    caller?.removeEventListener("abort", onCallerAbort);
+    controller.abort(reason);
     waiting.length = 0;
     neverStarted.clear();
+  };
+
+  /**
+   * Ends the run through one terminal boundary transition: `cancel` or
+   * `deadline`. The boundary assigns the records, freezes the report, and
+   * the returned promise settles with that frozen report. One later event
+   * changes nothing.
+   */
+  const terminate = (kind: "cancel" | "deadline", reason: unknown): void => {
+    if (ended || settled) {
+      return;
+    }
+    release(reason);
+    if (kind === "cancel") {
+      guarded("run cancellation", () => runCancel(options.state, terminalTime(options.now)));
+      emit({ type: "cancel" });
+    } else {
+      guarded("run deadline", () => runDeadline(options.state, terminalTime(options.now)));
+      emit({ type: "deadline" });
+    }
+    finishReport();
+  };
+
+  /** Builds the abort reason that states the total deadline of the run. */
+  const deadlineReason = (): Error =>
+    new Error(
+      `measuretwice ended the run at its total deadline of ${options.execution.deadline_ms} milliseconds.`,
+    );
+
+  /** Ends the run at its total deadline when the injected clock reached it. */
+  const enforceDeadline = (): void => {
+    if (!ended && !settled && options.now() >= deadlineAtMs) {
+      terminate("deadline", deadlineReason());
+    }
   };
 
   /** Ends the run with one explicit failure. One later event changes nothing. */
@@ -300,8 +386,9 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     });
   };
 
-  /** Starts waiting work while active slots remain. */
+  /** Starts waiting work while active slots remain and the deadline stays ahead. */
   const drain = (): void => {
+    enforceDeadline();
     while (!ended && active < options.execution.max_active && waiting.length > 0) {
       startAttempt(waiting.shift()!);
     }
@@ -312,6 +399,14 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     if (ended) {
       // One resolution after the terminal path fits no valid transition,
       // so the scheduler drops it and the report stays frozen.
+      emit({ type: "late_result_rejected", check });
+      return;
+    }
+    if (options.now() >= deadlineAtMs) {
+      // The attempt outlived the total deadline. The run ends here, and
+      // the late resolution changes no record.
+      terminate("deadline", deadlineReason());
+      emit({ type: "late_result_rejected", check });
       return;
     }
     active -= 1;
@@ -348,10 +443,15 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     }
     release();
     guarded("run completion", () => runComplete(options.state, terminalTime(options.now)));
+    finishReport();
+  };
+
+  /** Settles the returned promise with the frozen report of the core. */
+  const finishReport = (): void => {
     const reportText = options.state.reportText();
     if (reportText === null) {
       settled = true;
-      rejectReport(new Error("measuretwice completed the run, but the core stated no report."));
+      rejectReport(new Error("measuretwice ended the run, but the core stated no report."));
       return;
     }
     const report: unknown = JSON.parse(reportText);
@@ -359,6 +459,26 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     settled = true;
     resolveReport(report as RunReport);
   };
+
+  // The caller may cancel before the scheduler runs. No work starts: the
+  // boundary assigns one cancellation record to every check, and the run
+  // reports `cancelled`.
+  if (caller?.aborted) {
+    emit({ type: "submit", checks });
+    terminate("cancel", caller.reason);
+    return finished;
+  }
+
+  // The wake-up of the total deadline. The default arms one Node timer for
+  // the remaining time of the injected clock; one injected timer keeps
+  // controlled-clock tests deterministic.
+  const nodeTimer = (atMs: number, onWake: () => void): (() => void) => {
+    const handle = setTimeout(onWake, Math.max(0, atMs - options.now()));
+    return () => clearTimeout(handle);
+  };
+  const armWake = options.setTimer ?? nodeTimer;
+  disarmWake = armWake(deadlineAtMs, enforceDeadline);
+  caller?.addEventListener("abort", onCallerAbort, { once: true });
 
   // Admission in definition order. One free active slot starts new work,
   // one free pending slot queues it, and one spent queue skips it.
@@ -395,6 +515,24 @@ function thrownResolution(cause: unknown): ScheduledResolution {
       message: `The execution of the check threw: ${message === "" ? "no message" : message}`,
     },
   };
+}
+
+/**
+ * Checks one caller option against the shape of one AbortSignal: one
+ * boolean `aborted` state and the two listener operations. The structural
+ * check admits one signal of another environment, because the scheduler
+ * reads no constructor identity.
+ */
+function isAbortSignal(value: unknown): value is AbortSignal {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const signal = value as Partial<AbortSignal>;
+  return (
+    typeof signal.aborted === "boolean" &&
+    typeof signal.addEventListener === "function" &&
+    typeof signal.removeEventListener === "function"
+  );
 }
 
 /**

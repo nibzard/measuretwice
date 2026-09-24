@@ -24,6 +24,29 @@ test("equal fake clocks report equal times", () => {
   expect(first.nowMs()).toBe(second.nowMs());
 });
 
+test("a fake clock fires due wake-ups in instant order", () => {
+  const clock = new FakeClock(1_000);
+  const fired: string[] = [];
+  clock.setTimer(1_050, () => fired.push("late"));
+  clock.setTimer(1_020, () => fired.push("early"));
+
+  clock.advanceMs(10);
+  expect(fired).toEqual([]);
+  clock.advanceMs(50);
+  expect(fired).toEqual(["early", "late"]);
+});
+
+test("a cancelled fake-clock wake-up never fires", () => {
+  const clock = new FakeClock(0);
+  const fired: string[] = [];
+  const cancel = clock.setTimer(5, () => fired.push("first"));
+  clock.setTimer(5, () => fired.push("second"));
+
+  cancel();
+  clock.advanceMs(10);
+  expect(fired).toEqual(["second"]);
+});
+
 test("sequence identifiers are ordered, unique, and kebab case", () => {
   const nextId = sequenceIds("case");
   expect(nextId()).toBe("case-000001");

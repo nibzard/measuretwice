@@ -154,6 +154,12 @@ the same boundary. The runtime traces `retry-then-success`,
 `late-result-after-completion`, `late-result-after-cancel`, and
 `duplicate-result` are the matching wrapper-level cases.
 
+Task T031 turned the `Cancel` and `Deadline` rows into scheduler
+regression tests: `packages/measuretwice/test/scheduler.test.ts` drives
+the total deadline and the caller cancellation with one controlled clock
+and proves that one resolution which arrives after any terminal path
+changes no frozen record.
+
 ## 7. Mapping to the implementation
 
 Rust owns the state validation. The wrapper owns the scheduling. Each

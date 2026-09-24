@@ -7,9 +7,17 @@
  * assert the same golden values. Product code never imports this file.
  */
 
-/** A manual clock. It moves only when the test advances it. */
+/**
+ * A manual clock. It moves only when the test advances it.
+ *
+ * The clock also holds one queue of armed wake-ups, so one component that
+ * sleeps until one instant, such as the scheduler deadline, runs under
+ * full clock control. One wake-up fires when the clock reaches its
+ * instant. Advancing past several instants fires them in instant order.
+ */
 export class FakeClock {
   #nowMs: number;
+  #wakeUps: Array<{ readonly atMs: number; onWake: () => void; armed: boolean }> = [];
 
   constructor(startMs: number) {
     this.#nowMs = startMs;
@@ -20,9 +28,35 @@ export class FakeClock {
     return this.#nowMs;
   }
 
-  /** Moves the clock forward by `ms` milliseconds. */
+  /**
+   * Arms one wake-up at one epoch-millisecond instant.
+   *
+   * The wake-up fires when the clock reaches the instant. The returned
+   * operation cancels the wake-up. One cancelled wake-up never fires.
+   */
+  setTimer(atMs: number, onWake: () => void): () => void {
+    const entry = { atMs, onWake, armed: true };
+    this.#wakeUps.push(entry);
+    return () => {
+      entry.armed = false;
+    };
+  }
+
+  /** Moves the clock forward by `ms` milliseconds, then fires the due wake-ups. */
   advanceMs(ms: number): void {
     this.#nowMs += ms;
+    const due = this.#wakeUps
+      .filter((entry) => entry.armed && entry.atMs <= this.#nowMs)
+      .sort((first, second) => first.atMs - second.atMs);
+    for (const entry of due) {
+      if (!entry.armed) {
+        // One earlier callback cancelled this wake-up.
+        continue;
+      }
+      entry.armed = false;
+      this.#wakeUps.splice(this.#wakeUps.indexOf(entry), 1);
+      entry.onWake();
+    }
   }
 }
 
