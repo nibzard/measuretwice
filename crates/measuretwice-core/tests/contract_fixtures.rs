@@ -8,7 +8,8 @@
 //! read local files only, so they stay offline and deterministic.
 
 use measuretwice_core::definition::{CheckKind, WhenUncertain};
-use measuretwice_core::{definition, json};
+use measuretwice_core::error::ReasonCode;
+use measuretwice_core::{case, definition, json};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
@@ -164,6 +165,117 @@ fn every_valid_definition_validates_with_its_stated_kinds() {
         stated.effective_when_uncertain()
     );
     assert_eq!(omitted.check_kinds(), stated.check_kinds());
+}
+
+/// Builds one minimal validated definition that declares the given root
+/// input schema, so each input record runs through the complete case path.
+/// The probe check names the first declared input, whatever its type is.
+fn definition_for_inputs(inputs: &Value) -> measuretwice_core::definition::ValidatedDefinition {
+    let first = inputs["properties"]
+        .as_object()
+        .expect("declared properties")
+        .keys()
+        .next()
+        .cloned()
+        .expect("one declared input");
+    let artifact = serde_json::json!({
+        "schema_version": 1,
+        "name": "input-validation",
+        "inputs": inputs,
+        "checks": [{
+            "id": "probe",
+            "name": "The probe check",
+            "using": [first],
+            "question": "Does the input satisfy the record?",
+            "answers": {"yes": "It does.", "no": "It does not."}
+        }]
+    });
+    definition::validate_definition_str(&artifact.to_string())
+        .expect("the probe definition validates")
+}
+
+/// Materializes one oversized input object from its fixture description, as
+/// the record note states. The described value becomes the single declared
+/// input of the record schema.
+fn materialize_oversized(record: &Value) -> Value {
+    let name = record["inputs"]["properties"]
+        .as_object()
+        .expect("declared properties")
+        .keys()
+        .next()
+        .cloned()
+        .expect("one declared input");
+    let oversized = &record["oversized"];
+    let value = match oversized["kind"].as_str().expect("a kind") {
+        "string" => {
+            let fill = oversized["fill"].as_str().expect("a fill character");
+            let bytes = oversized["utf8_bytes"].as_u64().expect("a byte count") as usize;
+            let text = fill.repeat(bytes / fill.len());
+            assert_eq!(
+                text.len(),
+                bytes,
+                "the materialized string matches the stated size"
+            );
+            Value::String(text)
+        }
+        "array" => {
+            let fill = oversized["fill"].as_str().expect("a fill value");
+            let count = oversized["items"].as_u64().expect("an item count") as usize;
+            Value::Array(vec![Value::String(fill.to_owned()); count])
+        }
+        other => panic!("an unknown oversized kind: {other}"),
+    };
+    serde_json::json!({ name.clone(): value })
+}
+
+#[test]
+fn input_validation_records_report_the_stated_codes_and_paths() {
+    let document = fixture_document("inputs/validation.json");
+    let records = document["records"].as_array().expect("a record array");
+    assert!(records.len() >= 20, "the fixture group lost records");
+
+    let mut oversized_seen = false;
+    for record in records {
+        let note = record["note"].as_str().expect("a note");
+        let definition = definition_for_inputs(&record["inputs"]);
+        let input = record
+            .get("input")
+            .cloned()
+            .unwrap_or_else(|| materialize_oversized(record));
+        let case_text = serde_json::to_string(&serde_json::json!({
+            "id": "input-validation",
+            "input": input
+        }))
+        .expect("the case serializes");
+        let result = case::validate_case_str(&case_text, &definition);
+        if record["valid"].as_bool() == Some(true) {
+            let validated = result.unwrap_or_else(|error| panic!("{note}: {error}"));
+            assert_eq!(validated.id(), "input-validation");
+            // The probe projection holds only its declared input.
+            let projected = validated.projected_inputs();
+            assert_eq!(projected.len(), 1, "{note}");
+            assert_eq!(projected[0].check_id, "probe", "{note}");
+            assert_eq!(projected[0].inputs.len(), 1, "{note}");
+        } else {
+            let error = result
+                .err()
+                .unwrap_or_else(|| panic!("{note}: the input was accepted"));
+            let expected = &record["expected"];
+            assert_eq!(
+                error.code.as_str(),
+                expected["reason_code"].as_str().expect("a code"),
+                "{note}: {error}"
+            );
+            assert_eq!(
+                error.field_path,
+                expected["field_path"].as_str().expect("a path"),
+                "{note}: {error}"
+            );
+            assert!(!error.message.is_empty(), "{note}: the cause is empty");
+            oversized_seen |= error.code == ReasonCode::OversizedInput;
+        }
+    }
+    assert!(oversized_seen, "no fixture record covered oversized_input");
 }
 
 #[test]

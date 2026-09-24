@@ -389,7 +389,7 @@
         "T009",
         "T002"
       ],
-      "updated_at": "2026-09-24T00:00:33Z",
+      "updated_at": "2026-09-24T00:01:25Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -404,7 +404,7 @@
       "id": "T011",
       "title": "Validate cases and project authorized inputs",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Validate complete cases before execution and expose only each check's declared inputs. Sources: MVP_SPEC.md sections 4-6, 10, 12.",
       "steps": [
         "Write failing tests for missing fields, extra fields, wrong types, oversized inputs, and invalid case identifiers.",
@@ -421,6 +421,18 @@
       "depends_on": [
         "T009",
         "T010"
+      ],
+      "updated_at": "2026-09-24T00:13:36Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/artifact.rs",
+        "crates/measuretwice-core/src/case.rs",
+        "crates/measuretwice-core/src/definition.rs",
+        "crates/measuretwice-core/src/input_schema.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "to-do.json"
       ]
     },
     {

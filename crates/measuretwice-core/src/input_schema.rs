@@ -39,6 +39,17 @@ pub const MAX_LENGTH_BOUND: u64 = 250_000;
 /// Highest `minItems` and `maxItems` bound.
 pub const MAX_ITEMS_BOUND: u64 = 10_000;
 
+/// Most UTF-8 bytes in one string input value, from the data limits table.
+pub const MAX_STRING_BYTES: usize = 1_048_576;
+
+/// Most items in one array input value, from the data limits table.
+pub const MAX_ARRAY_ITEMS: usize = 10_000;
+
+/// Most UTF-8 bytes in the serialized complete input object, from the data
+/// limits table. The limit covers the compact JSON serialization of the
+/// input object.
+pub const MAX_INPUT_BYTES: usize = 4_194_304;
+
 /// Numeric bounds of one `number` or `integer` schema, as authored.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NumericBounds {
@@ -609,6 +620,279 @@ pub fn validate_root(schema: &Map<String, Value>, base: &str) -> Result<Schema, 
         None => return Err(ValidationError::missing(format!("{base}/type"))),
     }
     walker.walk_object(schema, base, 0, true)
+}
+
+/// Validates one complete input object against one validated root schema.
+///
+/// `base` is the JSON Pointer of the input object inside its case record, for
+/// example `/input`.
+///
+/// The root scan reports an undeclared property with `unknown_field`, as the
+/// input fixtures record: a top-level input is a named field of the case. A
+/// nested object reports the same situation with `invalid_field_type`,
+/// because the closed-object rule is a constraint on that value.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when one value breaks a constraint of the
+/// schema or exceeds a published data limit. The code and the field path
+/// follow the errors table of the subset contract.
+pub fn validate_input(
+    schema: &Schema,
+    input: &Map<String, Value>,
+    base: &str,
+) -> Result<(), ValidationError> {
+    let Schema::Object {
+        properties,
+        required,
+    } = schema
+    else {
+        return Err(ValidationError::invalid_field_type(
+            base,
+            "The root input schema must be an object schema.",
+        ));
+    };
+    validate_object(properties, required, input, base, ReasonCode::UnknownField)
+}
+
+/// Validates one input value against one schema of the subset.
+///
+/// `path` is the JSON Pointer of the value inside its case record, for
+/// example `/input/tickets/1`. Validation never coerces a value, never
+/// mutates it, and never creates an absent property.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the value breaks the schema or exceeds
+/// a published data limit.
+pub fn validate_value(schema: &Schema, value: &Value, path: &str) -> Result<(), ValidationError> {
+    match schema {
+        Schema::String {
+            min_length,
+            max_length,
+        } => validate_string(*min_length, *max_length, value, path),
+        Schema::Number { bounds } => validate_number(bounds, false, value, path),
+        Schema::Integer { bounds } => validate_number(bounds, true, value, path),
+        Schema::Boolean => match value {
+            Value::Bool(_) => Ok(()),
+            _ => Err(ValidationError::invalid_field_type(
+                path,
+                "The input value must be a boolean. A number never passes for a boolean.",
+            )),
+        },
+        Schema::Array {
+            items,
+            min_items,
+            max_items,
+        } => validate_array(items, *min_items, *max_items, value, path),
+        Schema::Object {
+            properties,
+            required,
+        } => match value {
+            Value::Object(map) => validate_object(
+                properties,
+                required,
+                map,
+                path,
+                ReasonCode::InvalidFieldType,
+            ),
+            _ => Err(ValidationError::invalid_field_type(
+                path,
+                "The input value must be an object.",
+            )),
+        },
+    }
+}
+
+/// Validates one string value. The size limit comes before the length bounds.
+fn validate_string(
+    min_length: Option<u64>,
+    max_length: Option<u64>,
+    value: &Value,
+    path: &str,
+) -> Result<(), ValidationError> {
+    let Value::String(text) = value else {
+        return Err(ValidationError::invalid_field_type(
+            path,
+            "The input value must be a string.",
+        ));
+    };
+    if text.len() > MAX_STRING_BYTES {
+        return Err(ValidationError::new(
+            ReasonCode::OversizedInput,
+            path,
+            format!("The string holds more than {MAX_STRING_BYTES} bytes in UTF-8 encoding."),
+        ));
+    }
+    let length = text.chars().count() as u64;
+    if let Some(min) = min_length {
+        if length < min {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The string holds fewer code points than minLength permits.",
+            ));
+        }
+    }
+    if let Some(max) = max_length {
+        if length > max {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The string holds more code points than maxLength permits.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Validates one number value against its bounds. An `integer` schema accepts
+/// a zero fractional part only. Every `serde_json` number is finite, so no
+/// separate finite check exists.
+fn validate_number(
+    bounds: &NumericBounds,
+    integer: bool,
+    value: &Value,
+    path: &str,
+) -> Result<(), ValidationError> {
+    let Value::Number(number) = value else {
+        return Err(ValidationError::invalid_field_type(
+            path,
+            if integer {
+                "The input value must be an integer."
+            } else {
+                "The input value must be a number."
+            },
+        ));
+    };
+    let parsed = number
+        .as_f64()
+        .expect("a serde_json number converts to one finite double");
+    if integer && parsed.fract() != 0.0 {
+        return Err(ValidationError::invalid_field_type(
+            path,
+            "The input value must be an integer. A fraction is not an integer.",
+        ));
+    }
+    let NumericBounds {
+        minimum,
+        maximum,
+        exclusive_minimum,
+        exclusive_maximum,
+    } = *bounds;
+    if let Some(bound) = minimum {
+        if parsed < bound {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The value sits below the minimum bound.",
+            ));
+        }
+    }
+    if let Some(bound) = maximum {
+        if parsed > bound {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The value sits above the maximum bound.",
+            ));
+        }
+    }
+    if let Some(bound) = exclusive_minimum {
+        if parsed <= bound {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The value sits at or below the exclusive minimum bound.",
+            ));
+        }
+    }
+    if let Some(bound) = exclusive_maximum {
+        if parsed >= bound {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The value sits at or above the exclusive maximum bound.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Validates one array value. The item-count limit comes before the item
+/// bounds, and every element follows in order.
+fn validate_array(
+    items: &Schema,
+    min_items: Option<u64>,
+    max_items: Option<u64>,
+    value: &Value,
+    path: &str,
+) -> Result<(), ValidationError> {
+    let Value::Array(elements) = value else {
+        return Err(ValidationError::invalid_field_type(
+            path,
+            "The input value must be an array.",
+        ));
+    };
+    if elements.len() > MAX_ARRAY_ITEMS {
+        return Err(ValidationError::new(
+            ReasonCode::OversizedInput,
+            path,
+            format!("The array holds more than {MAX_ARRAY_ITEMS} items."),
+        ));
+    }
+    let count = elements.len() as u64;
+    if let Some(min) = min_items {
+        if count < min {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The array holds fewer items than minItems permits.",
+            ));
+        }
+    }
+    if let Some(max) = max_items {
+        if count > max {
+            return Err(ValidationError::invalid_field_type(
+                path,
+                "The array holds more items than maxItems permits.",
+            ));
+        }
+    }
+    for (index, element) in elements.iter().enumerate() {
+        validate_value(items, element, &format!("{path}/{index}"))?;
+    }
+    Ok(())
+}
+
+/// Validates one object value. An undeclared property fails first, then an
+/// absent required property, then each present value in key order.
+/// `unknown_code` names the code for an undeclared property: `unknown_field`
+/// at the input root, `invalid_field_type` inside a nested value.
+fn validate_object(
+    properties: &BTreeMap<String, Schema>,
+    required: &[String],
+    map: &Map<String, Value>,
+    path: &str,
+    unknown_code: ReasonCode,
+) -> Result<(), ValidationError> {
+    for key in map.keys() {
+        if !properties.contains_key(key) {
+            return Err(ValidationError::new(
+                unknown_code,
+                format!("{path}/{key}"),
+                format!(
+                    "The input object has a property outside its schema: {}.",
+                    fragment(key)
+                ),
+            ));
+        }
+    }
+    for name in required {
+        if !map.contains_key(name) {
+            return Err(ValidationError::missing(format!("{path}/{name}")));
+        }
+    }
+    for (key, value) in map {
+        let schema = properties
+            .get(key)
+            .expect("the unknown-property scan passed every key");
+        validate_value(schema, value, &format!("{path}/{key}"))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

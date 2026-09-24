@@ -25,7 +25,7 @@
 //! same reason, a definition with an empty check list parses, and validation
 //! rejects it with `empty_check_set`.
 
-use crate::artifact;
+use crate::artifact::{self, expect_object, reject_unknown_fields};
 use crate::error::{fragment, ReasonCode, ValidationError};
 use crate::input_schema;
 use serde::ser::SerializeMap;
@@ -972,41 +972,6 @@ fn parse_bounded_string(
         Some(_) => Err(ValidationError::invalid_field_type(
             path,
             format!("{what} must hold 1 to {max} characters."),
-        )),
-    }
-}
-
-/// Rejects every key outside the allowed fields of one object.
-fn reject_unknown_fields(
-    object: &Map<String, Value>,
-    allowed: &[&str],
-    base: &str,
-) -> Result<(), ValidationError> {
-    for key in object.keys() {
-        if !allowed.contains(&key.as_str()) {
-            return Err(ValidationError::new(
-                ReasonCode::UnknownField,
-                format!("{base}/{key}"),
-                format!(
-                    "The artifact has a field outside its contract: {}.",
-                    fragment(key)
-                ),
-            ));
-        }
-    }
-    Ok(())
-}
-
-/// Reads one object value or rejects it with `invalid_field_type`.
-fn expect_object<'a>(
-    value: &'a Value,
-    path: &str,
-) -> Result<&'a Map<String, Value>, ValidationError> {
-    match value {
-        Value::Object(map) => Ok(map),
-        _ => Err(ValidationError::invalid_field_type(
-            path,
-            "The value must be an object.",
         )),
     }
 }

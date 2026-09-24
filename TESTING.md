@@ -89,7 +89,8 @@ its runner rule.
 - The Rust integration tests in
   `crates/measuretwice-core/tests/contract_fixtures.rs` run the fixture
   groups that the core owns so far: the valid definition artifacts with
-  their check kinds, every definition rejection record, and the hashing
+  their check kinds, every definition rejection record, the input
+  validation records through the complete case path, and the hashing
   rejection records. Each validation task adds its own groups when its
   boundary lands.
 - Every wrapper runs every group through the Rust core. A wrapper never

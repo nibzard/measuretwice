@@ -113,6 +113,14 @@ drift apart. `measuretwice_core::definition::validate_definition` runs after
 parsing, keeps the authored artifact unchanged, and establishes the kind of
 every check. It adds no evaluator name and no numerical cutoff.
 
+Decided in T011: `measuretwice_core::case` parses the run-case envelope,
+which holds `id` and `input` only, and rejects every other field. The input
+data walker `measuretwice_core::input_schema::validate_input` walks the typed
+schema tree and enforces the published data limits. `ValidatedCase` owns
+projection: each projected request copies only the inputs that the check
+`using` list names, so no unvalidated case, label, or unrelated field can
+reach an evaluator.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

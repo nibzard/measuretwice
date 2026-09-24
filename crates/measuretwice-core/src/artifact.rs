@@ -54,6 +54,42 @@ pub fn schema_version(object: &Map<String, Value>) -> Result<u32, ValidationErro
     }
 }
 
+/// Rejects every key outside the allowed fields of one artifact object.
+/// The failure names the first offending field.
+pub(crate) fn reject_unknown_fields(
+    object: &Map<String, Value>,
+    allowed: &[&str],
+    base: &str,
+) -> Result<(), ValidationError> {
+    for key in object.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(ValidationError::new(
+                ReasonCode::UnknownField,
+                format!("{base}/{key}"),
+                format!(
+                    "The artifact has a field outside its contract: {}.",
+                    crate::error::fragment(key)
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Reads one object value or rejects it with `invalid_field_type`.
+pub(crate) fn expect_object<'a>(
+    value: &'a Value,
+    path: &str,
+) -> Result<&'a Map<String, Value>, ValidationError> {
+    match value {
+        Value::Object(map) => Ok(map),
+        _ => Err(ValidationError::invalid_field_type(
+            path,
+            "The value must be an object.",
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
