@@ -567,7 +567,7 @@
         "T012",
         "T014"
       ],
-      "updated_at": "2026-09-24T01:18:29Z",
+      "updated_at": "2026-09-24T01:19:15Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -582,7 +582,7 @@
       "id": "T016",
       "title": "Expose the core through a thin NAPI-RS binding",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Expose serializable Rust operations without leaking native types into the TypeScript API. Sources: MVP_SPEC.md section 5.",
       "steps": [
         "Write native-boundary tests for valid requests and malformed data.",
@@ -602,6 +602,18 @@
         "T013",
         "T014",
         "T015"
+      ],
+      "updated_at": "2026-09-24T01:40:22Z",
+      "files": [
+        "Cargo.toml",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-node/Cargo.toml",
+        "crates/measuretwice-node/src/lib.rs",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "to-do.json"
       ]
     },
     {

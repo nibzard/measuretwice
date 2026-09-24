@@ -184,6 +184,25 @@ traces replay through the boundary in the Rust conformance suite, and the
 negative control of the model record, a retry with a drifted binding, is a
 regression test.
 
+Decided in T016: `measuretwice-node` exposes the core through one thin
+NAPI-RS surface of serializable operations: definition and case validation
+with input projection, canonical forms and content hashes in every domain,
+the exact rule assessments with the record text of each result, and one
+`RunState` class that validates every run event against the checked
+execution model. Artifacts cross the boundary as strict JSON text, the one
+input shape the core already owns, so the strict gate rejects malformed
+text before any parser runs. Small structured results cross as plain
+values, which is why the `napi` dependency gains the `serde-json` feature.
+A domain failure is thrown as one native error whose message holds the
+serialized `ValidationError`; `packages/measuretwice/src/native.ts` is the
+one reader of that message and rebuilds it into the stable `NativeFailure`
+shape, so no safe cause is lost and no binding type becomes public API.
+Every exported signature states `Result<T, napi::Error>` in full, because
+the derive macro detects the error channel by reading the `Result` path; a
+type alias would return the failure as a value instead of throwing it. The
+core reference parsers became public so a run binding offered from
+TypeScript meets the same rules as one stored inside a report.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

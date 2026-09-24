@@ -25,6 +25,8 @@ serde = { version = "1.0.229", features = ["derive"] }
 # changes canonical forms and hashes, as RFC 8785 requires them.
 serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 sha2 = "0.11.0"
-napi = { version = "3.13.0", features = ["napi8"] }
+# serde-json lets the binding return plain JSON values, such as the
+# projected inputs, without a second serialization format.
+napi = { version = "3.13.0", features = ["napi8", "serde-json"] }
 napi-derive = "3.6.9"
 napi-build = "2.5.0"

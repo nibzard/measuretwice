@@ -1715,7 +1715,16 @@ fn parse_artifact_reference(
 }
 
 /// Parses one profile reference at `base`.
-fn parse_profile_reference(
+///
+/// The run state boundary reads the binding of an offered attempt through
+/// this parser, so a reference that crosses a language boundary meets the
+/// same rules as one stored inside a report.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the value is absent, is not an object,
+/// holds an unknown field, or breaks the identifier or hash rules.
+pub fn parse_profile_reference(
     value: Option<&Value>,
     base: &str,
 ) -> Result<ProfileReference, ValidationError> {
@@ -1745,7 +1754,16 @@ fn parse_profile_reference(
 }
 
 /// Parses one case reference at `base`.
-fn parse_case_reference(
+///
+/// The run state boundary reads the binding of an offered attempt through
+/// this parser, so a reference that crosses a language boundary meets the
+/// same rules as one stored inside a report.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] when the value is absent, is not an object,
+/// holds an unknown field, or breaks the identifier or hash rules.
+pub fn parse_case_reference(
     value: Option<&Value>,
     base: &str,
 ) -> Result<CaseReference, ValidationError> {
