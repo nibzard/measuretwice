@@ -794,7 +794,7 @@
         "T019",
         "T020"
       ],
-      "updated_at": "2026-09-24T03:18:43Z",
+      "updated_at": "2026-09-24T03:19:14Z",
       "files": [
         ".github/workflows/build-artifacts.yml",
         "DEVELOPING.md",
@@ -810,8 +810,8 @@
       "id": "T022",
       "title": "Implement evaluator registration and execution contracts",
       "priority": 2,
-      "status": "todo",
-      "details": "Receive validated questions, projected inputs, budgets, and cancellation signals through a small portable interface. Sources: MVP_SPEC.md sections 5-6, 12.",
+      "status": "done",
+      "details": "Receive validated questions, projected inputs, budgets, and cancellation signals through a small portable interface. Sources: MVP_SPEC.md sections 5-6, 12. Done: packages/measuretwice/src/evaluator.ts publishes the execution contract. One evaluator is one host object with one stable identifier, one adapter version, and one assess operation that returns one typed assessment or one operational failure. registerEvaluators checks the three fields against the portable rules and returns one frozen registry; registration is explicit host code passed to load through LoadOptions.evaluators, with no global state. load fails one binding outside the registry, and one adapter version that differs, with evaluator_mismatch before execution; one loaded file cannot install one evaluator or execute code. The internal dispatchAssessment builds each request from the core projection: the validated question with its kind from the core check kinds, the using list, the projected inputs, the execution budget, and the caller AbortSignal. It freezes the answer, keeps absent optional measurements absent so one label-only output stays label-only, and maps one thrown or malformed adapter answer to one evaluator_error failure with the message inside the sanitized reason limit. It performs no network access and reads no credential; provider SDK types stay outside the public definitions and outside the Rust core. Rust assessment validation arrives with T026 and the semantic run path with T034, so run still refuses one question check before any work starts.",
       "steps": [
         "Write contract tests for typed assessments and operational errors.",
         "Implement explicit host registration with stable evaluator and adapter identities.",
@@ -828,6 +828,17 @@
         "T001",
         "T015",
         "T021"
+      ],
+      "updated_at": "2026-09-24T03:33:45Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/src/evaluator.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/evaluator.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "to-do.json"
       ]
     },
     {

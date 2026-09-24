@@ -6,9 +6,10 @@
  * and returns the validated, serializable portable definition. `load` binds
  * one definition to one profile and returns the reviewer whose `run`
  * operation assesses one case and returns the frozen run report. The exact
- * rules run in the Rust core today; question checks need one registered
- * evaluator. The public operations `calibrate`, `evaluate`, and `compare`
- * are specified in MVP_SPEC.md and arrive with their tasks.
+ * rules run in the Rust core today; question checks run through evaluators
+ * that the host registers with `registerEvaluators`. The semantic run path
+ * and the public operations `calibrate`, `evaluate`, and `compare` are
+ * specified in MVP_SPEC.md and arrive with their tasks.
  *
  * This package never exposes provider SDK types or native binding types.
  * Invalid data fails with one {@link ValidationError} before execution.
@@ -30,6 +31,25 @@ export type {
   JsonSchemaNode,
   ScaleLevel,
 } from "./define-checks.js";
+export { registerEvaluators } from "./evaluator.js";
+export type {
+  AnswerKind,
+  Assessment,
+  BinaryQuestion,
+  CategoricalQuestion,
+  DistributionMass,
+  Evaluator,
+  EvaluatorExecution,
+  EvaluatorFailure,
+  EvaluatorFailureCode,
+  EvaluatorRegistry,
+  EvaluatorRequest,
+  EvidenceReference,
+  ExecutionBudget,
+  OrderedQuestion,
+  ScaleEntry,
+  ValidatedQuestion,
+} from "./evaluator.js";
 export { load } from "./run.js";
 export type {
   AggregateOutcome,

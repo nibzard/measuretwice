@@ -9,11 +9,17 @@
  * accept `.json` paths only. They load no YAML and execute no TypeScript
  * source, as the reason code `unsupported_format` states.
  *
+ * One bound profile may name evaluators. Every named evaluator must sit in
+ * the registry that the host passed through the `evaluators` option, with
+ * the adapter version of its binding. One unknown reference fails `load`
+ * with `evaluator_mismatch` before any execution. One loaded file cannot
+ * install one evaluator.
+ *
  * `run` assesses one case through the Rust core only: case validation with
  * input projection, the exact string rules, the run state boundary, and the
- * frozen run report. Question checks need one registered evaluator. No
- * evaluator registration exists in this delivery, so `run` rejects a
- * definition with one question check before any work starts.
+ * frozen run report. The semantic run path for question checks, through the
+ * registered evaluators, arrives with its own task. Until then, `run`
+ * rejects a definition with one question check before any work starts.
  *
  * The wrapper owns the boundaries that the core does not. File access, the
  * clock, and the run identifiers arrive as load options, so tests and hosts
@@ -29,6 +35,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { DefinedChecks, Definition, ExactRule, JSONValue } from "./define-checks.js";
+import type { EvaluatorRegistry } from "./evaluator.js";
 import { ValidationError } from "./error.js";
 import {
   NativeFailure,
@@ -183,6 +190,8 @@ export interface FileAccess {
 export interface LoadOptions {
   /** One explicit path to a JSON profile file. Optional. */
   readonly profile?: string;
+  /** The registered evaluators that one bound profile may refer to. Optional. */
+  readonly evaluators?: EvaluatorRegistry;
   /** The file access that reads the stated paths. The default uses Node APIs. */
   readonly files?: FileAccess;
   /** The clock of the wrapper, in epoch milliseconds. The default reads the system clock. */
@@ -288,9 +297,10 @@ export interface Reviewer<TInput> {
    * Assesses one case and returns the frozen run report.
    *
    * @throws {ValidationError} when the case breaks the contract, when the
-   * definition holds one question check that no registered evaluator serves,
-   * or when enforcement mode meets one profile without one validated
-   * qualification. Every failure happens before execution.
+   * definition holds one question check, because the semantic run path
+   * arrives with its own task, or when enforcement mode meets one profile
+   * without one validated qualification. Every failure happens before
+   * execution.
    */
   run(caseInput: RunCase<TInput>, options?: RunOptions): Promise<RunReport>;
 }
@@ -634,9 +644,16 @@ function definitionMismatch(profile: Profile, info: DefinitionInfo): ValidationE
  *
  * The order matches the compatibility fixtures of the shared states: an
  * exact-only definition checks the policy family first; a definition with
- * question checks verifies the definition binding first.
+ * question checks verifies the definition binding first. Every evaluator
+ * reference must name one registered evaluator with the bound adapter
+ * version. One loaded file cannot install one evaluator, so one reference
+ * outside the registry fails here before any execution.
  */
-function checkCompatibility(profile: Profile, info: DefinitionInfo): void {
+function checkCompatibility(
+  profile: Profile,
+  info: DefinitionInfo,
+  evaluators: EvaluatorRegistry | undefined,
+): void {
   const binds =
     profile.definition.name === info.name &&
     profile.definition.content_hash === info.definitionHash;
@@ -667,15 +684,23 @@ function checkCompatibility(profile: Profile, info: DefinitionInfo): void {
       "/profile/policy",
     );
   }
-  if (profile.bindings.length > 0) {
-    const binding = profile.bindings[0]!;
-    // Evaluator registration arrives with its own task. Until it exists,
-    // every bound evaluator reference names one unknown evaluator.
-    throw new ValidationError(
-      "evaluator_mismatch",
-      `The profile binds the evaluator ${JSON.stringify(binding.evaluator)} for the check ${JSON.stringify(binding.check)}, but no evaluator is registered. Evaluator registration arrives with its own task.`,
-      "/profile/bindings/0/evaluator",
-    );
+  for (const [index, binding] of profile.bindings.entries()) {
+    const base = `/profile/bindings/${index}`;
+    const evaluator = evaluators?.get(binding.evaluator);
+    if (evaluator === undefined) {
+      throw new ValidationError(
+        "evaluator_mismatch",
+        `The profile binds the evaluator ${JSON.stringify(binding.evaluator)} for the check ${JSON.stringify(binding.check)}, but the load options registered no evaluator with that identifier. Pass one registry from registerEvaluators that holds it. One loaded file cannot install one evaluator.`,
+        `${base}/evaluator`,
+      );
+    }
+    if (binding.adapter_version !== evaluator.adapter_version) {
+      throw new ValidationError(
+        "evaluator_mismatch",
+        `The profile binds the adapter version ${JSON.stringify(binding.adapter_version)} of the evaluator ${JSON.stringify(binding.evaluator)}, but the registered adapter states the version ${JSON.stringify(evaluator.adapter_version)}. Register the bound version or bind the registered adapter. One changed version needs new qualification.`,
+        `${base}/adapter_version`,
+      );
+    }
   }
 }
 
@@ -736,7 +761,7 @@ export async function load(
     const profileText = await readText(files, options.profile);
     throughCore(() => nativeVerifySelfHash("profile", profileText));
     profile = readProfileArtifact(profileText);
-    checkCompatibility(profile, info);
+    checkCompatibility(profile, info, options.evaluators);
   } else if (info.isExactOnly) {
     profile = synthesizeExactProfile(info);
   }
@@ -754,14 +779,15 @@ export async function load(
           "/mode",
         );
       }
-      // No evaluator registration exists in this delivery, so no question
-      // check can run. The gate fires before any case work starts.
+      // The semantic run path for question checks arrives with its own
+      // task. The gate fires before any case work starts, so no evaluator
+      // runs and no spend occurs.
       const questionIndex = info.checkKinds.findIndex((entry) => entry.kind !== "rule");
       if (questionIndex >= 0) {
         const checkId = info.checkKinds[questionIndex]!.id;
         throw new ValidationError(
           "evaluator_mismatch",
-          `The check ${JSON.stringify(checkId)} puts one question to an evaluator, but no evaluator is registered for this definition. Evaluator registration arrives with its own task; exact rules run today.`,
+          `The check ${JSON.stringify(checkId)} puts one question to an evaluator. The semantic run path through the registered evaluators arrives with its own task; exact rules run today.`,
           `/checks/${questionIndex}`,
         );
       }

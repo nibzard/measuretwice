@@ -21,6 +21,7 @@ layout.
 | Package tests | `packages/measuretwice/test/` | Vitest | Public package behavior, the CLI, and the test support itself. |
 | Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, the runtime traces replayed through the run state class, and the clear loading error outside the declared targets. |
 | Authoring | `packages/measuretwice/test/define-checks.test.ts` | Vitest | The `defineChecks` boundary: inferred case-input types and `using` names at compile time, the documented TypeBox conversion, rejection of nonportable values and unsupported forms, and the shared TypeBox pairs executed through the built package with their published hashes. |
+| Evaluator contract | `packages/measuretwice/test/evaluator.test.ts` | Vitest | The registration and execution contract: stable evaluator and adapter identities, the frozen registry, and every registration rejection. The dispatched request of each question kind: the validated question, only the projected inputs of `using`, the budget, and the cancellation signal. Label-only assessments with absent optionals preserved, operational failures, malformed adapter answers, and profile bindings against the registered evaluators. |
 | Run path | `packages/measuretwice/test/run.test.ts` | Vitest | The `load` and `run` boundary: the typed import and the explicit JSON path, injected file access, clocks, and identifiers, YAML and TypeScript path rejection, profile self-hash verification and structural exact compatibility, case validation failures, the evaluator gate for question checks, enforcement qualification, and report determinism and immutability. |
 | Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, the project name, and the prebuilt packages. |
@@ -152,7 +153,8 @@ assert the same golden values, so the parity is itself under test.
 `ScriptedBoundary` records every request and answers with scripted results
 in order. It fails with an explicit error when the script runs out. It
 never invents an answer and it never contacts a service. Use it for
-evaluator and adapter boundaries when those features arrive.
+evaluator and adapter boundaries. The evaluator contract suite scripts
+every adapter through it.
 
 ## Conformance fixtures
 

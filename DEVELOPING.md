@@ -308,8 +308,8 @@ the profile domain and exposed as `reviewer.profile` for host persistence.
 One supplied profile path is verified through the core self-hash first, then
 structurally matched in the fixture order: an exact-only definition checks
 the policy family first, one definition with question checks checks the
-definition binding first. Every bound evaluator reference fails with
-`evaluator_mismatch`, because evaluator registration arrives with task T022.
+definition binding first. Every bound evaluator reference failed with
+`evaluator_mismatch` until evaluator registration arrived with task T022.
 `run` validates the case through the core, executes the exact rules, drives
 the run state boundary attempt by attempt, and completes with the terminal
 time of the injected clock. The returned report is parsed from the frozen
@@ -369,6 +369,31 @@ the four platform tarballs that no host needs stay absent and npm skips
 them as optional dependencies. The artifact workflow runs the gate with
 `--require-all`, so a dropped target tarball fails the pipeline before
 any release.
+
+Decided in T022: `packages/measuretwice/src/evaluator.ts` owns the
+evaluator registration and execution contract and nothing else. One
+evaluator is one host object with one stable identifier, one adapter
+version, and one `assess` operation; it may hold any other field, such as
+its provider client, because it never serializes. `registerEvaluators`
+checks those three fields against the portable identifier and version
+rules, rejects one shared identifier with `duplicate_id`, and returns one
+frozen registry. Registration stays explicit host code: the host passes
+the registry to `load` through its `evaluators` option, no global state
+exists, and one loaded profile cannot install one evaluator or execute
+code. `load` checks every binding against the registry and fails one
+reference outside it, or one adapter version that differs, with
+`evaluator_mismatch` before any execution. The internal
+`dispatchAssessment` builds one request from one validated definition and
+one projected input set of the core: the validated question with its kind
+taken from the core check kinds, the `using` list, the projected inputs,
+the execution budget, and the caller's `AbortSignal`. It normalizes only
+the wrapper concerns: it freezes the answer, keeps one absent optional
+measurement absent, and maps one thrown or malformed adapter answer to one
+`evaluator_error` operational failure with one message inside the
+sanitized reason limit. It adds no field and validates no contract,
+because the Rust assessment validation arrives with task T026. The
+semantic run path through registered evaluators arrives with task T034,
+so `run` still refuses one question check before any work starts.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
