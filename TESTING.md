@@ -25,6 +25,7 @@ layout.
 | Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, the project name, and the prebuilt packages. |
 | Packaging | `tests/repo/packaging.test.ts` | Vitest | The published shape: the three declared-target lists stay equal, the public manifest ships the built package without private content, every platform package carries its target fields and the license, the staged manifest selects the native artifact, and the packed tarballs hold the required content only. The suite runs the assembly script, so `npm run build` must run first. |
+| Installation gate wiring | `tests/repo/install-gate.test.ts` | Vitest | The offline wiring of the clean-installation gate: the command exists, the check script imports installed packages only, the artifact workflow requires one clean installation per declared Node version, and the guides document the gate. |
 | Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
 
@@ -42,6 +43,7 @@ Run these commands from the repository root.
 | `npm run test:ts` | Run the Vitest suites alone. |
 | `npm run test:live` | Run the opt-in live evaluations. |
 | `npm run smoke` | Run the exact-rule vertical-slice smoke check through the built package. |
+| `npm run verify:install` | Build, assemble, pack, and verify one clean installation of the packed artifacts without Rust tooling. |
 | `npm run typecheck` | Type-check the test code and the Vitest configs. |
 | `npm run fmt` / `npm run fmt:check` | Format or check the Rust code. |
 | `npm run lint` | Run clippy on the workspace with warnings denied. |
@@ -72,6 +74,49 @@ both paths and prints the observable result:
 The exit status is 0 when every expectation holds. The command reads local
 files only. It uses no credential, opens no network connection, and loads
 no provider package.
+
+## Clean installation gate
+
+The prebuilt packages must install and run without a Rust compiler and
+without the repository. `scripts/verify-install.mjs` enforces that as one
+gate:
+
+1. It packs the assembled packages, or takes packed tarballs with
+   `--packages <dir>`.
+2. It creates one empty project outside the repository and removes every
+   Rust tool from the installation environment. One probe proves that
+   `cargo` and `rustc` no longer resolve.
+3. It installs the public tarball and the platform tarball of the host
+   into that project. The tarballs answer every `measuretwice` import, so
+   no workspace link can hide an installation problem.
+4. It copies `scripts/install-check.mjs` into the project and runs it
+   there. That check imports the public entry points, runs the exact-rule
+   smoke case through TypeBox authoring and the exported JSON, rejects the
+   CommonJS `require` of the package, checks the type declarations and the
+   shipped CLI entry, and resolves the native artifact of the platform,
+   compared by its sha256 digest against the packed binary.
+5. It prints the observation and `INSTALL_GATE_OK` when every expectation
+   holds.
+
+Run `npm run verify:install` locally. The command rebuilds first, so it
+always verifies the current tree. The gate needs the registry for the
+pinned `typebox` dependency and to learn that platform packages without a
+local tarball are absent; optional dependencies that resolve to nothing
+are skipped. It loads measuretwice itself from the packed tarballs only.
+It uses no credential and runs no provider call, so it stays outside the
+rules for ordinary tests but never becomes a live evaluation.
+
+The install job of `.github/workflows/build-artifacts.yml` requires the
+gate in continuous integration: one clean installation per declared Node
+version, Node.js 20, 22, and 24 on Linux x64 and Node.js 22 on Windows
+x64 and macOS ARM64, plus one x64 build of Node on the macOS ARM64 runner
+through Rosetta 2 for the darwin-x64 artifact. It runs with
+`--require-all`, so a missing platform tarball fails the pipeline. The
+linux-arm64-gnu artifact has no matching hosted runner in that workflow;
+the packaging checks verify its tarball content, and a matching runner
+joins when one exists. The wiring itself is under test:
+`tests/repo/install-gate.test.ts` keeps the command, the check script,
+the workflow requirement, and this documentation together.
 
 ## Red, green, refactor
 
@@ -201,6 +246,8 @@ whole pipeline stays deterministic and free.
 
 `.github/workflows/build-artifacts.yml` builds one release binary for every
 declared target on a matching runner, assembles the platform packages and
-the staged public package, and uploads the packed tarballs as workflow
-artifacts. It reads no secrets and publishes nothing. Clean installations
-of the packed tarballs are the gate of task T021.
+the staged public package, and verifies one clean installation of the
+packed tarballs per declared Node version without Rust tooling. It uploads
+the tarballs as workflow artifacts. It reads no secrets and publishes
+nothing. The [clean installation gate](#clean-installation-gate) section
+records the coverage.

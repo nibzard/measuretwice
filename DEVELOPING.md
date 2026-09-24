@@ -87,8 +87,31 @@ targets through the zig cross toolchain. A Windows MSVC binary needs a
 Windows host. The workflow `.github/workflows/build-artifacts.yml` builds
 every declared target on a matching runner, collects the binaries, and
 packs the assembled packages as workflow artifacts. It is the source of
-truth for released binaries. Clean installations of the packed artifacts
-are verified by task T021.
+truth for released binaries.
+
+### Clean installation gate
+
+A successful native installation is a delivery gate, not an assumption.
+`scripts/verify-install.mjs` packs the assembled packages, creates one
+empty project outside the repository, removes every Rust tool from the
+installation environment, and installs the packed tarballs there with the
+platform package of the host. It then runs `scripts/install-check.mjs`
+inside that project: the public ECMAScript module import, the exact-rule
+smoke case through both authoring paths, the shipped type declarations and
+CLI entry, the CommonJS rejection, and the resolution of the native
+artifact, compared by its sha256 digest against the packed binary. The
+command `npm run verify:install` runs the whole chain locally. The gate
+needs the registry for the pinned `typebox` dependency; measuretwice
+itself loads from the packed tarballs only.
+
+The install job of the artifact workflow requires one clean installation
+per declared Node version: Node.js 20, 22, and 24 on Linux x64, Node.js 22
+on Windows x64 and macOS ARM64, and one x64 build of Node on the macOS
+ARM64 runner through Rosetta 2 for the darwin-x64 artifact. The
+linux-arm64-gnu artifact has no matching hosted runner in that workflow;
+the packaging checks verify its tarball content. No job of the gate
+installs a Rust toolchain, and the verification script removes any
+preinstalled one from the installation environment before it installs.
 
 ## Commands
 
@@ -100,6 +123,7 @@ are verified by task T021.
 | `npm run build` | Run both builds in order. |
 | `npm run build:artifacts` | Build one release binary for every target this host can produce. |
 | `npm run build:packages` | Assemble the platform packages and stage the public package. |
+| `npm run verify:install` | Build, assemble, pack, and verify one clean installation of the packed artifacts without Rust tooling. |
 | `npm run fmt` and `npm run fmt:check` | Format or check the Rust code. |
 | `npm run lint` | Run clippy on the workspace with warnings denied. |
 | `npm run typecheck` | Type-check the test code and the Vitest configs. |
@@ -329,6 +353,22 @@ strips debug information, so the prebuilt binaries stay small. The staging
 script, not a committed manifest, adds the `optionalDependencies`: the
 platform packages are absent from the registry until the first release,
 and a committed reference would break `npm ci` in the workspace.
+
+Decided in T021: the clean installation gate is one script, not a test
+suite. `scripts/verify-install.mjs` owns the environment: it packs the
+assembled packages or takes them with `--packages`, filters every Rust
+tool out of `PATH`, proves with one probe that `cargo` and `rustc` no
+longer resolve, and installs the public tarball and the host platform
+tarball as `file:` dependencies of one empty project outside the
+repository, so no workspace link and no development build can answer the
+import. `scripts/install-check.mjs` owns the observation inside that
+project. It imports only `measuretwice`, `typebox`, and the Node builtins,
+so the copy stays runnable far from this repository. The pinned
+`typebox` dependency comes from the registry like any user installation;
+the four platform tarballs that no host needs stay absent and npm skips
+them as optional dependencies. The artifact workflow runs the gate with
+`--require-all`, so a dropped target tarball fails the pipeline before
+any release.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

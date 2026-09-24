@@ -3,9 +3,11 @@
 # The matrix builds one release binary for every declared target of
 # DEVELOPING.md on a runner that can produce it. The package job collects
 # the binaries, assembles the platform packages and the staged public
-# package, and packs them. The tarballs stay workflow artifacts: publishing
-# belongs to the release procedure, not to this workflow. Every job reads
-# no secrets and runs no live evaluation.
+# package, and packs them. The install job then verifies one clean
+# installation of the packed tarballs per declared Node version and hosted
+# platform, without Rust tooling. The tarballs stay workflow artifacts:
+# publishing belongs to the release procedure, not to this workflow. Every
+# job reads no secrets and runs no live evaluation.
 
 name: Build artifacts
 
@@ -107,3 +109,50 @@ jobs:
           name: packages
           path: "*.tgz"
           if-no-files-found: error
+
+  # The clean-installation gate of task T021: every job installs the packed
+  # tarballs of the previous job in one fresh project without any Rust
+  # tooling, runs the exact-rule smoke case through the public imports, and
+  # checks the module formats, the declarations, and the native artifact
+  # resolution. The macOS ARM64 runner also runs one x64 build of Node
+  # through Rosetta 2, which exercises the darwin-x64 artifact. The
+  # linux-arm64-gnu artifact has no matching hosted runner in this workflow;
+  # the packaging checks verify its tarball content. No job here installs a
+  # Rust toolchain, and the verification script removes any preinstalled
+  # one from the installation environment.
+  install:
+    name: Clean install on ${{ matrix.os }} with Node ${{ matrix.node }} ${{ matrix.architecture }}
+    needs: packages
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: "20"
+          - os: ubuntu-latest
+            node: "22"
+          - os: ubuntu-latest
+            node: "24"
+          - os: windows-latest
+            node: "22"
+          - os: macos-latest
+            node: "22"
+          - os: macos-latest
+            node: "22"
+            architecture: x64
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          architecture: ${{ matrix.architecture }}
+          cache: npm
+      - name: Download the packed tarballs
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: packages
+      - name: Verify one clean installation without Rust tooling
+        run: node scripts/verify-install.mjs --packages packages --require-all

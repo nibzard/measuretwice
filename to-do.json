@@ -747,13 +747,14 @@
         "T016",
         "T019"
       ],
-      "updated_at": "2026-09-24T02:59:09Z",
+      "updated_at": "2026-09-24T03:01:50Z",
       "files": [
         ".github/workflows/build-artifacts.yml",
         ".gitignore",
         "Cargo.toml",
-        "crates/measuretwice-node/package.json",
         "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-node/package.json",
         "package-lock.json",
         "package.json",
         "packages/measuretwice/LICENSE",
@@ -765,7 +766,7 @@
         "scripts/build-artifacts.mjs",
         "scripts/build-packages.mjs",
         "scripts/copy-binding.mjs",
-        "TESTING.md",
+        "tests/repo/names.test.ts",
         "tests/repo/packaging.test.ts",
         "to-do.json"
       ]
@@ -774,8 +775,8 @@
       "id": "T021",
       "title": "Verify clean Node installations",
       "priority": 1,
-      "status": "todo",
-      "details": "Make successful native installation an early delivery gate. Sources: MVP_SPEC.md sections 5, 14-15.",
+      "status": "done",
+      "details": "Make successful native installation an early delivery gate. Sources: MVP_SPEC.md sections 5, 14-15. Done: scripts/verify-install.mjs packs the assembled packages, strips every Rust tool from PATH (probing that cargo and rustc stop resolving), installs the public and host-platform tarballs into one empty project outside the repository, and runs scripts/install-check.mjs there: ESM public imports, the exact-rule smoke case through TypeBox and exported JSON, CommonJS require rejection, dist and binding.d.cts declarations, the shipped CLI entry, and sha256-verified resolution of the measuretwice-<target> binary. npm run verify:install wires the local chain; the install job of .github/workflows/build-artifacts.yml requires it in CI with --require-all on Node 20, 22, and 24 (Linux x64), Node 22 on Windows x64 and macOS ARM64, and Node x64 under Rosetta 2 for darwin-x64. The linux-arm64-gnu tarball has no matching hosted runner in that workflow, so its content is covered by the packaging checks; verified locally on linux-x64 with the four zig-built binaries.",
       "steps": [
         "Install packed artifacts in clean environments for each declared Node target.",
         "Remove Rust tooling from the installation environment.",
@@ -792,6 +793,17 @@
       "depends_on": [
         "T019",
         "T020"
+      ],
+      "updated_at": "2026-09-24T03:18:43Z",
+      "files": [
+        ".github/workflows/build-artifacts.yml",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "package.json",
+        "scripts/install-check.mjs",
+        "scripts/verify-install.mjs",
+        "tests/repo/install-gate.test.ts",
+        "to-do.json"
       ]
     },
     {

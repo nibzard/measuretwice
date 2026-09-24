@@ -17,6 +17,7 @@
     "build:ts": "tsc -p packages/measuretwice",
     "build:artifacts": "node scripts/build-artifacts.mjs",
     "build:packages": "node scripts/build-packages.mjs",
+    "verify:install": "npm run build && npm run build:packages && node scripts/verify-install.mjs",
     "check": "npm run fmt:check && npm run lint && npm run build && npm run typecheck && npm run test:rs && npm run test:ts",
     "clean": "rm -rf packages/measuretwice/dist packages/measuretwice/binding.cjs packages/measuretwice/binding.d.cts packages/measuretwice/*.node packages/measuretwice/schemas crates/measuretwice-node/index.js crates/measuretwice-node/index.d.ts crates/measuretwice-node/*.node crates/measuretwice-node/npm build",
     "fmt": "cargo fmt --all",
