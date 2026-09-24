@@ -16,6 +16,7 @@ records the test suites and the verification commands. The task list is
 | `packages/measuretwice` | The one public TypeScript package, with the CLI entry point. |
 | `contracts/v0` | The frozen portable artifact contracts. |
 | `fixtures` | Shared cross-language conformance fixtures for the portable contracts. Mandatory for every wrapper. |
+| `providers` | Verified provider contracts and synthetic response fixtures for the evaluator adapters. Jev lives in `providers/jev/`. |
 | `models` | TLA+ formal models with their records. See [models/README.md](models/README.md). |
 | `scripts` | Standalone build and verification scripts, such as the exact-rule smoke check and the package assembly. |
 | `.measuretwice` | Development checks for this repository. |
@@ -151,6 +152,7 @@ you add or change one.
 | `napi-derive` | 3.6.9 | Export Rust functions to Node. | T004 |
 | `napi-build` | 2.5.0 | Binding build support. | T004 |
 | `typebox` | 1.3.34 | Author input schemas with inference. | T017 |
+| `@typesafe-ai/sdk` | 0.6.0 | Jev evaluator adapter for the TypeScript SDK. | T024 |
 | `@napi-rs/cli` | 3.10.5 | Build native artifacts. | T004 |
 | `typescript` | 7.0.2 | Compile and type-check the package. | T004 |
 | `@types/node` | 26.6.2 | Node type definitions. | T004 |
@@ -158,8 +160,6 @@ you add or change one.
 
 Dependency decisions still open:
 
-- The Jev SDK (`@typesafe-ai/sdk`) is not pinned yet. Verify its contract and
-  pin it in T024. It belongs to an adapter, never to the core.
 - The statistics routines for uncertainty intervals are not pinned yet.
   Select them with the interval methods in T043.
 
@@ -422,6 +422,20 @@ content hash must change. The shared cases live in
 `adapters-conformance`; the package suite in
 `packages/measuretwice/test/test-evaluator.test.ts` and the repository
 checks in `tests/repo/fixtures.test.ts` keep them honest.
+
+Decided in T024: the Jev SDK is `@typesafe-ai/sdk`, pinned to 0.6.0. The
+version was verified against the live documentation, the npm registry, and
+the shipped package on 24 September 2026. The verified contract record is
+[providers/jev/README.md](providers/jev/README.md); it covers response
+shapes, model resolution, usage fields, service limits, cancellation,
+retries, and batching. No repository code imports the SDK yet. The package
+entry lands in `packages/measuretwice/package.json` with the first adapter
+code that imports it, in T025 or T026. Until then the public package keeps
+`typebox` as its only runtime dependency, so the provider check of the
+vertical slice stays valid. The SDK belongs to the adapter, never to the
+core or the binding. The synthetic response fixtures with their provenance
+live in `providers/jev/fixtures/responses.json`; the repository checks in
+`tests/repo/provider-fixtures.test.ts` tie them to this pin.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

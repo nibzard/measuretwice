@@ -543,4 +543,4 @@ The usability test is to hand someone the check file and a report without an arc
 - [Citation-checking cookbook](https://docs.typesafe.ai/cookbooks/citation_check)
 - [Jev 1.13 limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13)
 
-External API details were checked during the design discussion on 23 September 2026. Verify SDK contracts and service limits when implementation begins.
+External API details were checked during the design discussion on 23 September 2026. Verify SDK contracts and service limits when implementation begins. Task T024 verified the Jev SDK contract on 24 September 2026 and pinned `@typesafe-ai/sdk` to 0.6.0; the verified record is [providers/jev/README.md](providers/jev/README.md).

@@ -1,0 +1,606 @@
+{
+  "schema_version": 1,
+  "name": "jev-provider-responses",
+  "status": "Shapes verified 24 September 2026; values synthetic",
+  "description": "Jev response fixtures for the TypeScript adapter. No live API call produced any record. Response shapes follow the shipped @typesafe-ai/sdk 0.6.0 declarations and the live documentation. Valid cases exercise the documented shapes. Malformed cases carry one defect each for the T026 normalization tests.",
+  "provenance": {
+    "sdk": "@typesafe-ai/sdk",
+    "sdk_version": "0.6.0",
+    "model": "jev-1.13.0",
+    "checked_at": "2026-09-24",
+    "live_calls": false,
+    "contract_record": "../README.md",
+    "sources": [
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/sdk/javascript.md"
+      },
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/sdk/javascript/api/interfaces/SystemOneResult.md"
+      },
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/sdk/javascript/api/interfaces/ChoiceResponse.md"
+      },
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/sdk/javascript/api/interfaces/NoulResponse.md"
+      },
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/sdk/javascript/api/interfaces/ScoreResponse.md"
+      },
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/sdk/javascript/api/interfaces/Usage.md"
+      },
+      {
+        "kind": "documentation",
+        "url": "https://docs.typesafe.ai/primitives.md"
+      },
+      {
+        "kind": "package",
+        "name": "@typesafe-ai/sdk",
+        "version": "0.6.0",
+        "path": "dist/index.d.mts"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "choice-three-labels",
+      "note": "A Choice answer over three described labels. Probabilities cover every label and confidence is present.",
+      "origin": "synthetic",
+      "source": "ChoiceResponse in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": { "ticket_text": "I was charged twice for one order. Please fix this." },
+        "questions": {
+          "category": {
+            "type": "choice",
+            "instructions": "What is this support ticket about?",
+            "criteria": {
+              "billing": "Problems with charges, invoices, or refunds.",
+              "technical": "Problems with the product itself.",
+              "other": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 214, "output_tokens": 19 },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.83,
+            "probabilities": { "billing": 0.91, "technical": 0.06, "other": 0.03 }
+          }
+        }
+      }
+    },
+    {
+      "id": "choice-two-labels-null-criteria",
+      "note": "A Choice answer over two labels. The request leaves both descriptions null.",
+      "origin": "synthetic",
+      "source": "ChoiceQuestion and ChoiceResponse in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": { "message_body": "The export finished. The summary row count matches." },
+        "questions": {
+          "mentions_failure": {
+            "type": "choice",
+            "instructions": "Does the message report a failure?",
+            "criteria": { "yes": null, "no": null }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 96, "output_tokens": 8 },
+        "answers": {
+          "mentions_failure": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.71,
+            "probabilities": { "yes": 0.08, "no": 0.92 }
+          }
+        }
+      }
+    },
+    {
+      "id": "noul-clear-yes",
+      "note": "A Noul answer close to one. The answer has no confidence field.",
+      "origin": "synthetic",
+      "source": "NoulResponse in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": { "claim": "The patch removes the deprecated endpoint.", "evidence": "The changelog entry for 2.3.0 lists the removal of the endpoint." },
+        "questions": {
+          "evidence_supports_claim": {
+            "type": "noul",
+            "instructions": "Does the evidence support the claim?",
+            "criteria": {
+              "true": "The evidence states the same fact as the claim.",
+              "false": "The evidence does not state the same fact."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 168, "output_tokens": 6 },
+        "answers": {
+          "evidence_supports_claim": { "type": "noul", "noul": 0.93 }
+        }
+      }
+    },
+    {
+      "id": "noul-uncertain",
+      "note": "A Noul answer near one half. The probability mass splits between yes and no.",
+      "origin": "synthetic",
+      "source": "NoulResponse in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": { "claim": "The report was reviewed before release.", "evidence": "The report header lists a review date one day after the release tag." },
+        "questions": {
+          "evidence_supports_claim": {
+            "type": "noul",
+            "instructions": "Does the evidence support the claim?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 151, "output_tokens": 6 },
+        "answers": {
+          "evidence_supports_claim": { "type": "noul", "noul": 0.49 }
+        }
+      }
+    },
+    {
+      "id": "score-four-levels-fractional",
+      "note": "A Score answer on four levels. The position falls between two levels.",
+      "origin": "synthetic",
+      "source": "ScoreResponse in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": { "summary": "The notice tells the customer about a delivery delay of two days and gives no new date." },
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe is the reported problem?",
+            "criteria": [
+              "Routine question; no impact on work.",
+              "Work is slowed but continues.",
+              "Work is blocked for one person.",
+              "Work is blocked for a team."
+            ]
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 187, "output_tokens": 24 },
+        "answers": {
+          "severity": {
+            "type": "score",
+            "score": 2.25,
+            "confidence": 0.64,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": { "0": 0.02, "1": 0.21, "2": 0.58, "3": 0.19 }
+          }
+        }
+      }
+    },
+    {
+      "id": "score-two-levels-integral",
+      "note": "A Score answer on the smallest rubric. The position sits on one level.",
+      "origin": "synthetic",
+      "source": "ScoreCriteria requires at least two entries; ScoreResponse in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": { "summary": "The message asks for one account setting change." },
+        "questions": {
+          "needs_human_review": {
+            "type": "score",
+            "instructions": "How much human review does this request need?",
+            "criteria": [
+              "None; the answer is routine.",
+              "Full review; the answer needs a person."
+            ]
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 92, "output_tokens": 14 },
+        "answers": {
+          "needs_human_review": {
+            "type": "score",
+            "score": 1,
+            "confidence": 0.78,
+            "legend": {
+              "0": "None; the answer is routine.",
+              "1": "Full review; the answer needs a person."
+            },
+            "probabilities": { "0": 0.15, "1": 0.85 }
+          }
+        }
+      }
+    },
+    {
+      "id": "batched-three-questions",
+      "note": "One request with one state and three questions of all kinds. Usage and model are per request, not per question.",
+      "origin": "synthetic",
+      "source": "SystemOneRequest and SystemOneResult in @typesafe-ai/sdk 0.6.0 dist/index.d.mts; batching semantics from docs.typesafe.ai/patterns/fan-out.md",
+      "request": {
+        "state": { "ticket_text": "The invoice for order 4471 shows two charges on the same day. I need one charge removed before Friday." },
+        "questions": {
+          "category": {
+            "type": "choice",
+            "instructions": "What is this support ticket about?",
+            "criteria": {
+              "billing": "Problems with charges, invoices, or refunds.",
+              "technical": "Problems with the product itself.",
+              "other": null
+            }
+          },
+          "is_billing": {
+            "type": "noul",
+            "instructions": "Is this ticket about a charge, invoice, or refund?"
+          },
+          "severity": {
+            "type": "score",
+            "instructions": "How severe is the reported problem?",
+            "criteria": [
+              "Routine question; no impact on work.",
+              "Work is slowed but continues.",
+              "Work is blocked for one person.",
+              "Work is blocked for a team."
+            ]
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 402, "output_tokens": 47 },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "billing",
+            "confidence": 0.88,
+            "probabilities": { "billing": 0.95, "technical": 0.03, "other": 0.02 }
+          },
+          "is_billing": { "type": "noul", "noul": 0.97 },
+          "severity": {
+            "type": "score",
+            "score": 1.4,
+            "confidence": 0.59,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": { "0": 0.09, "1": 0.62, "2": 0.25, "3": 0.04 }
+          }
+        }
+      }
+    },
+    {
+      "id": "alias-resolves-to-version",
+      "note": "The request sent the alias jev-latest. The response names the versioned identifier that answered.",
+      "origin": "synthetic",
+      "source": "Model resolution semantics from docs.typesafe.ai/models.md; SystemOneResult in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": "The export finished with 42 rows.",
+        "questions": {
+          "reports_success": {
+            "type": "noul",
+            "instructions": "Does the text report a successful completion?"
+          }
+        },
+        "model": "jev-latest"
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 44, "output_tokens": 5 },
+        "answers": {
+          "reports_success": { "type": "noul", "noul": 0.91 }
+        }
+      }
+    },
+    {
+      "id": "structured-instructions",
+      "note": "Instructions and state are structured values, not strings. EntryType accepts objects and arrays.",
+      "origin": "synthetic",
+      "source": "EntryType in @typesafe-ai/sdk 0.6.0 dist/index.d.mts",
+      "request": {
+        "state": {
+          "diff": [
+            "- The service retries failed calls three times.",
+            "+ The service retries failed calls five times."
+          ],
+          "policy": "Retries are limited to three attempts."
+        },
+        "questions": {
+          "diff_matches_policy": {
+            "type": "noul",
+            "instructions": {
+              "question": "Does the new text in the diff violate the policy?",
+              "policy_field": "policy"
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 133, "output_tokens": 6 },
+        "answers": {
+          "diff_matches_policy": { "type": "noul", "noul": 0.86 }
+        }
+      }
+    },
+    {
+      "id": "choice-label-outside-criteria",
+      "note": "A malformed Choice answer. The selected label is not one of the declared labels.",
+      "origin": "synthetic",
+      "defect": "The answer label 'urgent' is outside the declared labels of the question.",
+      "source": "Synthetic malformed variant of ChoiceResponse",
+      "request": {
+        "state": { "ticket_text": "The site is down for our whole team." },
+        "questions": {
+          "category": {
+            "type": "choice",
+            "instructions": "What is this support ticket about?",
+            "criteria": {
+              "billing": "Problems with charges, invoices, or refunds.",
+              "technical": "Problems with the product itself.",
+              "other": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 121, "output_tokens": 11 },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "urgent",
+            "confidence": 0.4,
+            "probabilities": { "billing": 0.05, "technical": 0.9, "other": 0.05 }
+          }
+        }
+      }
+    },
+    {
+      "id": "choice-missing-probabilities",
+      "note": "A malformed Choice answer without the probabilities distribution.",
+      "origin": "synthetic",
+      "defect": "The probabilities field is absent. The assessment contract needs the distribution for probability mass.",
+      "source": "Synthetic malformed variant of ChoiceResponse",
+      "request": {
+        "state": { "ticket_text": "I cannot log in since this morning." },
+        "questions": {
+          "category": {
+            "type": "choice",
+            "instructions": "What is this support ticket about?",
+            "criteria": {
+              "billing": "Problems with charges, invoices, or refunds.",
+              "technical": "Problems with the product itself.",
+              "other": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 108, "output_tokens": 9 },
+        "answers": {
+          "category": {
+            "type": "choice",
+            "choice": "technical",
+            "confidence": 0.9
+          }
+        }
+      }
+    },
+    {
+      "id": "noul-out-of-range",
+      "note": "A malformed Noul answer above one.",
+      "origin": "synthetic",
+      "defect": "The noul value 1.4 is outside the documented range from zero to one.",
+      "source": "Synthetic malformed variant of NoulResponse",
+      "request": {
+        "state": { "claim": "The limit is 900 characters.", "evidence": "The policy page states a limit of 900 characters." },
+        "questions": {
+          "evidence_supports_claim": {
+            "type": "noul",
+            "instructions": "Does the evidence support the claim?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 88, "output_tokens": 5 },
+        "answers": {
+          "evidence_supports_claim": { "type": "noul", "noul": 1.4 }
+        }
+      }
+    },
+    {
+      "id": "noul-carries-confidence",
+      "note": "A malformed Noul answer with a confidence field. Noul has no confidence field.",
+      "origin": "synthetic",
+      "defect": "The answer carries a confidence field. Noul defines no confidence; the adapter must keep it absent and must not consume the value.",
+      "source": "Synthetic malformed variant of NoulResponse",
+      "request": {
+        "state": { "claim": "The backup ran last night.", "evidence": "The log shows a backup entry for 02:10 last night." },
+        "questions": {
+          "evidence_supports_claim": {
+            "type": "noul",
+            "instructions": "Does the evidence support the claim?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 97, "output_tokens": 5 },
+        "answers": {
+          "evidence_supports_claim": { "type": "noul", "noul": 0.88, "confidence": 0.88 }
+        }
+      }
+    },
+    {
+      "id": "score-outside-rubric",
+      "note": "A malformed Score answer with a position above the highest level.",
+      "origin": "synthetic",
+      "defect": "The score 4.5 is outside the rubric range from zero to three.",
+      "source": "Synthetic malformed variant of ScoreResponse",
+      "request": {
+        "state": { "summary": "The payment gateway rejects every card since the update." },
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe is the reported problem?",
+            "criteria": [
+              "Routine question; no impact on work.",
+              "Work is slowed but continues.",
+              "Work is blocked for one person.",
+              "Work is blocked for a team."
+            ]
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 143, "output_tokens": 21 },
+        "answers": {
+          "severity": {
+            "type": "score",
+            "score": 4.5,
+            "confidence": 0.55,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": { "0": 0.0, "1": 0.0, "2": 0.05, "3": 0.95 }
+          }
+        }
+      }
+    },
+    {
+      "id": "score-unknown-level",
+      "note": "A malformed Score answer whose distribution names a level outside the rubric.",
+      "origin": "synthetic",
+      "defect": "The probabilities key '7' is outside the declared rubric levels zero to three.",
+      "source": "Synthetic malformed variant of ScoreResponse",
+      "request": {
+        "state": { "summary": "One report column shows stale data from yesterday." },
+        "questions": {
+          "severity": {
+            "type": "score",
+            "instructions": "How severe is the reported problem?",
+            "criteria": [
+              "Routine question; no impact on work.",
+              "Work is slowed but continues.",
+              "Work is blocked for one person.",
+              "Work is blocked for a team."
+            ]
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 129, "output_tokens": 22 },
+        "answers": {
+          "severity": {
+            "type": "score",
+            "score": 3.2,
+            "confidence": 0.51,
+            "legend": {
+              "0": "Routine question; no impact on work.",
+              "1": "Work is slowed but continues.",
+              "2": "Work is blocked for one person.",
+              "3": "Work is blocked for a team."
+            },
+            "probabilities": { "0": 0.01, "1": 0.04, "2": 0.1, "7": 0.85 }
+          }
+        }
+      }
+    },
+    {
+      "id": "usage-missing-field",
+      "note": "A malformed response without the output token count.",
+      "origin": "synthetic",
+      "defect": "The usage object lacks output_tokens. The operational record cannot state complete token usage.",
+      "source": "Synthetic malformed variant of Usage",
+      "request": {
+        "state": { "ticket_text": "Please update the billing address on my account." },
+        "questions": {
+          "is_billing": {
+            "type": "noul",
+            "instructions": "Is this ticket about a charge, invoice, or refund?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 71 },
+        "answers": {
+          "is_billing": { "type": "noul", "noul": 0.72 }
+        }
+      }
+    },
+    {
+      "id": "model-field-missing",
+      "note": "A malformed response without the model identifier.",
+      "origin": "synthetic",
+      "defect": "The model field is absent. The effective model version cannot be recorded in the report.",
+      "source": "Synthetic malformed variant of SystemOneResult",
+      "request": {
+        "state": { "summary": "The dashboard loads in four seconds." },
+        "questions": {
+          "reports_delay": {
+            "type": "noul",
+            "instructions": "Does the text report a delay?"
+          }
+        }
+      },
+      "response": {
+        "usage": { "input_tokens": 58, "output_tokens": 5 },
+        "answers": {
+          "reports_delay": { "type": "noul", "noul": 0.31 }
+        }
+      }
+    },
+    {
+      "id": "unknown-answer-type",
+      "note": "A malformed answer with an unknown discriminator.",
+      "origin": "synthetic",
+      "defect": "The answer type 'text' is not one of 'choice', 'noul', or 'score'.",
+      "source": "Synthetic malformed variant of the answer discriminated union",
+      "request": {
+        "state": { "summary": "The notice explains a price change for next month." },
+        "questions": {
+          "mentions_price": {
+            "type": "noul",
+            "instructions": "Does the text mention a price?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "usage": { "input_tokens": 64, "output_tokens": 7 },
+        "answers": {
+          "mentions_price": { "type": "text", "text": "The notice mentions a price change." }
+        }
+      }
+    }
+  ]
+}

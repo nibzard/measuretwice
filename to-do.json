@@ -864,13 +864,13 @@
         "T006",
         "T022"
       ],
-      "updated_at": "2026-09-24T03:49:23Z",
+      "updated_at": "2026-09-24T03:50:41Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
         "fixtures/README.md",
-        "fixtures/manifest.json",
         "fixtures/adapters/conformance.json",
+        "fixtures/manifest.json",
         "packages/measuretwice/src/index.ts",
         "packages/measuretwice/src/test-evaluator.ts",
         "packages/measuretwice/test/define-checks.test.ts",
@@ -883,8 +883,8 @@
       "id": "T024",
       "title": "Verify and pin the official Jev SDK contract",
       "priority": 2,
-      "status": "todo",
-      "details": "Confirm current provider contracts when implementation begins. The existing specification records design-time assumptions. Sources: MVP_SPEC.md sections 5-6 and References.",
+      "status": "done",
+      "details": "Confirm current provider contracts when implementation begins. The existing specification records design-time assumptions. Sources: MVP_SPEC.md sections 5-6 and References. Done: verified the official @typesafe-ai/sdk contract on 24 September 2026 against the live documentation, the npm registry, and the shipped 0.6.0 package. No live service call ran and no credential was read. The record in providers/jev/README.md covers the Choice, Noul, and Score response shapes, model version resolution (jev-1.13.0 with the jev-latest and jev-preview aliases), the usage fields (input_tokens and output_tokens per request), service limits, cancellation through AbortSignal and APIUserAbortError, the retry defaults, and batching. The pin is @typesafe-ai/sdk 0.6.0, recorded in the DEVELOPING.md dependency table. The package entry lands with the first adapter code that imports it, in T025 or T026. Until then the public package keeps typebox as its only runtime dependency. providers/jev/fixtures/responses.json holds synthetic fixtures with provenance: documented shapes for valid records and malformed variants, where each malformed record names its defect. The record lists the unavailable metadata (per-question usage, latency, evidence references, Noul confidence, model deprecation, retry events) with the required handling: keep absent measurements absent and invent no values. tests/repo/provider-fixtures.test.ts keeps the fixtures tied to the pin, and tests/repo/docs.test.ts now link-checks providers/.",
       "steps": [
         "Check official @typesafe-ai/sdk documentation for Choice, Noul, Score, cancellation, retries, and batching.",
         "Record model version resolution, response shapes, service limits, and supported usage fields.",
@@ -900,6 +900,16 @@
       "depends_on": [
         "T021",
         "T022"
+      ],
+      "updated_at": "2026-09-24T04:06:36Z",
+      "files": [
+        "providers/jev/README.md",
+        "providers/jev/fixtures/responses.json",
+        "tests/repo/provider-fixtures.test.ts",
+        "tests/repo/docs.test.ts",
+        "DEVELOPING.md",
+        "MVP_SPEC.md",
+        "to-do.json"
       ]
     },
     {
