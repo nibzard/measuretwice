@@ -143,12 +143,16 @@ retry that binds `case-y`. The invariants therefore detect binding drift.
 ## 6. Counterexamples and regression tests
 
 The checked model produced no counterexample. The negative control above
-produced one by construction. Task T015 must turn that scenario into a
-failing Rust regression test: a retry with a changed case input or
-profile identity must be refused. The runtime traces
-`retry-then-success`, `late-result-after-completion`,
-`late-result-after-cancel`, and `duplicate-result` are the matching
-wrapper-level cases.
+produced one by construction. Task T015 turned that scenario into a Rust
+regression test: `run_state::tests::a_drifted_binding_cannot_start_or_retry`
+in `crates/measuretwice-core/src/run_state.rs` refuses a retry with a
+changed case input or profile identity and keeps the state unchanged. The
+conformance test `runtime_traces_replay_through_the_run_state_boundary`
+replays every trace of
+[fixtures/runtime/traces.json](../../fixtures/runtime/traces.json) through
+the same boundary. The runtime traces `retry-then-success`,
+`late-result-after-completion`, `late-result-after-cancel`, and
+`duplicate-result` are the matching wrapper-level cases.
 
 ## 7. Mapping to the implementation
 

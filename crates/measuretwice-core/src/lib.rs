@@ -3,8 +3,9 @@
 //!
 //! This crate owns contract validation, input projection, the exact string
 //! rules, profile compatibility, decision policy, outcome aggregation,
-//! canonical content hashes, and statistical calculations. The frozen
-//! contracts in `contracts/v0` define the artifact formats.
+//! canonical content hashes, run state transitions, and statistical
+//! calculations. The frozen contracts in `contracts/v0` define the artifact
+//! formats.
 //!
 //! External artifact text enters through one strict gate: [`json::parse_strict`]
 //! rejects malformed text, duplicate object keys, non-finite numbers, and
@@ -42,6 +43,9 @@ pub mod json;
 pub mod report;
 /// The exact string rules: maxLength, includes, and excludes.
 pub mod rule;
+/// Deterministic run state transitions, checked against the TLA+ execution
+/// model.
+pub mod run_state;
 /// Deterministic test utilities. See the module documentation for the rules.
 pub mod testing;
 

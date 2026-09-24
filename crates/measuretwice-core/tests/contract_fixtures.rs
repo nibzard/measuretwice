@@ -2,17 +2,19 @@
 //! Conformance runs of the shared fixtures through the Rust core.
 //!
 //! The fixtures in `fixtures/` pin the frozen contracts. These tests run the
-//! groups that the parse boundary, the hashing boundary, and the report
-//! boundary own: the valid definition artifacts, the structural definition
-//! rejections, the input validation records, the hashing rejection records,
-//! the canonical hash fixtures, the serialization round trips, the profile
-//! self-hashes, and the outcome and completion records. Later tasks add the
-//! remaining groups as their validation lands. The tests read local files
-//! only, so they stay offline and deterministic.
+//! groups that the parse boundary, the hashing boundary, the report boundary,
+//! and the run state boundary own: the valid definition artifacts, the
+//! structural definition rejections, the input validation records, the
+//! hashing rejection records, the canonical hash fixtures, the serialization
+//! round trips, the profile self-hashes, the outcome and completion records,
+//! and the runtime traces replayed event by event through the run state.
+//! Later tasks add the remaining groups as their validation lands. The tests
+//! read local files only, so they stay offline and deterministic.
 
 use measuretwice_core::definition::{CheckKind, WhenUncertain};
 use measuretwice_core::error::ReasonCode;
 use measuretwice_core::hashing::{self, Domain};
+use measuretwice_core::run_state::{AttemptResolution, CheckPlace, Phase, RunLimits, RunState};
 use measuretwice_core::testing::SplitMix64;
 use measuretwice_core::{case, definition, json, report, rule};
 use serde_json::Value;
@@ -899,5 +901,289 @@ fn completion_samples_terminate_immutable_reports() {
     }
     for status in ["completed", "cancelled", "deadline_exceeded"] {
         assert!(statuses.contains(status), "no sample covers {status}");
+    }
+}
+
+/// One fixed profile binding for the trace replays. The traces state no
+/// profile, so every replay runs under one reference profile.
+fn trace_profile() -> report::ProfileReference {
+    report::ProfileReference {
+        id: "trace-profile".to_owned(),
+        content_hash: "1f".repeat(32),
+    }
+}
+
+/// Builds the component record of one trace result. A rule check records its
+/// assessed rule; a question check records the trace outcome.
+fn trace_record(
+    rules: &std::collections::BTreeMap<String, rule::RuleResult>,
+    check_id: &str,
+    outcome: &str,
+) -> report::CheckRecord {
+    if let Some(result) = rules.get(check_id) {
+        let record = report::CheckRecord::from_rule_result(result);
+        assert_eq!(
+            record.outcome.as_str(),
+            outcome,
+            "{check_id}: the trace outcome disagrees with the exact rule"
+        );
+        record
+    } else {
+        report::CheckRecord {
+            check: check_id.to_owned(),
+            kind: report::RecordKind::Question,
+            outcome: report::Outcome::from_word(outcome)
+                .unwrap_or_else(|| panic!("{check_id}: {outcome} names no outcome")),
+            assessment: None,
+            applied_rule: None,
+            applied_policy: None,
+            evaluator: None,
+            attempts: None,
+            timing: None,
+            usage: None,
+            reason: None,
+        }
+    }
+}
+
+#[test]
+fn runtime_traces_replay_through_the_run_state_boundary() {
+    let document = fixture_document("runtime/traces.json");
+    let traces = document["traces"].as_array().expect("a trace array");
+    assert!(traces.len() >= 10, "the fixture group lost traces");
+
+    let profile = trace_profile();
+    let mut skip_codes = BTreeSet::new();
+    let mut statuses = BTreeSet::new();
+    for trace in traces {
+        let note = trace["id"].as_str().expect("a trace identifier");
+        let file = trace["definition"].as_str().expect("a definition file");
+        let text =
+            fs::read_to_string(fixture(&format!("definitions/valid/{file}"))).expect("the file");
+        let validated = definition::validate_definition_str(&text)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let case_text = serde_json::to_string(&serde_json::json!({
+            "id": note,
+            "input": trace["case_input"]
+        }))
+        .expect("the case serializes");
+        let validated_case = case::validate_case_str(&case_text, &validated)
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let case_reference = report::CaseReference::for_case(&validated_case);
+
+        // The exact rules of the trace definition, when it holds any.
+        let rules: std::collections::BTreeMap<String, rule::RuleResult> =
+            rule::assess_rule_checks(&validated_case)
+                .unwrap_or_else(|error| panic!("{note}: {error}"))
+                .into_iter()
+                .map(|result| (result.check.clone(), result))
+                .collect();
+
+        let config = &trace["config"];
+        let mut run = RunState::new(
+            &validated,
+            case_reference.clone(),
+            profile.clone(),
+            note,
+            report::RunMode::Shadow,
+            RunLimits {
+                max_attempts: config["max_attempts"].as_u64().expect("an attempt limit") as u32,
+            },
+        )
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+
+        // Every event runs through the boundary. A refusal is recorded, never
+        // applied, exactly as the wrapper conformance suite observes it.
+        let mut rejections: Vec<(usize, ReasonCode)> = Vec::new();
+        let events = trace["events"].as_array().expect("an event array");
+        for (index, event) in events.iter().enumerate() {
+            let kind = event["type"].as_str().expect("an event type");
+            let check = event["check"].as_str();
+            match kind {
+                "submit" => assert!(index == 0 && check.is_none(), "{note}: the submit event"),
+                "check_started" => {
+                    let check = check.expect("a check");
+                    run.start_attempt(check, &case_reference, &profile)
+                        .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                }
+                "check_result" => {
+                    let check = check.expect("a check");
+                    let outcome = event["outcome"].as_str().expect("an outcome");
+                    // The wrapper restarts a retrying check before its result.
+                    if matches!(
+                        run.status(check).map(|status| status.place),
+                        Some(CheckPlace::Pending)
+                    ) && run.phase() == Phase::Running
+                    {
+                        run.start_attempt(check, &case_reference, &profile)
+                            .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                    }
+                    let record = trace_record(&rules, check, outcome);
+                    if let Err(error) = run.accept_result(check, record) {
+                        rejections.push((index, error.code));
+                    }
+                }
+                "late_result" => {
+                    // A late result arrives after the run ended. The wrapper
+                    // completed the drained run before this result arrived.
+                    if run.phase() == Phase::Running {
+                        run.complete(None)
+                            .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                    }
+                    let check = check.expect("a check");
+                    let outcome = event["outcome"].as_str().expect("an outcome");
+                    let record = trace_record(&rules, check, outcome);
+                    if let Err(error) = run.accept_result(check, record) {
+                        rejections.push((index, error.code));
+                    }
+                }
+                "attempt_failed" => {
+                    let check = check.expect("a check");
+                    if matches!(
+                        run.status(check).map(|status| status.place),
+                        Some(CheckPlace::Pending)
+                    ) {
+                        run.start_attempt(check, &case_reference, &profile)
+                            .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                    }
+                    let code =
+                        ReasonCode::from_registry(event["code"].as_str().expect("a failure code"))
+                            .unwrap_or_else(|| panic!("{note} event {index} names no code"));
+                    let resolution = run
+                        .fail_attempt(check, code, "The adapter failed the attempt.")
+                        .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                    if let AttemptResolution::Exhausted = resolution {
+                        skip_codes.insert(code.as_str());
+                    }
+                }
+                "check_skipped" => {
+                    let check = check.expect("a check");
+                    assert_eq!(
+                        event["code"].as_str(),
+                        Some("queue_full"),
+                        "{note} event {index}: an unknown skip code"
+                    );
+                    run.skip_queue_full(check)
+                        .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                }
+                "cancel" => run
+                    .cancel(None)
+                    .unwrap_or_else(|error| panic!("{note} event {index}: {error}")),
+                "deadline" => run
+                    .deadline(None)
+                    .unwrap_or_else(|error| panic!("{note} event {index}: {error}")),
+                other => panic!("{note} event {index}: unknown event type {other}"),
+            }
+        }
+
+        // A drained run completes; a terminal run is already frozen.
+        if run.phase() == Phase::Running {
+            run.complete(None)
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+        }
+
+        let expected = &trace["expected"];
+        let report_built = run.report().expect("the terminal report exists");
+        statuses.insert(report_built.completion().status.as_str());
+        assert_eq!(
+            report_built.completion().status.as_str(),
+            expected["completion"].as_str().expect("a status"),
+            "{note}"
+        );
+        assert_eq!(
+            report_built.aggregate().as_str(),
+            expected["aggregate"].as_str().expect("an aggregate"),
+            "{note}"
+        );
+
+        // Every expected check record matches the report record of its check.
+        let serialized = serde_json::to_value(report_built).expect("the report serializes");
+        let recorded = serialized["checks"].as_array().expect("a record array");
+        let wanted = expected["checks"].as_array().expect("a record array");
+        assert_eq!(recorded.len(), wanted.len(), "{note}");
+        for (record, want) in recorded.iter().zip(wanted.iter()) {
+            let check = want["check"].as_str().expect("a check");
+            assert_eq!(record["check"].as_str(), Some(check), "{note}");
+            assert_eq!(
+                record["outcome"].as_str(),
+                Some(want["outcome"].as_str().expect("an outcome")),
+                "{note}: {check}"
+            );
+            if let Some(attempts) = want.get("attempts") {
+                assert_eq!(
+                    record["attempts"].as_u64(),
+                    attempts.as_u64(),
+                    "{note}: {check} attempts"
+                );
+            }
+            if let Some(reason) = want.get("reason") {
+                let code = reason["code"].as_str().expect("a reason code");
+                assert_eq!(
+                    record["reason"]["code"].as_str(),
+                    Some(code),
+                    "{note}: {check} reason"
+                );
+                skip_codes.insert(code);
+            }
+            if let Some(applied) = want.get("applied_rule") {
+                assert_eq!(
+                    &record["applied_rule"], applied,
+                    "{note}: {check} applied rule"
+                );
+            }
+        }
+
+        // The refused events carry the stated indexes and reason codes.
+        let wanted_rejections = expected["rejected_events"]
+            .as_array()
+            .expect("a rejection array");
+        assert_eq!(rejections.len(), wanted_rejections.len(), "{note}");
+        for ((index, code), want) in rejections.iter().zip(wanted_rejections.iter()) {
+            assert_eq!(
+                *index as u64,
+                want["event"].as_u64().expect("an index"),
+                "{note}"
+            );
+            assert_eq!(
+                code.as_str(),
+                want["reason_code"].as_str().expect("a code"),
+                "{note}"
+            );
+        }
+
+        // The attempts of one check never switch the run binding.
+        if expected["attempts_share_binding"].as_bool() == Some(true) {
+            assert_eq!(run.binding_case().id, note, "{note}");
+            assert_eq!(
+                run.binding_case().input_hash,
+                case_reference.input_hash,
+                "{note}"
+            );
+            assert_eq!(
+                run.binding_profile().content_hash,
+                profile.content_hash,
+                "{note}"
+            );
+        }
+    }
+    for code in [
+        "queue_full",
+        "deadline_before_start",
+        "deadline_exceeded",
+        "cancelled_before_start",
+        "run_cancelled",
+        "retries_exhausted",
+        "evaluator_error",
+    ] {
+        assert!(
+            skip_codes.contains(code),
+            "no replayed trace recorded {code}"
+        );
+    }
+    for status in ["completed", "cancelled", "deadline_exceeded"] {
+        assert!(
+            statuses.contains(status),
+            "no replayed trace ended {status}"
+        );
     }
 }

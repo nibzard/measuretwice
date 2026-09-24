@@ -168,6 +168,22 @@ returned: the report boundary checks the structural assessment schema, and
 the semantic normalization, such as evidence authorization against the
 `using` list, stays with the evaluator adapter tasks.
 
+Decided in T015: `measuretwice_core::run_state` applies the checked
+execution model at the Rust boundary. One `RunState` value is one run of one
+case: the run binding, the case reference plus the profile reference, is
+fixed at construction, and every attempt start offers that binding again.
+The boundary validates attempt starts, results, attempt failures, queue-full
+skips, and the terminal transitions, and it refuses late, duplicate, or
+mismatched events with a typed rejection that changes no state. The wrapper
+keeps the queue, the deadline, the backoff, and the cancellation, so the
+boundary reads no clock and runs no timer; the wrapper states the terminal
+time it observed. A terminal transition assigns a record to every check and
+builds the frozen `RunReport` through `ReportBuilder`. The module maps each
+method to the transitions of `models/execution/Execution.tla`, the runtime
+traces replay through the boundary in the Rust conformance suite, and the
+negative control of the model record, a retry with a drifted binding, is a
+regression test.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

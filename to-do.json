@@ -527,18 +527,18 @@
         "T009",
         "T012"
       ],
-      "updated_at": "2026-09-24T01:00:49Z",
+      "updated_at": "2026-09-24T01:01:32Z",
       "files": [
-        "crates/measuretwice-core/src/report.rs",
-        "crates/measuretwice-core/src/lib.rs",
-        "crates/measuretwice-core/src/error.rs",
-        "crates/measuretwice-core/src/case.rs",
-        "crates/measuretwice-core/src/definition.rs",
-        "crates/measuretwice-core/src/hashing.rs",
-        "crates/measuretwice-core/src/rule.rs",
-        "crates/measuretwice-core/tests/contract_fixtures.rs",
         "DEVELOPING.md",
         "TESTING.md",
+        "crates/measuretwice-core/src/case.rs",
+        "crates/measuretwice-core/src/definition.rs",
+        "crates/measuretwice-core/src/error.rs",
+        "crates/measuretwice-core/src/hashing.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-core/src/rule.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
         "to-do.json"
       ]
     },
@@ -546,7 +546,7 @@
       "id": "T015",
       "title": "Implement deterministic run state transitions",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Apply the checked execution model at the Rust boundary. The wrapper remains responsible for scheduling. Sources: MVP_SPEC.md section 5; AGENTS.md section 7.",
       "steps": [
         "Turn model transitions and relevant counterexamples into failing regression tests.",
@@ -566,6 +566,16 @@
         "T009",
         "T012",
         "T014"
+      ],
+      "updated_at": "2026-09-24T01:18:29Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/run_state.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "models/execution/README.md",
+        "to-do.json"
       ]
     },
     {
