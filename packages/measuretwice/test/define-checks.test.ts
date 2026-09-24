@@ -627,6 +627,10 @@ test("the package entry point exposes the authoring and run API without native t
     "mapJevError",
     "normalizeJevExecution",
     "registerEvaluators",
+    "renderProfileSummary",
+    "renderProfileSummaryMarkdown",
+    "renderRunReport",
+    "renderRunReportMarkdown",
     "translateJevQuestion",
   ]);
   expect(publicApi.contractVersion()).toBe(1);

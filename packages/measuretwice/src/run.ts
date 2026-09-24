@@ -300,6 +300,68 @@ export type QualificationStatus =
   | "criteria_not_met"
   | "validated_for_scope";
 
+/** The qualification evidence of one calibration profile. */
+export interface ProfileEvidence {
+  /** The calibration plan that stated the goals. */
+  readonly plan?: Readonly<{ readonly id: string; readonly content_hash: string }>;
+  /** The datasets that the plan referenced. */
+  readonly datasets?: readonly Readonly<{
+    readonly id: string;
+    readonly revision: string;
+    readonly content_hash: string;
+  }>[];
+  /** The splits that separated fitting from validation data. */
+  readonly splits?: readonly Readonly<{ readonly id: string; readonly content_hash: string }>[];
+  /** The summary of the label sources and their review status. */
+  readonly label_provenance?: string;
+  /** References to the evaluation reports in host-managed storage. */
+  readonly evaluation_reports?: readonly string[];
+  /** The interval methods, their assumptions, and their confidence level. */
+  readonly statistical_method?: string;
+}
+
+/** One recorded performance metric with its counts and denominators. */
+export interface ProfileMetric {
+  /** Check identifier, or `all_checks` for the complete set. */
+  readonly scope: string;
+  /** Published metric name. */
+  readonly metric: string;
+  /** Observed count. */
+  readonly numerator: number;
+  /** Denominator of the rate. */
+  readonly denominator: number;
+  /** The rate, or `null` when the denominator holds zero. */
+  readonly value: number | null;
+}
+
+/** One recorded uncertainty interval of one metric. */
+export interface ProfileInterval {
+  /** Check identifier, or `all_checks` for the complete set. */
+  readonly scope: string;
+  /** Published metric name. */
+  readonly metric: string;
+  /** Named interval method, validated against reference fixtures. */
+  readonly method: string;
+  /** Confidence level of the interval. */
+  readonly confidence_level: number;
+  /** Lower bound. */
+  readonly lower: number;
+  /** Upper bound. */
+  readonly upper: number;
+}
+
+/** The observed performance recorded with one profile. */
+export interface ProfilePerformance {
+  /** The recorded metrics with their counts and denominators. */
+  readonly metrics?: readonly ProfileMetric[];
+  /** The recorded uncertainty intervals. */
+  readonly intervals?: readonly ProfileInterval[];
+  /** The sample counts by name. */
+  readonly sample_counts?: Readonly<Record<string, number>>;
+  /** The per-slice limits, such as small denominators or missing slices. */
+  readonly slice_limitations?: readonly string[];
+}
+
 /** The effective execution configuration of one profile. */
 export interface ExecutionConfig {
   /** Maximum check executions active at one time. */
@@ -363,6 +425,17 @@ export interface Profile {
   }>;
   /** The effective execution configuration. */
   readonly execution: ExecutionConfig;
+  /**
+   * The qualification evidence. The contract requires it in full for one
+   * calibration origin. Absent while the profile records none.
+   */
+  readonly evidence?: ProfileEvidence;
+  /**
+   * The observed performance recorded with the profile, with its counts,
+   * its denominators, and its limitations. Absent while the profile records
+   * none.
+   */
+  readonly performance?: ProfilePerformance;
   /** The qualification of the profile. */
   readonly qualification: Readonly<{
     readonly status: QualificationStatus;

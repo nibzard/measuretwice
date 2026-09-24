@@ -1418,8 +1418,8 @@
       "id": "T037",
       "title": "Render reports and profile summaries",
       "priority": 2,
-      "status": "doing",
-      "details": "Provide readable summaries with inspectable numerical and operational detail. Sources: MVP_SPEC.md sections 8-11; mvp-guide.html.",
+      "status": "done",
+      "details": "Provide readable summaries with inspectable numerical and operational detail. Sources: MVP_SPEC.md sections 8-11; mvp-guide.html. Done: packages/measuretwice/src/render.ts owns the four public renderers and nothing else. renderRunReport and renderRunReportMarkdown turn one frozen run report and its bound definition into terminal text or Markdown, and renderProfileSummary and renderProfileSummaryMarkdown do the same for one profile artifact, each with the two inspection levels of MVP_SPEC.md section 8 through the detail option. The summary view leads with the check meaning from the definition, the component outcomes, the aggregate outcome with its explanation, the completion status, and the next useful action of the outcome, and it ends with the standing rule that one report authorizes no application action. The detailed view exposes the executed rule with its parameters, the raw measurement (answer, distribution, confidence, evidence references), the applied policy, the evaluator versions with the resolved model, the attempt counts with the timing and the usage, the identities with the complete content hashes, and the limitations of the view. Default explanations are generated from the check criteria and the executed policy alone: the selected answer with its authored description and the cutoff arithmetic of the probability_mass_v0 family, the executed parameters of one exact rule, or the stable reason of one error or skip record, and one cutoff sentence renders only when the recorded masses support it. The renderer invents no Jev rationale, and evidence references render only as evaluator-selected support, because the Rust core validated each against the using list of its check; raw case content never renders because the report holds none, and the suite pins that with canaries. Every render verifies its inputs first: the definition crosses the core validator and its hash must equal the hash of the report (definition_mismatch), each record must name one check of the definition, each error and skip must carry its reason, and the component outcomes must fold to the stored aggregate; one profile crosses the core self-hash and the complete profile contract, so one edited copy fails with hash_mismatch. The public Profile type gained the optional evidence and performance fields of contracts/v0/profile.schema.json, so one calibration profile detail states its plan, datasets, splits, label provenance, evaluation reports, statistical method, and recorded metrics with counts and denominators, while no summary view states one performance number. packages/measuretwice/test/render.test.ts covers the failing, review, floor, and binary-pass explanations, the error and skip reasons, the cancelled completion, the recorded aggregate explanation, both output formats, the canary rule, every rejection, the exploration profile without measured numbers, and the shared insufficient-evidence calibration profile. The typecheck gate also failed before this task at tests/repo/fixtures.test.ts:1324, where one T036 assertion passed a message argument that the Vitest 5 typing of toContain rejects; the assertion now carries its note through expect.",
       "steps": [
         "Render JSON reports as terminal text and Markdown.",
         "Lead with check meaning, component outcomes, aggregate outcome, and the next useful action.",
@@ -1439,7 +1439,18 @@
         "T034",
         "T036"
       ],
-      "updated_at": "2026-09-24T09:25:08Z"
+      "updated_at": "2026-09-24T09:42:36Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/src/render.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/render.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "tests/repo/fixtures.test.ts",
+        "to-do.json"
+      ]
     },
     {
       "id": "T038",

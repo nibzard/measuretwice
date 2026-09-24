@@ -1319,9 +1319,8 @@ test("case reference rows state the private-data defaults", () => {
     expect(path.startsWith("/case/"), String(row.note)).toBe(true);
     // Every stated field is case identity, one snapshot reference, or one
     // injected private-value field that the contract refuses.
-    expect(["id", "input_hash", "snapshot", "input", "api_key"]).toContain(
+    expect(["id", "input_hash", "snapshot", "input", "api_key"], String(row.note)).toContain(
       path.split("/")[2],
-      String(row.note),
     );
   }
 });

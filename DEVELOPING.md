@@ -766,6 +766,49 @@ case body fails `load`, and the case-reference rows of
 `fixtures/reports/outcomes.json` pin the same rules for the later Python
 wrapper.
 
+Decided in T037: rendering is one pure module over validated artifacts,
+and no view computes one decision. `packages/measuretwice/src/render.ts`
+owns the four renderers `renderRunReport`, `renderRunReportMarkdown`,
+`renderProfileSummary`, and `renderProfileSummaryMarkdown`, each with the
+two inspection levels of MVP_SPEC.md section 8 through the `detail`
+option. The summary view leads with the check meaning of the definition,
+the component outcomes, the aggregate outcome with its explanation, the
+completion status, and the next useful action of the outcome, and it ends
+with the standing rule that one report authorizes no application action.
+The detailed view adds the executed rule with its parameters, the raw
+measurement (answer, distribution, confidence, evidence references), the
+applied policy, the evaluator versions with the resolved model, the
+attempt counts with the timing and the usage, the identities with the
+complete content hashes, and the limitations of the view. The default
+explanations come from the check criteria and the executed policy alone:
+the selected answer with its authored description and the cutoff
+arithmetic of the `probability_mass_v0` family, the executed parameters
+of one exact rule, or the stable reason of one error or skip record. One
+cutoff sentence renders only when the recorded masses support it, so one
+record outside the decision table renders with the general sentence of
+its outcome. The renderer invents no Jev rationale, and evidence
+references render only as evaluator-selected support, because the Rust
+core validated every reference against the `using` list of its check;
+raw case content never renders, because the report holds none. Every
+render verifies its inputs first: the definition crosses the core
+validator and its content hash must equal the hash of the report
+(`definition_mismatch`), every record must name one check of the
+definition and every error or skip must carry its reason, and the
+component outcomes must fold to the stored aggregate; one profile crosses
+the core self-hash and the complete profile contract, so one edited copy
+fails with `hash_mismatch`. The public `Profile` type gained the optional
+`evidence` and `performance` fields of `contracts/v0/profile.schema.json`,
+so the detailed view of one calibration profile states its plan, its
+datasets, its splits, its label provenance, its evaluation reports, its
+statistical method, and its recorded metrics with their counts and
+denominators, while no summary view states one performance number. The
+suite `packages/measuretwice/test/render.test.ts` covers the failing,
+review, floor, and binary-pass explanations, the error and skip reasons,
+the cancelled completion, the recorded aggregate explanation, both output
+formats, the canary rule, every rejection, the exploration profile
+without measured numbers, and the shared insufficient-evidence
+calibration profile.
+
 ## Generated files
 
 `git` ignores the generated output: `target/`, `node_modules/`, `dist/`,

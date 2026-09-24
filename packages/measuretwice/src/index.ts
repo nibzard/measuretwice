@@ -21,7 +21,11 @@
  * needs no Jev response shape, `translateJevQuestion`, the versioned
  * translation of one question check into one Jev question, and
  * `createJevEvaluator`, the adapter that normalizes one Jev answer into one
- * typed assessment with its operational record. The public operations
+ * typed assessment with its operational record. The renderers
+ * `renderRunReport`, `renderRunReportMarkdown`, `renderProfileSummary`, and
+ * `renderProfileSummaryMarkdown` turn one frozen report or one profile
+ * artifact into terminal text or Markdown, with one summary view and one
+ * detailed view. The public operations
  * `calibrate`, `evaluate`, and `compare` are specified in MVP_SPEC.md and
  * arrive with their tasks.
  *
@@ -127,7 +131,11 @@ export type {
   PolicyFamily,
   Profile,
   ProfileBinding,
+  ProfileEvidence,
+  ProfileInterval,
+  ProfileMetric,
   ProfileOrigin,
+  ProfilePerformance,
   QualificationStatus,
   Reviewer,
   RuleKeyword,
@@ -138,6 +146,13 @@ export type {
   RunReport,
   SanitizedReason,
 } from "./run.js";
+export {
+  renderProfileSummary,
+  renderProfileSummaryMarkdown,
+  renderRunReport,
+  renderRunReportMarkdown,
+} from "./render.js";
+export type { RenderDetail, RenderOptions } from "./render.js";
 export { createExplorationProfile } from "./exploration.js";
 export type {
   ExplorationBinding,
