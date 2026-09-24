@@ -58,11 +58,13 @@ jobs:
       # release archives from zig-<os>-<cpu> to zig-<cpu>-<os>, and the v1
       # action still requests the old names, so every download failed with
       # 404. The v2 action knows both names. Pin one release version so the
-      # links stay deterministic.
+      # links stay deterministic: zig 0.16.0 mishandles the separate
+      # "-Wl,-exported_symbols_list" arguments of cargo-zigbuild 0.23.4 on
+      # the darwin link, and 0.15.2 links every cross target.
       - uses: mlugg/setup-zig@v2
         if: matrix.cross
         with:
-          version: 0.16.0
+          version: 0.15.2
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
