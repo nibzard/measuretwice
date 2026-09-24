@@ -26,10 +26,33 @@
  * The scheduler attempts every required check. One semantic outcome, one
  * operational failure, and one skip change nothing about the admission of
  * the remaining checks, because MVP_SPEC.md section 9 forbids cost-based
- * short-circuiting and the aggregate needs every component record. One
- * failed attempt returns to the queue while the boundary reports attempts
- * left, and the scheduler restarts it when one slot frees. The restart
- * keeps no delay: the backoff between attempts arrives with task T032.
+ * short-circuiting and the aggregate needs every component record.
+ *
+ * Bounded retries arrived with task T032, and the wrapper owns their
+ * policy. One failed attempt crosses the boundary first, so the boundary
+ * keeps the attempt count and freezes the record contract. While the
+ * boundary reports attempts left, the scheduler retries one failure when
+ * and only when its reason code names one transient execution condition:
+ * {@link isRetryableFailure} states the class. One retryable failure
+ * waits one bounded backoff before it rejoins the shared queue, and each
+ * retry restarts through the boundary with the same run binding, the same
+ * projected request, and the remaining budget of the same total deadline,
+ * so one retry can drift neither the binding nor the budget. One
+ * permanent failure records its error at the failing attempt through the
+ * permanent boundary transition, whatever attempts remain: one adapter
+ * answer outside its contract would return from one retry through the
+ * same broken path, so the retry would spend one attempt and change
+ * nothing. The record keeps the operational code and the true attempt
+ * count, and no dummy restart inflates either.
+ *
+ * The backoff between attempts is deterministic and bounded. The first
+ * retry waits `backoff_ms`, every later retry doubles the delay, the
+ * attempt limit bounds the doubling, and the total deadline bounds the
+ * wait: one delay that reaches past the deadline instant never starts,
+ * because the deadline wake-up ends the run first. The scheduler arms no
+ * jitter, because the wrapper holds no random source and the deterministic
+ * delay keeps one run replayable. A backoff of zero restarts the attempt
+ * when one slot frees, exactly as one shared queue entry.
  *
  * One total deadline covers the complete attempt lifecycle: queue time,
  * every attempt, and the backoff between attempts, as MVP_SPEC.md section
@@ -38,9 +61,12 @@
  * one delayed wake-up cannot admit one late result. At the deadline the
  * boundary ends the run: active work records one `deadline_exceeded`
  * error, never-started work records one `deadline_before_start` skip, and
- * completed records stay. The caller cancels through one AbortSignal.
- * Cancellation propagates to every attempt context, clears the queue, and
- * ends the run through the `cancelled` transition of the boundary.
+ * completed records stay. A retry that waits in its backoff holds no
+ * record, so the boundary assigns it the skip of never-started work at
+ * the terminal instant. The caller cancels through one AbortSignal.
+ * Cancellation propagates to every attempt context, clears the queue,
+ * disarms every pending backoff, and ends the run through the `cancelled`
+ * transition of the boundary.
  *
  * Every terminal path releases the wrapper resources. The run ends through
  * the boundary, the returned report is parsed from the frozen core report
@@ -68,6 +94,7 @@ import {
   runComplete,
   runDeadline,
   runFailAttempt,
+  runFailPermanent,
   runSkipQueueFull,
   runStartAttempt,
   type RunState,
@@ -132,10 +159,11 @@ export type ScheduledResolution =
  *
  * The event vocabulary follows the shared runtime traces of
  * `fixtures/runtime/traces.json`, so one observer log reads like one trace.
- * The `deadline` and `cancel` events name the terminal transitions that
- * the scheduler stated through the boundary, and `late_result_rejected`
- * names one resolution that arrived after one terminal path and changed
- * no record.
+ * The `retry_scheduled` event names one retryable failure that entered its
+ * bounded backoff, the `deadline` and `cancel` events name the terminal
+ * transitions that the scheduler stated through the boundary, and
+ * `late_result_rejected` names one resolution that arrived after one
+ * terminal path and changed no record.
  */
 export type SchedulerEvent =
   | { readonly type: "submit"; readonly checks: readonly string[] }
@@ -143,10 +171,38 @@ export type SchedulerEvent =
   | { readonly type: "check_skipped"; readonly check: string; readonly code: "queue_full" }
   | { readonly type: "check_started"; readonly check: string; readonly attempt: number }
   | { readonly type: "attempt_failed"; readonly check: string; readonly code: string }
+  | { readonly type: "retry_scheduled"; readonly check: string; readonly attempt: number; readonly delay_ms: number }
   | { readonly type: "check_result"; readonly check: string; readonly outcome: "pass" | "fail" | "review" }
   | { readonly type: "deadline" }
   | { readonly type: "cancel" }
   | { readonly type: "late_result_rejected"; readonly check: string };
+
+/**
+ * The operational reason codes that name one transient execution condition.
+ *
+ * `evaluator_error` covers the thrown provider failures, such as one
+ * refused connection or one retryable status, and `evaluator_timeout`
+ * covers the aborted and timed-out attempts. `invalid_assessment` is
+ * absent on purpose: one adapter answer outside the contract of its check
+ * is one defect of the adapter path, and one retry would return through
+ * the same path, so the scheduler treats it as permanent.
+ */
+const RETRYABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
+  "evaluator_error",
+  "evaluator_timeout",
+]);
+
+/**
+ * States whether the scheduler retries one operational failure.
+ *
+ * The retry policy is one wrapper decision, as MVP_SPEC.md section 5
+ * draws the boundary: one retryable failure returns to the queue through
+ * the run boundary while attempts remain, and one permanent failure
+ * records its error at the failing attempt.
+ */
+export function isRetryableFailure(code: string): boolean {
+  return RETRYABLE_FAILURE_CODES.has(code);
+}
 
 /** The options of `scheduleRun`. */
 export interface ScheduleOptions {
@@ -255,6 +311,7 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
   // The scheduler places of the model: active work, one shared queue, and
   // the never-started part of that queue, which alone counts against the
   // pending limit. `unfinished` counts the checks that hold no record yet.
+  // `backoffWakes` holds the disarm operation of every pending backoff.
   let active = 0;
   let unfinished = checks.length;
   let ended = false;
@@ -262,6 +319,7 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
   let disarmWake: (() => void) | undefined;
   const waiting: string[] = [];
   const neverStarted = new Set<string>();
+  const backoffWakes: Array<() => void> = [];
 
   let resolveReport!: (report: RunReport) => void;
   let rejectReport!: (cause: Error) => void;
@@ -280,6 +338,10 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     ended = true;
     disarmWake?.();
     disarmWake = undefined;
+    for (const disarm of backoffWakes) {
+      disarm();
+    }
+    backoffWakes.length = 0;
     caller?.removeEventListener("abort", onCallerAbort);
     controller.abort(reason);
     waiting.length = 0;
@@ -394,6 +456,38 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     }
   };
 
+  /**
+   * Returns one retrying check to the shared queue, after its bounded
+   * backoff. The retry restarts through the boundary with the same run
+   * binding, so no drift can cross, and the deadline wake-up bounds the
+   * wait from above.
+   */
+  const scheduleRetry = (check: string, attemptsStarted: number): void => {
+    const delayMs = backoffDelayMs(options.execution.backoff_ms, attemptsStarted);
+    if (delayMs <= 0) {
+      // One zero base delay restarts the attempt when one slot frees.
+      waiting.push(check);
+      return;
+    }
+    emit({ type: "retry_scheduled", check, attempt: attemptsStarted + 1, delay_ms: delayMs });
+    const readyAtMs = options.now() + delayMs;
+    backoffWakes.push(
+      armWake(readyAtMs, () => {
+        if (ended || settled) {
+          return;
+        }
+        enforceDeadline();
+        if (ended || settled) {
+          return;
+        }
+        // The backoff passed inside the total deadline, so the retry joins
+        // the shared queue and consumes no pending slot.
+        waiting.push(check);
+        drain();
+      }),
+    );
+  };
+
   /** Resolves one in-flight attempt through the boundary. */
   const settle = (check: string, resolution: ScheduledResolution): void => {
     if (ended) {
@@ -411,13 +505,32 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
     }
     active -= 1;
     if ("failure" in resolution) {
+      if (!isRetryableFailure(resolution.failure.code)) {
+        // One permanent failure ends the check at the attempt that
+        // reported it: the record keeps the operational code and the true
+        // attempt count, and no dummy restart spends the remaining budget.
+        guarded(`permanent failure of the check ${check}`, () =>
+          runFailPermanent(
+            options.state,
+            check,
+            resolution.failure.code,
+            resolution.failure.message,
+          ),
+        );
+        emit({ type: "attempt_failed", check, code: resolution.failure.code });
+        unfinished -= 1;
+        drain();
+        completeIfDrained();
+        return;
+      }
       const outcome = guarded(`attempt failure of the check ${check}`, () =>
         runFailAttempt(options.state, check, resolution.failure.code, resolution.failure.message),
       );
       emit({ type: "attempt_failed", check, code: resolution.failure.code });
       if (outcome.resolution === "retry_queued") {
-        // Retrying work shares the queue and consumes no pending slot.
-        waiting.push(check);
+        // Retrying work shares the queue and consumes no pending slot. The
+        // freed slot still starts waiting work at once.
+        scheduleRetry(check, outcome.attempts ?? 1);
         drain();
         return;
       }
@@ -515,6 +628,21 @@ function thrownResolution(cause: unknown): ScheduledResolution {
       message: `The execution of the check threw: ${message === "" ? "no message" : message}`,
     },
   };
+}
+
+/**
+ * Computes the bounded backoff delay before the next attempt of one check.
+ *
+ * The first retry waits one base delay and every later retry doubles it.
+ * The attempt limit of the contract bounds the doubling, and the total
+ * deadline bounds the wait: one delay that reaches past the deadline
+ * instant never starts an attempt, because the deadline wake-up ends the
+ * run first. The delay states no jitter, because the wrapper holds no
+ * random source and one deterministic delay keeps one run replayable.
+ */
+function backoffDelayMs(backoffMs: number, attemptsStarted: number): number {
+  const doubling = Math.min(attemptsStarted - 1, 16);
+  return backoffMs * 2 ** doubling;
 }
 
 /**

@@ -139,6 +139,12 @@ export interface JevRequestOptions {
   readonly signal?: AbortSignal;
   /** The attempt timeout in milliseconds, derived from the run budget. */
   readonly timeout?: number;
+  /**
+   * The retry policy of the boundary, structurally the `retry` field of the
+   * pinned SDK `RequestOptions`. The adapter disables the retry loop of
+   * the SDK, so one wrapper attempt is one SDK request.
+   */
+  readonly retry?: Readonly<{ readonly maxRetries: number }>;
 }
 
 /** One request of one `systemOne` call. */
@@ -638,10 +644,12 @@ export interface JevEvaluator extends Evaluator {
  *
  * The adapter translates the question, frames the projected inputs as
  * evidence, sends one request per check, and normalizes the answer. It
- * passes the caller `AbortSignal` on every call and bounds the attempt with
- * the remaining budget of the request, because the SDK retries carry no
- * total budget of their own. The wrapper scheduler owns the attempts, the
- * backoff, and the total deadline. The adapter stores nothing, reads no
+ * passes the caller `AbortSignal` on every call, bounds the attempt with
+ * the remaining budget of the request, and disables the retry loop of the
+ * SDK, so one wrapper attempt is one SDK request. The wrapper scheduler
+ * owns the attempts, the backoff, and the total deadline, and one hidden
+ * SDK retry would multiply the requests of one attempt inside one budget
+ * that the wrapper cannot see. The adapter stores nothing, reads no
  * credential, and takes no application action.
  *
  * The adapter exposes its translation through the optional `translate`
@@ -686,7 +694,7 @@ export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
             questions: Object.freeze({ [request.check]: translation.question }),
             model,
           },
-          { signal: request.signal, timeout },
+          { signal: request.signal, timeout, retry: NO_SDK_RETRIES },
         );
       } catch (cause) {
         return { failure: mapJevError(cause), latency_ms: now() - started };
@@ -709,6 +717,15 @@ export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
+
+/**
+ * The retry policy the adapter states on every call: the SDK retries
+ * nothing. The wrapper scheduler owns the attempts, the backoff, and the
+ * total deadline, as MVP_SPEC.md section 12 requires one configured retry
+ * count. One SDK retry inside one wrapper attempt would multiply the
+ * requests and the spend of one budget that the wrapper cannot see.
+ */
+const NO_SDK_RETRIES: Readonly<{ maxRetries: number }> = Object.freeze({ maxRetries: 0 });
 
 /** The greatest length of one sanitized reason message, from the contracts. */
 const MESSAGE_LIMIT = 500;

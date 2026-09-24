@@ -222,15 +222,23 @@ RetryDrift(c, ci, p) ==
 (* Attempt resolution.                                                     *)
 (***************************************************************************)
 
-\* An attempt fails. With attempts left, the check returns to the queue
-\* with its binding kept. Without attempts left, it records an error.
+\* An attempt fails. With attempts left, the wrapper chooses: one retryable
+\* failure returns the check to the queue with its binding kept, and one
+\* permanent failure records an error at the failing attempt, because no
+\* retry would change the defect. Without attempts left, it records an
+\* error.
 AttemptFail(c) ==
     /\ phase = "running"
     /\ c \in active
     /\ IF attempts[c] < MaxAttempts
-          THEN /\ active' = active \ {c}
-               /\ waiting' = waiting \union {c}
-               /\ UNCHANGED <<records, reasons, locked>>
+          THEN \/ /\ active' = active \ {c}
+                  /\ waiting' = waiting \union {c}
+                  /\ UNCHANGED <<records, reasons, locked>>
+               \/ /\ active' = active \ {c}
+                  /\ waiting' = waiting
+                  /\ records' = [records EXCEPT ![c] = "error"]
+                  /\ reasons' = [reasons EXCEPT ![c] = "retries_exhausted"]
+                  /\ locked' = [locked EXCEPT ![c] = TRUE]
           ELSE /\ active' = active \ {c}
                /\ waiting' = waiting
                /\ records' = [records EXCEPT ![c] = "error"]

@@ -28,7 +28,7 @@ one group through the Rust core is not conformant.
 | Jev translations | [translations/jev.json](translations/jev.json) | The Choice, Noul, and Score translations of the question definitions, their canonical text and translation-domain digests, the evidence state envelope, and the excluded label and baseline fields. |
 | Outcomes | [reports/outcomes.json](reports/outcomes.json) | The aggregate order, every check outcome, and the completion statuses. |
 | Profile states | [profiles/states.json](profiles/states.json) | Every qualification status, artifact rejections, self-hash verification, and compatibility failures with the live evaluator state of the requested mode. |
-| Runtime traces | [runtime/traces.json](runtime/traces.json) | Queue limits, deadlines, cancellation, retries, partial failure, and late results. |
+| Runtime traces | [runtime/traces.json](runtime/traces.json) | Queue limits, deadlines, cancellation, retries, permanent failures, partial failure, and late results. |
 
 ## Record shapes
 
@@ -47,7 +47,9 @@ one group through the Rust core is not conformant.
   `content_hash`. Both sides must produce the recorded canonical form and hash.
 - A runtime trace holds `id`, `note`, `definition`, `case_input`, `config`,
   `events`, and `expected`. Events carry `at_ms` on the fake clock that
-  [TESTING.md](../TESTING.md) defines. An event listed in `rejected_events`
+  [TESTING.md](../TESTING.md) defines. An `attempt_failed` event may state
+  `permanent: true`: the wrapper declined the retry, so the failure records
+  its error at the failing attempt. An event listed in `rejected_events`
   must not change the report.
 - An adapter conformance case holds `note`, `adapter`, `definition` (a file
   name in `definitions/valid/`), `check`, `case_input`, `control`, and

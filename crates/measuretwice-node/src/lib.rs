@@ -613,6 +613,29 @@ impl RunState {
         )
     }
 
+    /// Resolves one in-flight attempt with one permanent operational
+    /// failure.
+    ///
+    /// The wrapper states that the failure is permanent: the check records
+    /// its error outcome at the failing attempt, whatever attempts remain,
+    /// and no retry starts. The code must name an operational failure:
+    /// evaluator_error, evaluator_timeout, or invalid_assessment.
+    #[napi]
+    pub fn fail_permanent(
+        &mut self,
+        check_id: String,
+        code: String,
+        message: String,
+    ) -> Result<(), napi::Error> {
+        let code = ReasonCode::from_registry(&code).ok_or_else(|| {
+            failure(ValidationError::invalid_field_type(
+                "/code",
+                "An attempt failure must carry an operational reason code: evaluator_error, evaluator_timeout, or invalid_assessment.",
+            ))
+        })?;
+        lift(self.inner.fail_permanent(&check_id, code, &message))
+    }
+
     /// Resolves one in-flight attempt with its component record.
     ///
     /// The record text must hold one check record of the run report

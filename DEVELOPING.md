@@ -603,8 +603,8 @@ definition regardless of sibling outcomes, so no semantic result triggers
 cost-based short-circuiting. One thrown execution becomes one
 `evaluator_error` failure, so one broken executor records one error
 instead of crashing the run. One failed attempt with attempts left returns
-to the shared queue and restarts when one slot frees, with no delay: the
-backoff arrives with task T032. Task T034 wires the module into the
+to the shared queue and restarts when one slot frees. Task T032 added the
+bounded backoff to that restart. Task T034 wires the module into the
 semantic run path of `run`.
 
 Decided in T031: the total deadline and the cancellation are wrapper
@@ -627,6 +627,37 @@ report. The suite drives the deadline and the cancellation with one fake
 clock that fires armed wake-ups, and it replays the eight shared runtime
 traces the scheduler reproduces, beside its own deadline, cancellation,
 and late-result tests.
+
+Decided in T032: bounded retries are one wrapper policy over one extended
+boundary transition, with no attempt spent on one permanent defect. The
+retry policy lives in `scheduleRun` and names its class by reason code
+alone: `evaluator_error` and `evaluator_timeout` are retryable transient
+conditions, and `invalid_assessment` is permanent, because one adapter
+answer outside the contract of its check returns from one retry through
+the same broken path. One retryable failure crosses the boundary first,
+then waits one bounded backoff before it rejoins the shared queue: the
+first retry waits `backoff_ms`, every later retry doubles the delay, the
+attempt limit bounds the doubling, and the total deadline bounds the wait,
+because the deadline wake-up ends the run before one late backoff can
+start work. The delay states no jitter, because the wrapper holds no
+random source and one deterministic delay keeps one run replayable. A
+zero base delay restarts the attempt when one slot frees. Each retry
+starts through the boundary with the same case reference and the same
+profile reference, so the drift refusal of the core guards every restart,
+and the attempt context repeats the same budget and the same deadline
+instant. One permanent failure crosses one new boundary transition,
+`failPermanent`: the check records its error at the failing attempt with
+the operational code and the true attempt count, whatever attempts
+remain, so no dummy restart inflates the count and no defect hides behind
+`retries_exhausted`. The checked model gained that branch of `AttemptFail`
+and TLC rechecked both configurations without one error. The Jev adapter
+configures the SDK retry loop once and disables it: one wrapper attempt
+is one SDK request, so hidden SDK retries cannot multiply the requests
+and the spend of one budget the wrapper cannot see. The shared trace
+`permanent-failure` pins the record shape for every wrapper, and the
+scheduler suite drives the backoff, its doubling, the permanent record,
+the cancellation during one backoff, and the deadline that ends one
+backoff.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

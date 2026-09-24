@@ -308,6 +308,16 @@ export function runFailAttempt(
   return call(() => run.failAttempt(checkId, code, message));
 }
 
+/**
+ * Resolves one in-flight attempt with one permanent operational failure.
+ *
+ * The wrapper states that it declines the retry, so the check records its
+ * error at the failing attempt, whatever attempts remain.
+ */
+export function runFailPermanent(run: RunState, checkId: string, code: string, message: string): void {
+  call(() => run.failPermanent(checkId, code, message));
+}
+
 /** Resolves one in-flight attempt with its component record. */
 export function runAcceptResult(run: RunState, checkId: string, recordText: string): void {
   call(() => run.acceptResult(checkId, recordText));

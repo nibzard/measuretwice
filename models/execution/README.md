@@ -1,6 +1,8 @@
 # Execution-state model record
 
-Model: [Execution.tla](Execution.tla). Checked on 23 September 2026.
+Model: [Execution.tla](Execution.tla). Checked on 23 September 2026, and
+rechecked on 24 September 2026 after task T032 added the permanent branch
+of `AttemptFail`.
 
 Status: **complete**. Both configurations finished with no error. The
 recorded negative control fails as expected.
@@ -63,7 +65,7 @@ Transitions:
 | `SubmitQueued` | All active slots are busy, so new work waits. |
 | `SubmitSkipped` | No active and no pending slot is free. The check records `queue_full`. |
 | `StartRetry` | A waiting check starts its next attempt with the run binding. |
-| `AttemptFail` | With attempts left, the check returns to the queue. Otherwise it records an error. |
+| `AttemptFail` | With attempts left, the wrapper chooses: one retryable failure returns the check to the queue, and one permanent failure records an error at the failing attempt. Without attempts left, it records an error. |
 | `AcceptResult` | An active attempt records a semantic outcome. |
 | `DuplicateResult` | A result arrives without an attempt in flight. It is refused. |
 | `LateResult` | A result arrives after a terminal state. It is refused. |
@@ -128,7 +130,7 @@ capped at three, which keeps the reachable state set finite.
 
 | Configuration | States generated | Distinct states | Depth | Result |
 | --- | --- | --- | --- | --- |
-| `Execution.cfg` | 5,213 | 1,680 | 13 | No error. Invariants and `RunTerminates` hold. |
+| `Execution.cfg` | 6,225 | 2,024 | 13 | No error. Invariants and `RunTerminates` hold. |
 | `ExecutionSaturation.cfg` | 15,840 | 4,300 | 11 | No error. Invariants and `RunTerminates` hold. |
 
 Completion status: complete. TLC explored the full state space in both
@@ -160,6 +162,15 @@ the total deadline and the caller cancellation with one controlled clock
 and proves that one resolution which arrives after any terminal path
 changes no frozen record.
 
+Task T032 turned the permanent branch of `AttemptFail` into regression
+tests on both sides of the boundary:
+`run_state::tests::a_permanent_failure_records_its_error_without_one_retry`
+in `crates/measuretwice-core/src/run_state.rs` records the error at the
+failing attempt and refuses every later event of the recorded check, and
+the scheduler suite drives one permanent `invalid_assessment` through the
+wrapper with three attempts configured, so exactly one execution runs.
+The runtime trace `permanent-failure` fixes the shared shape.
+
 ## 7. Mapping to the implementation
 
 Rust owns the state validation. The wrapper owns the scheduling. Each
@@ -171,7 +182,7 @@ model transition maps to one implementation obligation:
 | `SubmitDrift`, `RetryDrift` | Rust refuses | T015 returns a typed rejection. The attempt does not start and no record changes. |
 | `SubmitQueued` | Wrapper | T030 queue admission below `max_pending`, counted over never-started work. |
 | `SubmitSkipped` | Wrapper | T030 `skipped` record with reason `queue_full`. |
-| `AttemptFail` | Wrapper | T032 bounded retry and backoff inside the total deadline. |
+| `AttemptFail` | Wrapper | T032 bounded retry with the retryable-code policy, the bounded backoff inside the total deadline, and the permanent branch that records the error of one permanent failure at the failing attempt. T015 validates the transition. |
 | `AcceptResult` | Rust validates | T015 result validation for an active attempt. T014 constructs the record. |
 | `DuplicateResult` | Rust refuses | T015 rejection with reason `invalid_state_transition`. |
 | `LateResult` | Rust refuses | T015 rejection with reason `late_result_rejected`. The report stays frozen. |
@@ -186,7 +197,11 @@ Omitted behavior. The implementation must add what the model leaves out:
   Cross-run scheduler sharing is untested here.
 - A final error records the abstract reason `retries_exhausted`. The
   implementation keeps the last operational reason, as the runtime traces
-  define for `evaluator_error` and `evaluator_timeout`.
+  define for `evaluator_error` and `evaluator_timeout`, and one permanent
+  failure keeps its own code, as the trace `permanent-failure` defines.
+- The wrapper classifies one failure as retryable or permanent from its
+  reason code alone, so the model needs no timing for that choice. The
+  backoff delay before one retry stays one of the omitted delays above.
 - Refused events are counted, not stored by kind. The implementation
   records the reason code of each refusal.
 - Report payloads, usage, timing, and evaluator versions are absent.

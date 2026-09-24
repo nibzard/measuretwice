@@ -233,7 +233,7 @@ export interface ExecutionConfig {
   readonly deadline_ms: number;
   /** Attempts per check, counting the first attempt. */
   readonly max_attempts: number;
-  /** Base backoff delay between attempts, in milliseconds. */
+  /** Base backoff delay between attempts, in milliseconds. The delay doubles after every retry. */
   readonly backoff_ms: number;
 }
 

@@ -214,6 +214,30 @@
       }
     },
     {
+      "id": "permanent-failure",
+      "note": "One malformed adapter answer is permanent: no retry starts, whatever attempts remain. The record keeps the operational code and the true attempt count.",
+      "definition": "categorical-question.json",
+      "case_input": {
+        "prior_decision": "Customer exports stay in the EU.",
+        "conversation": "We must move the export worker to the US region.",
+        "proposed_message": "The export worker moved to the US region."
+      },
+      "config": {"max_active": 1, "max_pending": 1, "deadline_ms": 10000, "max_attempts": 3, "backoff_ms": 50},
+      "events": [
+        {"at_ms": 0, "type": "submit"},
+        {"at_ms": 0, "type": "check_started", "check": "message-supported"},
+        {"at_ms": 100, "type": "attempt_failed", "check": "message-supported", "code": "invalid_assessment", "permanent": true}
+      ],
+      "expected": {
+        "checks": [
+          {"check": "message-supported", "outcome": "error", "attempts": 1, "reason": {"code": "invalid_assessment"}}
+        ],
+        "aggregate": "error",
+        "completion": "completed",
+        "rejected_events": []
+      }
+    },
+    {
       "id": "late-result-after-completion",
       "note": "The run reaches a terminal state. A result that arrives later is recorded as rejected and changes nothing.",
       "definition": "categorical-question.json",

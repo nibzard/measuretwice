@@ -1333,11 +1333,18 @@ fn runtime_traces_replay_through_the_run_state_boundary() {
                     let code =
                         ReasonCode::from_registry(event["code"].as_str().expect("a failure code"))
                             .unwrap_or_else(|| panic!("{note} event {index} names no code"));
-                    let resolution = run
-                        .fail_attempt(check, code, "The adapter failed the attempt.")
-                        .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
-                    if let AttemptResolution::Exhausted = resolution {
-                        skip_codes.insert(code.as_str());
+                    if event["permanent"].as_bool().unwrap_or(false) {
+                        // The wrapper declined the retry, so the permanent
+                        // failure records its error at the failing attempt.
+                        run.fail_permanent(check, code, "The adapter failed the attempt.")
+                            .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                    } else {
+                        let resolution = run
+                            .fail_attempt(check, code, "The adapter failed the attempt.")
+                            .unwrap_or_else(|error| panic!("{note} event {index}: {error}"));
+                        if let AttemptResolution::Exhausted = resolution {
+                            skip_codes.insert(code.as_str());
+                        }
                     }
                 }
                 "check_skipped" => {

@@ -249,11 +249,13 @@ no body, and no header, because each can quote case content or one
 credential. The class, the status, and the request identifier keep the
 operational reason visible, as the evaluator contract requires.
 
-The adapter passes the caller `AbortSignal` on every call and bounds one
-attempt with the remaining budget of the request, because the SDK retries
-carry no total budget. The wrapper scheduler owns the attempts, the backoff,
-and the total deadline; task T032 reconciles the SDK retry defaults with
-that budget.
+The adapter passes the caller `AbortSignal` on every call, bounds one
+attempt with the remaining budget of the request, and disables the retry
+loop of the SDK with `retry: { maxRetries: 0 }`, because the SDK retries
+carry no total budget. The wrapper scheduler owns the attempts, the
+backoff, and the total deadline, so one wrapper attempt is one SDK
+request: hidden SDK retries cannot multiply the requests and the spend of
+one budget the wrapper cannot see.
 
 The shared cases live in
 [fixtures/adapters/jev-normalization.json](../../fixtures/adapters/jev-normalization.json)
@@ -303,10 +305,12 @@ interface RequestOptions {
 | `maxRetryAfterMs` | 60000 | Server delay cap. Longer delays use backoff. |
 
 Adapter rule: pass the caller `AbortSignal` on every call. Bound total
-elapsed time with that signal, because retries carry no total budget. The
-wrapper scheduler owns attempts, backoff, and deadlines; the config fields
-appear in `fixtures/runtime/traces.json`. Task T034 reconciles the SDK retry
-defaults with that attempt budget.
+elapsed time with that signal, because retries carry no total budget.
+State `retry: { maxRetries: 0 }` on every call, so the wrapper scheduler
+owns attempts, backoff, and deadlines alone; the config fields appear in
+`fixtures/runtime/traces.json`. Task T032 fixed that reconciliation: one
+wrapper attempt is one SDK request, so the configured attempts never
+multiply.
 
 ## Batching
 

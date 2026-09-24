@@ -33,6 +33,7 @@ import {
   runComplete,
   runDeadline,
   runFailAttempt,
+  runFailPermanent,
   runSkipQueueFull,
   runStartAttempt,
   type RunState,
@@ -590,6 +591,12 @@ test("runtime traces replay through the boundary", () => {
           if (run.status(check!)?.place === "pending") {
             runStartAttempt(run, check!, caseReference, TRACE_PROFILE);
           }
+          if ((event as { permanent?: boolean }).permanent === true) {
+            // The wrapper declined the retry, so the permanent failure
+            // records its error at the failing attempt.
+            runFailPermanent(run, check!, event.code!, "The adapter failed the attempt.");
+            break;
+          }
           const resolution = runFailAttempt(
             run,
             check!,
@@ -719,23 +726,54 @@ test("run state refuses drifted, late, and malformed events", () => {
   expect(unknownCode.code).toBe("invalid_field_type");
   expect(unknownCode.fieldPath).toBe("/code");
 
+  // One permanent failure meets the same refusal guards: no attempt in
+  // flight and no code outside the operational set.
+  const notStarted = failureOf(() =>
+    runFailPermanent(run, "notice-hides-secrets", "invalid_assessment", "The adapter broke."),
+  );
+  expect(notStarted.code).toBe("invalid_state_transition");
+  expect(notStarted.fieldPath).toBe("/check");
+  const badPermanent = failureOf(() =>
+    runFailPermanent(run, "summary-length", "queue_full", "Not operational."),
+  );
+  expect(badPermanent.code).toBe("invalid_field_type");
+  expect(badPermanent.fieldPath).toBe("/reason/code");
+
   // The rule record of the assessment is accepted, and a repeat is refused.
   const [rule] = nativeAssessRuleChecks(definitionText, caseText);
   runAcceptResult(run, "summary-length", rule!.record);
   const duplicate = failureOf(() => runAcceptResult(run, "summary-length", rule!.record));
   expect(duplicate.code).toBe("invalid_state_transition");
 
-  // The remaining checks skip and complete.
+  // The second check skips, and the third records one permanent failure at
+  // its only attempt: the record keeps the code and the true count, and a
+  // recorded check accepts no second permanent failure.
   runSkipQueueFull(run, "summary-mentions-limit");
-  runSkipQueueFull(run, "notice-hides-secrets");
+  runStartAttempt(run, "notice-hides-secrets", caseReference, TRACE_PROFILE);
+  runFailPermanent(
+    run,
+    "notice-hides-secrets",
+    "invalid_assessment",
+    "The adapter answered outside the contract of its check.",
+  );
+  const recorded = failureOf(() =>
+    runFailPermanent(run, "notice-hides-secrets", "invalid_assessment", "Again."),
+  );
+  expect(recorded.code).toBe("invalid_state_transition");
   runComplete(run, "2026-09-24T00:00:00Z");
   const report = JSON.parse(run.reportText() ?? "{}");
   expect(report.completion).toEqual({
     status: "completed",
     completed_at: "2026-09-24T00:00:00Z",
   });
-  expect(report.aggregate.outcome).toBe("review");
+  expect(report.aggregate.outcome).toBe("error");
   expect(report.checks[0]).toMatchObject({ check: "summary-length", outcome: "pass" });
+  expect(report.checks[2]).toMatchObject({
+    check: "notice-hides-secrets",
+    outcome: "error",
+    attempts: 1,
+    reason: { code: "invalid_assessment" },
+  });
 
   // A terminal run refuses every further event, including late results.
   expect(failureOf(() => runStartAttempt(run, "summary-length", caseReference, TRACE_PROFILE)).code)

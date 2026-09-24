@@ -4,10 +4,12 @@
  *
  * These tests cover the bounded scheduling that MVP_SPEC.md sections 5, 9,
  * and 12 assign to the TypeScript wrapper: active-work limits, pending-work
- * limits, saturation records, the attempt of every required check, the
- * total deadline, and caller cancellation. Every transition crosses the
- * Rust run state boundary, so one drifted offer, one late result, and one
- * invalid record meet the core refusal there.
+ * limits, saturation records, the attempt of every required check, bounded
+ * retries with their backoff inside the total deadline, permanent failures
+ * that record their error without one retry, the total deadline, and caller
+ * cancellation. Every transition crosses the Rust run state boundary, so
+ * one drifted offer, one late result, and one invalid record meet the core
+ * refusal there.
  *
  * The tests stay offline and deterministic. One manual executor resolves
  * each execution by hand, one fake clock states the time and fires the
@@ -417,6 +419,217 @@ test("one exhausted attempt records its error beside the passing siblings", asyn
   expect(report.checks[1]?.outcome).toBe("pass");
   expect(report.aggregate.outcome).toBe("error");
   expect(report.completion.status).toBe("completed");
+});
+
+// ---------------------------------------------------------------------------
+// Bounded retries, permanent failures, and backoff inside the deadline.
+// ---------------------------------------------------------------------------
+
+test("a retryable failure waits its bounded backoff before the retry starts", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 1, max_pending: 2, max_attempts: 3, backoff_ms: 50 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const reportPromise = start(run, config, executor, clock);
+
+  // The first attempt fails at millisecond 10. The freed slot starts the
+  // next queued check at once, and the retry enters its backoff.
+  clock.advanceMs(10);
+  await executor.resolveCheck("summary-length", failed("evaluator_timeout"));
+  await flush();
+  expect(executor.inFlight()).toEqual(["summary-mentions-limit"]);
+  expect(executor.events.filter((event) => event.type === "retry_scheduled")).toEqual([
+    { type: "retry_scheduled", check: "summary-length", attempt: 2, delay_ms: 50 },
+  ]);
+
+  // Every attempt of one run states the same attempt budget and the same
+  // deadline instant, so one retry drifts neither the budget nor the run.
+  for (const call of executor.calls) {
+    expect(call.max_attempts).toBe(3);
+    expect(call.deadline_at_ms).toBe(START_MS + config.deadline_ms);
+  }
+
+  // The queue drains while the backoff holds: millisecond 59 comes and
+  // goes before the retry instant at millisecond 60.
+  clock.advanceMs(49);
+  await executor.resolveCheck("summary-mentions-limit", result(run, "summary-mentions-limit", "pass"));
+  await flush();
+  expect(executor.inFlight()).toEqual(["notice-hides-secrets"]);
+  clock.advanceMs(1);
+  await flush();
+  expect(executor.inFlight()).toEqual(["notice-hides-secrets"]);
+  expect(executor.calls.filter((call) => call.check === "summary-length")).toHaveLength(1);
+
+  // The backoff passed, so the retry joins the shared queue and starts
+  // when the active check frees its slot. The boundary accepted the same
+  // run binding for the restart.
+  clock.advanceMs(10);
+  await executor.resolveCheck("notice-hides-secrets", result(run, "notice-hides-secrets", "pass"));
+  await flush();
+  expect(executor.inFlight()).toEqual(["summary-length"]);
+  expect(executor.calls.at(-1)?.attempt).toBe(2);
+
+  // The second failure doubles the delay: the third attempt waits 100.
+  clock.advanceMs(10);
+  await executor.resolveCheck("summary-length", failed("evaluator_error"));
+  await flush();
+  expect(executor.events.filter((event) => event.type === "retry_scheduled")).toEqual([
+    { type: "retry_scheduled", check: "summary-length", attempt: 2, delay_ms: 50 },
+    { type: "retry_scheduled", check: "summary-length", attempt: 3, delay_ms: 100 },
+  ]);
+
+  // The second backoff ends at millisecond 180, inside the total deadline,
+  // and one pass on the third attempt records the true count.
+  clock.advanceMs(100);
+  await flush();
+  expect(executor.inFlight()).toEqual(["summary-length"]);
+  await executor.resolveCheck("summary-length", result(run, "summary-length", "pass"));
+  const report = await reportPromise;
+  expect(report.checks[0]).toMatchObject({
+    check: "summary-length",
+    outcome: "pass",
+    attempts: 3,
+  });
+  expect(report.checks.map((record) => record.outcome)).toEqual(["pass", "pass", "pass"]);
+  expect(report.aggregate.outcome).toBe("pass");
+  expect(report.completion).toEqual({
+    status: "completed",
+    completed_at: "2026-09-24T00:00:00.180Z",
+  });
+});
+
+test("one permanent failure records its error without one retry", async () => {
+  const clock = new FakeClock(START_MS);
+  // Three attempts are available, but one answer outside the contract of
+  // its check is one adapter defect: one retry would return through the
+  // same broken path and spend one attempt for nothing.
+  const config = execution({ max_active: 1, max_pending: 2, max_attempts: 3, backoff_ms: 50 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const reportPromise = start(run, config, executor, clock);
+
+  clock.advanceMs(20);
+  await executor.resolveCheck("summary-length", failed("invalid_assessment"));
+  await flush();
+  // No backoff and no second execution of the failed check: the next
+  // sibling started at once.
+  expect(executor.calls.map((call) => call.check)).toEqual([
+    "summary-length",
+    "summary-mentions-limit",
+  ]);
+  expect(executor.events.filter((event) => event.type === "retry_scheduled")).toEqual([]);
+
+  await executor.resolveCheck("summary-mentions-limit", result(run, "summary-mentions-limit", "pass"));
+  await flush();
+  await executor.resolveCheck("notice-hides-secrets", result(run, "notice-hides-secrets", "pass"));
+  const report = await reportPromise;
+
+  // The record keeps the operational code and the true attempt count, and
+  // the run stays usable: it completes with the visible defect.
+  expect(report.checks[0]).toMatchObject({
+    check: "summary-length",
+    outcome: "error",
+    attempts: 1,
+    reason: { code: "invalid_assessment" },
+  });
+  expect(report.checks[1]?.outcome).toBe("pass");
+  expect(report.aggregate.outcome).toBe("error");
+  expect(report.completion.status).toBe("completed");
+
+  // The clock passes the backoff instant that never armed, and the failed
+  // check still holds no further execution.
+  clock.advanceMs(200);
+  await flush();
+  expect(executor.calls.map((call) => call.check)).toEqual([
+    "summary-length",
+    "summary-mentions-limit",
+    "notice-hides-secrets",
+  ]);
+});
+
+test("cancellation during one backoff ends the run and disarms the backoff", async () => {
+  const clock = new FakeClock(START_MS);
+  const config = execution({ max_active: 1, max_pending: 2, max_attempts: 2, backoff_ms: 100 });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const caller = new AbortController();
+  const reportPromise = start(run, config, executor, clock, { signal: caller.signal });
+
+  // The first attempt fails at millisecond 50, so the retry waits until
+  // millisecond 150. The freed slot started the second check.
+  clock.advanceMs(50);
+  await executor.resolveCheck("summary-length", failed("evaluator_timeout"));
+  await flush();
+  expect(executor.inFlight()).toEqual(["summary-mentions-limit"]);
+  expect(executor.events.filter((event) => event.type === "retry_scheduled")).toEqual([
+    { type: "retry_scheduled", check: "summary-length", attempt: 2, delay_ms: 100 },
+  ]);
+
+  clock.advanceMs(20);
+  caller.abort();
+  const report = await reportPromise;
+  expect(report.completion).toEqual({
+    status: "cancelled",
+    completed_at: "2026-09-24T00:00:00.070Z",
+  });
+  // The retrying check holds no record and no attempt in flight, so the
+  // boundary assigns it the skip of never-started work. The active
+  // sibling records the cancellation error.
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+    { check: "summary-mentions-limit", outcome: "error", reason: { code: "run_cancelled" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "cancelled_before_start" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+
+  // The terminal path disarmed the backoff: the clock passes its instant
+  // and the retry never executes.
+  clock.advanceMs(200);
+  await flush();
+  expect(executor.calls.map((call) => call.check)).toEqual([
+    "summary-length",
+    "summary-mentions-limit",
+  ]);
+});
+
+test("the deadline ends one backoff that outlives it", async () => {
+  const clock = new FakeClock(START_MS);
+  // The base delay outlives the total deadline, so the retry can never
+  // start: the deadline wake-up ends the run first.
+  const config = execution({
+    max_active: 1,
+    max_pending: 2,
+    max_attempts: 2,
+    backoff_ms: 200,
+    deadline_ms: 100,
+  });
+  const run = prepare(EXACT_RULES_PATH, PASSING_INPUT, config);
+  const executor = new ManualExecutor();
+  const reportPromise = start(run, config, executor, clock);
+
+  clock.advanceMs(40);
+  await executor.resolveCheck("summary-length", failed("evaluator_timeout"));
+  await flush();
+  expect(executor.events.filter((event) => event.type === "retry_scheduled")).toEqual([
+    { type: "retry_scheduled", check: "summary-length", attempt: 2, delay_ms: 200 },
+  ]);
+
+  clock.advanceMs(60);
+  const report = await reportPromise;
+  expect(report.completion).toEqual({
+    status: "deadline_exceeded",
+    completed_at: "2026-09-24T00:00:00.100Z",
+  });
+  expect(report.checks).toMatchObject([
+    { check: "summary-length", outcome: "skipped", reason: { code: "deadline_before_start" } },
+    { check: "summary-mentions-limit", outcome: "error", reason: { code: "deadline_exceeded" } },
+    { check: "notice-hides-secrets", outcome: "skipped", reason: { code: "deadline_before_start" } },
+  ]);
+  expect(report.aggregate.outcome).toBe("error");
+  expect(executor.calls.map((call) => call.check)).toEqual([
+    "summary-length",
+    "summary-mentions-limit",
+  ]);
 });
 
 // ---------------------------------------------------------------------------
@@ -845,6 +1058,7 @@ const REPLAYABLE_TRACE_IDS = new Set([
   "cancel-before-start",
   "retries-exhausted",
   "retry-then-success",
+  "permanent-failure",
   "late-result-after-cancel",
   "partial-failure-mix",
 ]);
@@ -872,6 +1086,7 @@ test("the shared runtime traces replay through the scheduler", async () => {
     "cancel-before-start",
     "retries-exhausted",
     "retry-then-success",
+    "permanent-failure",
     "late-result-after-cancel",
     "partial-failure-mix",
   ]);

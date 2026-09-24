@@ -277,11 +277,14 @@ test("the adapter sends the pinned translation inside the evidence envelope", as
   const text = JSON.stringify(request);
   expect(text).not.toContain("normalization-case-1");
 
-  // The boundary receives the caller signal and one attempt timeout that
-  // covers the remaining budget.
+  // The boundary receives the caller signal, one attempt timeout that
+  // covers the remaining budget, and one retry policy that disables the
+  // SDK retry loop: the wrapper scheduler owns the attempts, so one
+  // wrapper attempt is one SDK request.
   const options = fake.options[0]!;
   expect(options.signal).toBe(controller.signal);
   expect(options.timeout).toBe(30000);
+  expect(options.retry).toEqual({ maxRetries: 0 });
 });
 
 test("one requested model override reaches the boundary", async () => {

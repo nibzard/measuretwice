@@ -15,7 +15,8 @@
 //! | [`RunState::start_attempt`] | `SubmitStart`, `StartRetry` |
 //! | [`RunState::start_attempt`] refusals | `SubmitDrift`, `RetryDrift` |
 //! | [`RunState::skip_queue_full`] | `SubmitSkipped`, minus the queue arithmetic the wrapper owns |
-//! | [`RunState::fail_attempt`] | `AttemptFail` |
+//! | [`RunState::fail_attempt`] | `AttemptFail`, retry branch |
+//! | [`RunState::fail_permanent`] | `AttemptFail`, permanent branch |
 //! | [`RunState::accept_result`] | `AcceptResult` |
 //! | [`RunState::accept_result`] refusals | `DuplicateResult`, `LateResult` |
 //! | [`RunState::cancel`] | `Cancel` |
@@ -35,6 +36,10 @@
 //!   accepted attempt equal the run binding, so a retry cannot switch either
 //!   identity (`AttemptBindingStable`). A drifted offer is refused and changes
 //!   no state.
+//! - The wrapper owns the retry policy. One retryable failure returns the
+//!   check to the wrapper while attempts remain; one permanent failure
+//!   records its error at the failing attempt, whatever attempts remain, so
+//!   one adapter defect never spends dummy attempts to reach a record.
 //! - An error or a skipped record never becomes a pass, a fail, or a review
 //!   (`NoErrorSkipToPass`). A recorded check accepts no further event.
 //! - A terminal run accepts no transition (`TerminalReportFrozen`). The
@@ -166,7 +171,8 @@ pub struct CheckStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttemptResolution {
     /// Attempts remain, so the check returns to the queue with its binding
-    /// kept. The wrapper owns the backoff and starts the next attempt.
+    /// kept. The wrapper owns the retry policy and the backoff, and starts
+    /// the next attempt only when it retries the failure.
     RetryQueued {
         /// Attempts started so far, counting the attempt that just failed.
         attempts: u32,
@@ -204,8 +210,9 @@ struct CheckSlot {
 ///    reference plus the profile reference, is fixed here and never changes.
 /// 2. The wrapper starts attempts with [`RunState::start_attempt`], offering
 ///    the binding of the attempt. The boundary refuses a drifted offer.
-/// 3. The wrapper resolves each attempt with [`RunState::accept_result`] or
-///    [`RunState::fail_attempt`]. A duplicate or late result is refused.
+/// 3. The wrapper resolves each attempt with [`RunState::accept_result`],
+///    [`RunState::fail_attempt`], or [`RunState::fail_permanent`]. A
+///    duplicate or late result is refused.
 /// 4. The wrapper may skip never-started work with
 ///    [`RunState::skip_queue_full`] when its queue cannot accept the work.
 /// 5. One terminal method ends the run: [`RunState::cancel`],
@@ -459,17 +466,7 @@ impl RunState {
         message: &str,
     ) -> Result<AttemptResolution, ValidationError> {
         self.ensure_running()?;
-        if !matches!(
-            code,
-            ReasonCode::EvaluatorError
-                | ReasonCode::EvaluatorTimeout
-                | ReasonCode::InvalidAssessment
-        ) {
-            return Err(ValidationError::invalid_field_type(
-                "/reason/code",
-                "An attempt failure must carry an operational reason code: evaluator_error, evaluator_timeout, or invalid_assessment.",
-            ));
-        }
+        require_operational_code(code)?;
         let index = self.slot_index(check_id)?;
         let slot = &self.slots[index];
         if slot.place != CheckPlace::Active {
@@ -498,6 +495,47 @@ impl RunState {
         slot.record = Some(record);
         slot.place = CheckPlace::Recorded;
         Ok(AttemptResolution::Exhausted)
+    }
+
+    /// Resolves one in-flight attempt with one permanent operational
+    /// failure. Implements the permanent branch of `AttemptFail`.
+    ///
+    /// The wrapper owns the retry policy, so it states here that one failure
+    /// is permanent: the check records one `error` outcome at the failing
+    /// attempt, whatever attempts remain, and no retry starts. The record
+    /// keeps the attempt count and the stated reason, so one adapter defect
+    /// stays visible as itself instead of `retries_exhausted` after dummy
+    /// restarts that execute nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ValidationError`] with `invalid_state_transition` when the
+    /// run is terminal or no attempt of the check is in flight, and one with
+    /// `invalid_field_type` when the code names no operational failure. No
+    /// refusal changes state.
+    pub fn fail_permanent(
+        &mut self,
+        check_id: &str,
+        code: ReasonCode,
+        message: &str,
+    ) -> Result<(), ValidationError> {
+        self.ensure_running()?;
+        require_operational_code(code)?;
+        let index = self.slot_index(check_id)?;
+        let slot = &self.slots[index];
+        if slot.place != CheckPlace::Active {
+            return Err(invalid_state(
+                "/check",
+                "No attempt is in flight for this check. A permanent failure fits no valid transition.",
+            ));
+        }
+        let attempts = slot.attempts;
+        let reason = SanitizedReason::new(code, message)?;
+        let record = operational_record(slot, Outcome::Error, reason, Some(attempts as u64));
+        let slot = &mut self.slots[index];
+        slot.record = Some(record);
+        slot.place = CheckPlace::Recorded;
+        Ok(())
     }
 
     /// Resolves one in-flight attempt with its component record. Implements
@@ -788,6 +826,25 @@ impl RunState {
 /// Builds one `invalid_state_transition` refusal.
 fn invalid_state(field_path: &str, message: &str) -> ValidationError {
     ValidationError::new(ReasonCode::InvalidStateTransition, field_path, message)
+}
+
+/// Checks that one failure code names one operational failure of an adapter.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] with `invalid_field_type` when the code
+/// names no operational failure.
+fn require_operational_code(code: ReasonCode) -> Result<(), ValidationError> {
+    if matches!(
+        code,
+        ReasonCode::EvaluatorError | ReasonCode::EvaluatorTimeout | ReasonCode::InvalidAssessment
+    ) {
+        return Ok(());
+    }
+    Err(ValidationError::invalid_field_type(
+        "/reason/code",
+        "An attempt failure must carry an operational reason code: evaluator_error, evaluator_timeout, or invalid_assessment.",
+    ))
 }
 
 /// Builds one record that the boundary constructs itself.
@@ -1183,6 +1240,92 @@ mod tests {
             reason.message,
             "All 2 attempts failed. The last failure reported evaluator_error."
         );
+    }
+
+    #[test]
+    fn a_permanent_failure_records_its_error_without_one_retry() {
+        // Task T032: the wrapper states one permanent failure, so the check
+        // ends at the failing attempt. The trace permanent-failure fixes the
+        // wrapper-level shape of this record.
+        let (case, profile) = binding();
+        let mut run = state(3);
+
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the first attempt starts");
+        run.fail_permanent(
+            "notice-question",
+            ReasonCode::InvalidAssessment,
+            "The adapter answered outside the contract of its check.",
+        )
+        .expect("the permanent failure records at once");
+
+        // The record keeps the operational code and the true attempt count,
+        // whatever attempts remain.
+        assert_eq!(run.outcome_of("notice-question"), Some(Outcome::Error));
+        assert_eq!(
+            run.status("notice-question"),
+            Some(CheckStatus {
+                place: CheckPlace::Recorded,
+                attempts: 1
+            })
+        );
+        // A recorded check starts no further attempt, and no failure or
+        // result fits the recorded slot.
+        let error = run
+            .start_attempt("notice-question", &case, &profile)
+            .expect_err("the recorded check restarted");
+        assert_eq!(error.field_path, "/check", "{error}");
+        let error = run
+            .fail_permanent(
+                "notice-question",
+                ReasonCode::InvalidAssessment,
+                "The adapter answered outside the contract of its check.",
+            )
+            .expect_err("the recorded check failed again");
+        assert_eq!(error.field_path, "/check", "{error}");
+
+        // No attempt is in flight for a check that never started.
+        let error = run
+            .fail_permanent(
+                "summary-length",
+                ReasonCode::InvalidAssessment,
+                "The adapter answered outside the contract of its check.",
+            )
+            .expect_err("the unstarted check recorded one error");
+        assert_eq!(error.field_path, "/check", "{error}");
+
+        // A code outside the operational set is refused before any state read.
+        let error = run
+            .fail_attempt(
+                "summary-length",
+                ReasonCode::QueueFull,
+                "The queue reported one skip.",
+            )
+            .expect_err("the non-operational code crossed");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/reason/code", "{error}");
+        let error = run
+            .fail_permanent(
+                "summary-length",
+                ReasonCode::QueueFull,
+                "The queue reported one skip.",
+            )
+            .expect_err("the non-operational permanent code crossed");
+        assert_eq!(error.field_path, "/reason/code", "{error}");
+
+        // The run completes with the visible defect: no retry ran, no dummy
+        // attempt spent the budget, and the reason names the defect itself.
+        run.start_attempt("summary-length", &case, &profile)
+            .expect("the rule attempt starts");
+        run.accept_result("summary-length", rule_record(Outcome::Pass))
+            .expect("the rule result is accepted");
+        run.complete(None).expect("the run completes");
+        let report = run.report().expect("the terminal report exists");
+        let question = &report.checks()[1];
+        assert_eq!(question.outcome, Outcome::Error);
+        assert_eq!(question.attempts, Some(1));
+        let reason = question.reason.as_ref().expect("an error states a reason");
+        assert_eq!(reason.code, ReasonCode::InvalidAssessment);
     }
 
     #[test]
