@@ -1,0 +1,7 @@
+# Context
+
+## Background
+Task T060. Compiles the existing draft check definitions against
+the public package without changing the label provenance of the
+18 synthetic cases. definitions/*.json are trusted exports;
+.measuretwice/build is ignored.
