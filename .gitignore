@@ -1,5 +1,6 @@
-# Generated measuretwice reports
+# Generated measuretwice reports and compiled development checks
 /.measuretwice/reports/
+/.measuretwice/build/
 
 # Rust build output
 /target/
@@ -29,3 +30,7 @@
 
 # TLC scratch output from model runs
 /states/
+
+# Generated example build output and reports
+/examples/*/build/
+/examples/*/reports/

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "intervention-review-cases",
+  "name": "Intervention review cases",
+  "revision": "2026-09-24.1",
+  "kind": "development_fixture",
+  "intended_population": "Proposed intervention messages with the original decision evidence and the team discussion that they answer. Synthetic examples for one public lesson. No real conversation.",
+  "sampling_method": "Written for this example to cover one accepted, one duplicated, one contradicted, one replaced-decision, one missing-evidence, and one over-length case. No sampling of any real population.",
+  "label_guidelines": "Decision conflict: answer conflict only when the proposal contradicts one decision that still applies, replaced when the team explicitly replaced the earlier decision, unclear when the applicability or the relationship cannot be established from the supplied evidence. Message support: answer supported only when every material claim follows from the supplied evidence, contradicted when one claim conflicts with one explicit statement, incomplete when support is missing or ambiguous. Novelty: answer yes only when one participant explicitly recognizes this specific concern. Consequence: state the lowest level that the supplied evidence establishes, and mark one unresolved level for review. Length: the executed rule decides, so the reference states the outcome only.",
+  "languages": ["en"],
+  "splits": [
+    {
+      "id": "explore",
+      "purpose": "fitting",
+      "groups": [
+        "eu-move-new",
+        "eu-move-known",
+        "eu-move-record",
+        "eu-move-replaced",
+        "eu-move-unclear",
+        "eu-move-verbose"
+      ]
+    }
+  ]
+}

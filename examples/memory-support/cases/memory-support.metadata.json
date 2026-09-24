@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "memory-support-cases",
+  "name": "Memory support cases",
+  "revision": "2026-09-24.1",
+  "kind": "development_fixture",
+  "intended_population": "Proposed memories with their original source messages. Synthetic examples for one public lesson. No real conversation.",
+  "sampling_method": "Written for this example to cover one pass, one fail, and one review case. No sampling of any real population.",
+  "label_guidelines": "Supported: the original sources establish every material claim. Contradicted: one claim conflicts with one explicit statement in the sources. Insufficient: no conflict exists and the sources cannot establish one claim.",
+  "languages": ["en"],
+  "splits": [
+    {
+      "id": "explore",
+      "purpose": "fitting",
+      "groups": ["freeze-window", "data-region", "quiet-hours"]
+    }
+  ]
+}

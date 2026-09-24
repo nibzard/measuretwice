@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "name": "intervention-review",
+  "when_uncertain": "review",
+  "inputs": {
+    "type": "object",
+    "required": [
+      "prior_decision",
+      "conversation",
+      "proposed_message"
+    ],
+    "properties": {
+      "prior_decision": {
+        "type": "string",
+        "minLength": 1
+      },
+      "conversation": {
+        "type": "string",
+        "minLength": 1
+      },
+      "proposed_message": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "decision-conflict",
+      "name": "An earlier decision is being contradicted",
+      "using": [
+        "prior_decision",
+        "conversation"
+      ],
+      "question": "How does the new proposal relate to the earlier decision?",
+      "answers": {
+        "conflict": "It conflicts with a decision that still applies.",
+        "replaced": "The team explicitly replaced the earlier decision.",
+        "aligned": "It is compatible with the earlier decision.",
+        "unclear": "Applicability or the relationship cannot be established."
+      },
+      "accept": "conflict",
+      "review": "unclear"
+    },
+    {
+      "id": "message-supported",
+      "name": "Our message accurately describes the evidence",
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "question": "Does every material claim in the proposed message follow from the evidence?",
+      "answers": {
+        "supported": "All claims are supported with appropriate certainty and attribution.",
+        "contradicted": "A material claim conflicts with the supplied evidence.",
+        "incomplete": "Support for a material claim is missing or ambiguous."
+      },
+      "accept": "supported",
+      "review": "incomplete"
+    },
+    {
+      "id": "adds-information",
+      "name": "We are adding something new",
+      "using": [
+        "conversation",
+        "proposed_message"
+      ],
+      "question": "Has the conversation already acknowledged this concern?",
+      "answers": {
+        "yes": "A participant explicitly recognizes this specific concern.",
+        "no": "No supplied message explicitly recognizes this specific concern."
+      },
+      "accept": "no"
+    },
+    {
+      "id": "consequence",
+      "name": "The concern warrants an interruption",
+      "using": [
+        "prior_decision",
+        "conversation",
+        "proposed_message"
+      ],
+      "question": "What consequence does this concern have, based on the evidence?",
+      "scale": [
+        {
+          "minor": "A wording or preference difference with no identified operational consequence."
+        },
+        {
+          "meaningful": "A coordination problem causing rework or delay."
+        },
+        {
+          "serious": "A conflict affecting an explicit customer commitment or operational requirement."
+        }
+      ],
+      "accept": {
+        "at_least": "meaningful"
+      }
+    },
+    {
+      "id": "message-length",
+      "name": "The message fits our delivery limit",
+      "using": [
+        "proposed_message"
+      ],
+      "rule": {
+        "maxLength": 900
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "../",
+    "outDir": "build",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": [
+    "cassandra.ts",
+    "records.ts",
+    "adapter.ts",
+    "host.ts",
+    "../memory-support/checks/memory-support.ts",
+    "../intervention-review/checks/intervention.ts"
+  ]
+}

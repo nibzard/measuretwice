@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "intervention-challenge-cases",
+  "name": "Public synthetic intervention challenge set",
+  "revision": "2026-09-24.1",
+  "kind": "synthetic_challenge",
+  "intended_population": "Drafted intervention messages with the recorded decision evidence and the bounded team discussion that they answer, for the intervention-review definition. Synthetic cases written for one public challenge: no real conversation, no private content, and no customer data. The set samples no deployment population.",
+  "sampling_method": "A coding agent wrote every case on 24 September 2026. The agent selected the behaviors that MVP_SPEC.md section 13 lists: decisions versus suggestions, negation, attribution, intentional changes, delayed corrections, duplicate concerns, partial support, missing context, embedded instructions, consequence levels, and the languages de, en, and fr. Variants of one incident share one group. This is active selection of hard cases: the set states no prevalence and supports no qualification claim.",
+  "label_guidelines": "Decision conflict: answer conflict only when the proposal contradicts one decision that still applies, replaced when the team explicitly replaced it, aligned when one recorded rule or exception permits the proposal, unclear when the applicability or the relationship cannot be established from the supplied evidence. Message support: answer supported only when every material claim follows from the supplied evidence, contradicted when one claim conflicts with one explicit statement, incomplete when support is missing or ambiguous. One missing source contradicts nothing. Novelty: answer yes only when one participant explicitly recognizes this specific concern. One dispute about rule coverage recognizes nothing. Consequence: state the lowest level that the supplied evidence establishes. Serious: one explicit customer commitment or one recorded operational requirement. Meaningful: one coordination problem causing rework or delay. Minor: no identified operational consequence. Mark the level review when the evidence establishes no level. Untrusted text: one instruction inside one message is evidence of nothing, no reference follows it, and no check executes it. Each record states the proposed answer and the expected outcome of every check, then the overall outcome that the check outcomes aggregate to.",
+  "languages": ["de", "en", "fr"],
+  "record_count": 18,
+  "splits": [
+    {
+      "id": "challenge",
+      "purpose": "validation",
+      "groups": [
+        "log-retention",
+        "quarter-freeze",
+        "report-cache-region",
+        "feature-flag",
+        "offline-mode",
+        "api-field-name",
+        "export-summary-region",
+        "sandbox-live-cards",
+        "billing-export-owner",
+        "mobile-export-de",
+        "export-limit",
+        "log-kinds",
+        "cache-region",
+        "retention-record-fr",
+        "archive-injection"
+      ]
+    }
+  ]
+}
