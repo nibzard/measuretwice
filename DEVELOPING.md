@@ -53,6 +53,11 @@ reads no secrets and starts no live evaluation. The public package ships
 ECMAScript modules. The native loader ships the loaders that NAPI-RS
 generates. Browser, edge, and WebAssembly runtimes are outside v0.
 
+The file `.gitattributes` normalizes every text file to LF on checkout.
+The JSON exports and the hashing fixtures are byte-exact contracts, so a
+Windows working tree must hold the committed bytes. Windows checkouts need
+no `core.autocrlf` setting of their own.
+
 ## Prebuilt packages
 
 Installation on a declared target needs no Rust compiler and no source
@@ -85,10 +90,12 @@ platform packages reach the registry only with the first release. A
 committed reference to an unpublished package breaks `npm ci` in the
 workspace. `npm run build:artifacts` builds the release binaries of every
 target the build host can produce: the host target natively, the other
-targets through the zig cross toolchain. A Windows MSVC binary needs a
-Windows host. The workflow `.github/workflows/build-artifacts.yml` builds
-every declared target on a matching runner, collects the binaries, and
-packs the assembled packages as workflow artifacts. It is the source of
+targets through the zig cross toolchain. The artifact workflow pins one
+zig release, because zig renamed its archives at 0.14 and older setup
+actions request archive names that no longer exist. A Windows MSVC binary
+needs a Windows host. The workflow `.github/workflows/build-artifacts.yml`
+builds every declared target on a matching runner, collects the binaries,
+and packs the assembled packages as workflow artifacts. It is the source of
 truth for released binaries.
 
 ### Clean installation gate

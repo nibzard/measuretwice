@@ -123,7 +123,9 @@ function fixtureJsonFiles(): string[] {
       if (statSync(full).isDirectory()) {
         stack.push(full);
       } else if (entry.endsWith(".json")) {
-        files.push(path.relative(fixturesDir, full));
+        // Manifest paths use "/" on every platform, so the walk reports the
+        // same separator instead of the host separator.
+        files.push(path.relative(fixturesDir, full).split(path.sep).join("/"));
       }
     }
   }

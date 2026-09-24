@@ -446,3 +446,21 @@ packed tarballs per declared Node version without Rust tooling. It uploads
 the tarballs as workflow artifacts. It reads no secrets and publishes
 nothing. The [clean installation gate](#clean-installation-gate) section
 records the coverage.
+
+Three platform rules keep that matrix green:
+
+- Node.js 20 states no line and column in one JSON parse failure. The
+  parse diagnostic derives `line L column C` from the position that
+  Node.js 20 states, so the `invalid_json` failure reads the same on
+  Node.js 20, 22, and 24.
+- Fixture paths use "/" on every platform. The fixture walk in
+  `tests/repo/fixtures.test.ts` reports forward slashes, because the
+  manifest states forward slashes and Windows reports backslashes.
+- Checkouts keep the committed bytes. `.gitattributes` normalizes text
+  files to LF. Windows working trees then hold the committed bytes, and
+  the byte-exact export and hashing checks compare equal content.
+
+The cross binaries of the artifact workflow link through one pinned zig
+release. Zig renamed its archives at 0.14, and an older setup action
+requested names that no longer exist, so every cross build failed with 404
+before the pin.

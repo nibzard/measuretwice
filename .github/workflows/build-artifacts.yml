@@ -54,10 +54,15 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      # The zig toolchain links the cross targets. See the mlugg/setup-zig
-      # marketplace page.
-      - uses: mlugg/setup-zig@v1
+      # The zig toolchain links the cross targets. Zig 0.14 renamed its
+      # release archives from zig-<os>-<cpu> to zig-<cpu>-<os>, and the v1
+      # action still requests the old names, so every download failed with
+      # 404. The v2 action knows both names. Pin one release version so the
+      # links stay deterministic.
+      - uses: mlugg/setup-zig@v2
         if: matrix.cross
+        with:
+          version: 0.16.0
       - uses: actions/setup-node@v5
         with:
           node-version: "24"

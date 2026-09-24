@@ -216,15 +216,39 @@ async function readBoundedText(
   return text;
 }
 
+/**
+ * Maps one parse position to the `line L column C` form of V8. Node 20
+ * reports only `at position N`; Node 22 and later append the line and column.
+ * The loop counts the newlines before the position, so the derived values
+ * match the ones V8 reports on engines that state them.
+ */
+function lineColumnOf(text: string, position: number): string {
+  const stop = Math.min(position, text.length);
+  let line = 1;
+  let lastNewline = -1;
+  for (let index = 0; index < stop; index += 1) {
+    if (text.charCodeAt(index) === 10) {
+      line += 1;
+      lastNewline = index;
+    }
+  }
+  return `line ${line} column ${stop - lastNewline}`;
+}
+
 /** Parses one JSON text. The failure names the position and echoes no content. */
 function parseJsonText(text: string, kind: string, filePath: string, fieldPath: string): unknown {
   try {
     return JSON.parse(text);
   } catch (cause) {
-    const location = /\(([^()]*line[^()]*)\)/.exec(
-      cause instanceof Error ? cause.message : String(cause),
-    );
-    const where = location === null ? "" : ` (${location[1]})`;
+    const message = cause instanceof Error ? cause.message : String(cause);
+    const location = /\(([^()]*line[^()]*)\)/.exec(message);
+    const position = location === null ? /\bat position (\d+)/.exec(message) : null;
+    const where =
+      location !== null
+        ? ` (${location[1]})`
+        : position !== null
+          ? ` (${lineColumnOf(text, Number(position[1]))})`
+          : "";
     throw new CliFailure(
       "invalid_json",
       `The ${kind} file ${JSON.stringify(filePath)} holds no valid JSON${where}. Export the artifact again with one trusted application script.`,
