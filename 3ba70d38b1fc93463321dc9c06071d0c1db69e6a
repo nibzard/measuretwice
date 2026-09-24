@@ -1,0 +1,7 @@
+# Context
+
+## Background
+Tasks T058-T059 and T061-T062. Examples deliberately add no
+Cassandra dependency to the library: the shadow adapter maps
+host data into cases from outside the package. Generated
+example build and report output is ignored via .gitignore.
