@@ -24,6 +24,7 @@
     "test:live": "vitest run --config vitest.live.config.ts",
     "test:rs": "cargo test --workspace",
     "test:ts": "vitest run",
+    "smoke": "node scripts/smoke-exact-slice.mjs",
     "typecheck": "tsc -p tsconfig.test.json"
   },
   "devDependencies": {

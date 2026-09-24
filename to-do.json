@@ -680,7 +680,7 @@
         "T016",
         "T017"
       ],
-      "updated_at": "2026-09-24T02:19:18Z",
+      "updated_at": "2026-09-24T02:19:50Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -695,7 +695,7 @@
       "id": "T019",
       "title": "Verify the exact-rule vertical slice",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Establish the first complete Rust-to-TypeScript path before adding semantic execution. Sources: MVP_SPEC.md sections 14-15.",
       "steps": [
         "Run identical cases through TypeBox authoring and exported JSON.",
@@ -713,6 +713,15 @@
         "T005",
         "T006",
         "T018"
+      ],
+      "updated_at": "2026-09-24T02:29:51Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "package.json",
+        "packages/measuretwice/test/slice.test.ts",
+        "scripts/smoke-exact-slice.mjs",
+        "to-do.json"
       ]
     },
     {

@@ -22,6 +22,7 @@ layout.
 | Native boundary | `packages/measuretwice/test/native.test.ts` | Vitest | The NAPI-RS surface: valid requests, malformed data, the stable failure translation, numeric and string behavior, and the runtime traces replayed through the run state class. |
 | Authoring | `packages/measuretwice/test/define-checks.test.ts` | Vitest | The `defineChecks` boundary: inferred case-input types and `using` names at compile time, the documented TypeBox conversion, rejection of nonportable values and unsupported forms, and the shared TypeBox pairs executed through the built package with their published hashes. |
 | Run path | `packages/measuretwice/test/run.test.ts` | Vitest | The `load` and `run` boundary: the typed import and the explicit JSON path, injected file access, clocks, and identifiers, YAML and TypeScript path rejection, profile self-hash verification and structural exact compatibility, case validation failures, the evaluator gate for question checks, enforcement qualification, and report determinism and immutability. |
+| Vertical slice | `packages/measuretwice/test/slice.test.ts` | Vitest | The complete Rust-to-TypeScript path as one slice: identical cases through TypeBox authoring and the exported JSON definition with equal canonical content, hashes, rule outcomes, and serialized reports; every exact string rule record and the Unicode boundaries through `load` and `run`; malformed requests and invalid cases with the same codes at both boundaries; and one child-process check that the slice uses no network, no credential read, and no provider package. |
 | Repository checks | `tests/repo/` | Vitest | The frozen schemas, the conformance fixtures, the example cases, the formal model records, documentation links, and the project name. |
 | Conformance fixtures | `fixtures/` | Every wrapper, through the Rust core | Definitions, inputs, canonical hashing, string rules, TypeBox pairing, assessments, outcomes, profile states, and runtime traces. |
 | Live evaluations | `tests/live/` | Vitest with a separate config | Real evaluator runs. Opt-in only. No live test exists yet. |
@@ -39,10 +40,37 @@ Run these commands from the repository root.
 | `npm run test:rs` | Run the Rust tests alone. |
 | `npm run test:ts` | Run the Vitest suites alone. |
 | `npm run test:live` | Run the opt-in live evaluations. |
+| `npm run smoke` | Run the exact-rule vertical-slice smoke check through the built package. |
 | `npm run typecheck` | Type-check the test code and the Vitest configs. |
 | `npm run fmt` / `npm run fmt:check` | Format or check the Rust code. |
 | `npm run lint` | Run clippy on the workspace with warnings denied. |
 | `npm run check` | Run every gate that continuous integration runs. |
+
+## Vertical slice smoke check
+
+The exact-rule vertical slice is the first complete Rust-to-TypeScript
+workflow: TypeBox authoring, the exported JSON definition, core validation,
+input projection, the exact rules, the run state boundary, and the frozen
+report. The vertical-slice suite verifies it inside the test runner. One
+command reproduces the same observation outside the runner:
+
+1. Run `npm run build`.
+2. Run `npm run smoke`.
+
+The command authors the delivery-limits checks once through TypeBox and
+loads them once through the exported JSON fixture. It runs one case through
+both paths and prints the observable result:
+
+- `TypeBox authoring and exported JSON agree: yes`
+- `rule outcomes: summary-length pass, summary-mentions-limit pass, notice-hides-secrets pass`
+- `aggregate outcome: pass`
+- `completion: completed at 2026-09-24T00:00:00.000Z`
+- `serialized reports identical: yes`
+- the last line `SMOKE_OK`
+
+The exit status is 0 when every expectation holds. The command reads local
+files only. It uses no credential, opens no network connection, and loads
+no provider package.
 
 ## Red, green, refactor
 

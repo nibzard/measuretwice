@@ -17,6 +17,7 @@ records the test suites and the verification commands. The task list is
 | `contracts/v0` | The frozen portable artifact contracts. |
 | `fixtures` | Shared cross-language conformance fixtures for the portable contracts. Mandatory for every wrapper. |
 | `models` | TLA+ formal models with their records. See [models/README.md](models/README.md). |
+| `scripts` | Standalone verification scripts, such as the exact-rule smoke check. |
 | `.measuretwice` | Development checks for this repository. |
 | `tests/repo` | Repository checks for schemas, examples, links, and names. |
 | `tests/live` | Opt-in live evaluations. Empty until task T065. |
@@ -63,6 +64,7 @@ generates. Browser, edge, and WebAssembly runtimes are outside v0.
 | `npm run typecheck` | Type-check the test code and the Vitest configs. |
 | `npm test` | Build, then run the Rust and TypeScript tests. |
 | `npm run test:live` | Run the opt-in live evaluations. |
+| `npm run smoke` | Print the exact-rule vertical-slice smoke result through the built package. |
 | `npm run check` | Run every gate that continuous integration runs. |
 | `npm run clean` | Remove generated build output. |
 
@@ -249,6 +251,24 @@ time of the injected clock. The returned report is parsed from the frozen
 core report and deep-frozen again on the TypeScript side. A definition with
 one question check fails `run` with `evaluator_mismatch` before any work,
 and enforcement mode requires one `validated_for_scope` qualification.
+
+Decided in T019: the exact-rule vertical slice is verified as one path, not
+as separate per-layer suites. `packages/measuretwice/test/slice.test.ts`
+runs identical cases through TypeBox authoring and through the exported
+JSON definition, then requires equal canonical content, equal definition
+hashes, equal rule outcomes, and byte-equal serialized reports. Authoring
+key order may differ, because canonical content states the identity. The
+same suite drives every exact string rule record of the shared fixtures,
+including the Unicode boundaries, through the complete public path, checks
+that malformed requests fail with the same reason codes at the native
+boundary and at the public loader, and runs one child process that poisons
+`fetch`, refuses credential-like environment reads, and still completes the
+slice while writing nothing. The public package depends on the native
+binding and TypeBox only, so no provider package can enter the slice. The
+command `npm run smoke` runs `scripts/smoke-exact-slice.mjs` through the
+built package and prints the observable result: the definition hash, the
+rule outcomes, the aggregate outcome `pass`, the completion, and
+`serialized reports identical: yes`, ending with `SMOKE_OK`.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
