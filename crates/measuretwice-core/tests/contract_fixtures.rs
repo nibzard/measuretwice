@@ -2,18 +2,19 @@
 //! Conformance runs of the shared fixtures through the Rust core.
 //!
 //! The fixtures in `fixtures/` pin the frozen contracts. These tests run the
-//! groups that the parse boundary and the hashing boundary own: the valid
-//! definition artifacts, the structural definition rejections, the input
-//! validation records, the hashing rejection records, the canonical hash
-//! fixtures, the serialization round trips, and the profile self-hashes.
-//! Later tasks add the remaining groups as their validation lands. The tests
-//! read local files only, so they stay offline and deterministic.
+//! groups that the parse boundary, the hashing boundary, and the report
+//! boundary own: the valid definition artifacts, the structural definition
+//! rejections, the input validation records, the hashing rejection records,
+//! the canonical hash fixtures, the serialization round trips, the profile
+//! self-hashes, and the outcome and completion records. Later tasks add the
+//! remaining groups as their validation lands. The tests read local files
+//! only, so they stay offline and deterministic.
 
 use measuretwice_core::definition::{CheckKind, WhenUncertain};
 use measuretwice_core::error::ReasonCode;
 use measuretwice_core::hashing::{self, Domain};
 use measuretwice_core::testing::SplitMix64;
-use measuretwice_core::{case, definition, json, rule};
+use measuretwice_core::{case, definition, json, report, rule};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
@@ -695,4 +696,208 @@ fn profile_state_artifacts_verify_their_self_hash() {
         .err()
         .unwrap_or_else(|| panic!("the moved digest was accepted"));
     assert_eq!(error.code, ReasonCode::HashMismatch);
+}
+
+/// One question record with the stated outcome. Error and skipped outcomes
+/// carry the sanitized reason that the contract requires.
+fn outcome_record(index: usize, outcome: report::Outcome) -> report::CheckRecord {
+    let reason = match outcome {
+        report::Outcome::Error => Some(report::SanitizedReason {
+            code: ReasonCode::EvaluatorError,
+            message: "The adapter reported a network failure.".to_owned(),
+            field_path: None,
+        }),
+        report::Outcome::Skipped => Some(report::SanitizedReason {
+            code: ReasonCode::QueueFull,
+            message: "The pending-work limit stopped this check.".to_owned(),
+            field_path: None,
+        }),
+        _ => None,
+    };
+    report::CheckRecord {
+        check: format!("check-{index}"),
+        kind: report::RecordKind::Question,
+        outcome,
+        assessment: None,
+        applied_rule: None,
+        applied_policy: None,
+        evaluator: None,
+        attempts: None,
+        timing: None,
+        usage: None,
+        reason,
+    }
+}
+
+#[test]
+fn outcome_rows_build_reports_with_the_stated_aggregates() {
+    let document = fixture_document("reports/outcomes.json");
+    let rows = document["aggregate_table"].as_array().expect("a row array");
+    assert!(rows.len() >= 15, "the fixture group lost rows");
+
+    let mut words: BTreeSet<&str> = BTreeSet::new();
+    for row in rows {
+        let note = row["note"].as_str().expect("a note");
+        let outcomes: Vec<report::Outcome> = row["outcomes"]
+            .as_array()
+            .expect("an outcome array")
+            .iter()
+            .map(|word| {
+                let text = word.as_str().expect("an outcome word");
+                words.insert(text);
+                report::Outcome::from_word(text)
+                    .unwrap_or_else(|| panic!("{note}: {text} names no outcome"))
+            })
+            .collect();
+        let expected = row["expected_aggregate"].as_str().expect("an aggregate");
+
+        // One complete report per row, through the same builder the run path
+        // will use.
+        let mut builder = report::ReportBuilder::new(
+            "conformance-000001",
+            report::RunMode::Shadow,
+            report::ArtifactReference {
+                name: "message-review".to_owned(),
+                content_hash: "a".repeat(64),
+            },
+            report::ProfileReference {
+                id: "message-profile".to_owned(),
+                content_hash: "b".repeat(64),
+            },
+            report::CaseReference {
+                id: "case-1".to_owned(),
+                input_hash: "c".repeat(64),
+            },
+            report::Completion {
+                status: report::CompletionStatus::Completed,
+                completed_at: None,
+            },
+        );
+        for (index, outcome) in outcomes.iter().enumerate() {
+            builder = builder.check(outcome_record(index, *outcome));
+        }
+        let built = builder
+            .finish()
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(built.aggregate().as_str(), expected, "{note}");
+
+        // Every component outcome stays in the record, including an error
+        // that accompanies a fail.
+        let serialized = serde_json::to_value(&built).expect("the report serializes");
+        let checks = serialized["checks"].as_array().expect("a record array");
+        assert_eq!(checks.len(), outcomes.len(), "{note}");
+        for (record, outcome) in checks.iter().zip(outcomes.iter()) {
+            assert_eq!(record["outcome"], outcome.as_str(), "{note}");
+        }
+        // The stored report parses again under the same aggregate.
+        let reparsed =
+            report::parse_run_report(&serialized).unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(reparsed.aggregate().as_str(), expected, "{note}");
+    }
+    for word in ["pass", "fail", "review", "error", "skipped"] {
+        assert!(words.contains(word), "no row covers {word}");
+    }
+}
+
+#[test]
+fn check_record_samples_match_the_run_report_contract() {
+    let document = fixture_document("reports/outcomes.json");
+    let samples = document["check_records"]
+        .as_array()
+        .expect("a record array");
+    assert!(samples.len() >= 5, "the fixture group lost records");
+
+    let mut kinds: BTreeSet<&str> = BTreeSet::new();
+    let mut outcomes: BTreeSet<&str> = BTreeSet::new();
+    for sample in samples {
+        let note = sample["note"].as_str().expect("a note");
+        let record = &sample["record"];
+        kinds.insert(record["kind"].as_str().expect("a kind"));
+        outcomes.insert(record["outcome"].as_str().expect("an outcome"));
+
+        // Each sample parses against the contract and serializes back to the
+        // same record.
+        let parsed = report::parse_check_record(record, "")
+            .unwrap_or_else(|error| panic!("{note}: {error}"));
+        let serialized = serde_json::to_value(&parsed).expect("the record serializes");
+        assert_eq!(serialized, *record, "{note}");
+        assert!(parsed.validate("/checks/0").is_ok(), "{note}");
+    }
+    for kind in ["question", "rule"] {
+        assert!(kinds.contains(kind), "no sample covers {kind}");
+    }
+    for outcome in ["pass", "fail", "review", "error", "skipped"] {
+        assert!(outcomes.contains(outcome), "no sample covers {outcome}");
+    }
+}
+
+#[test]
+fn completion_samples_terminate_immutable_reports() {
+    let document = fixture_document("reports/outcomes.json");
+    let samples = document["completion_samples"]
+        .as_array()
+        .expect("a sample array");
+    assert!(samples.len() >= 3, "the fixture group lost samples");
+
+    let mut statuses: BTreeSet<&str> = BTreeSet::new();
+    for sample in samples {
+        let note = sample["note"].as_str().expect("a note");
+        let completion = &sample["completion"];
+        let status_text = completion["status"].as_str().expect("a status");
+        statuses.insert(status_text);
+        let completed_at = completion["completed_at"]
+            .as_str()
+            .expect("a terminal time");
+        let status = report::CompletionStatus::from_word(status_text)
+            .unwrap_or_else(|| panic!("{note}: {status_text} names no status"));
+
+        // A report in any terminal state keeps its component outcomes. The
+        // status never rewrites the aggregate.
+        let built = report::ReportBuilder::new(
+            "conformance-000002",
+            report::RunMode::Enforcement,
+            report::ArtifactReference {
+                name: "message-review".to_owned(),
+                content_hash: "a".repeat(64),
+            },
+            report::ProfileReference {
+                id: "message-profile".to_owned(),
+                content_hash: "b".repeat(64),
+            },
+            report::CaseReference {
+                id: "case-1".to_owned(),
+                input_hash: "c".repeat(64),
+            },
+            report::Completion {
+                status,
+                completed_at: Some(completed_at.to_owned()),
+            },
+        )
+        .check(outcome_record(0, report::Outcome::Pass))
+        .check(outcome_record(1, report::Outcome::Review))
+        .finish()
+        .unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(built.completion().status, status, "{note}");
+        assert_eq!(
+            built.completion().completed_at.as_deref(),
+            Some(completed_at),
+            "{note}"
+        );
+        assert_eq!(
+            built.aggregate(),
+            report::AggregateOutcome::Review,
+            "{note}"
+        );
+        assert_eq!(built.checks().len(), 2, "{note}");
+
+        // The stored report parses again with the same terminal state.
+        let serialized = serde_json::to_value(&built).expect("the report serializes");
+        let reparsed =
+            report::parse_run_report(&serialized).unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(reparsed.completion().status, status, "{note}");
+        assert_eq!(reparsed.checks().len(), 2, "{note}");
+    }
+    for status in ["completed", "cancelled", "deadline_exceeded"] {
+        assert!(statuses.contains(status), "no sample covers {status}");
+    }
 }

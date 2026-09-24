@@ -155,6 +155,17 @@ impl ReasonCode {
     }
 }
 
+impl ReasonCode {
+    /// Returns the code of one registry string, or `None` for any other text.
+    ///
+    /// The deserializer is the one authority, so a new variant becomes
+    /// readable here without a second list to keep in step.
+    pub fn from_registry(text: &str) -> Option<Self> {
+        serde_json::from_str::<Self>(&serde_json::to_string(text).expect("a string serializes"))
+            .ok()
+    }
+}
+
 impl fmt::Display for ReasonCode {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
@@ -296,6 +307,7 @@ mod tests {
         for (text, code) in expected {
             assert_eq!(code.as_str(), text);
             assert_eq!(code.to_string(), text);
+            assert_eq!(ReasonCode::from_registry(text), Some(code));
             let serialized = serde_json::to_string(&code).expect("serializes");
             assert_eq!(serialized, format!("\"{text}\""));
             let parsed: ReasonCode = serde_json::from_str(&serialized).expect("parses");
@@ -305,6 +317,9 @@ mod tests {
         let texts: Vec<&str> = expected.iter().map(|(text, _)| *text).collect();
         let unique: std::collections::HashSet<&str> = texts.iter().copied().collect();
         assert_eq!(unique.len(), texts.len());
+        // A text outside the registry names no code.
+        assert_eq!(ReasonCode::from_registry("not_a_code"), None);
+        assert_eq!(ReasonCode::from_registry(""), None);
     }
 
     #[test]

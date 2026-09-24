@@ -233,7 +233,7 @@ pub fn validate_case_bytes<'a>(
 /// Checks the case identifier rule of `common.schema.json`: a lowercase
 /// letter or a digit first, then lowercase letters, digits, dots,
 /// underscores, or hyphens, 128 characters at most.
-fn is_case_id(value: &str) -> bool {
+pub(crate) fn is_case_id(value: &str) -> bool {
     let mut characters = value.chars();
     matches!(
         characters.next(),

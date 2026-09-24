@@ -914,7 +914,7 @@ fn parse_rule(value: Option<&Value>, base: &str) -> Result<Option<Rule>, Validat
 }
 
 /// Reads one required-or-optional bounded string field.
-fn parse_bounded_string(
+pub(crate) fn parse_bounded_string(
     value: Option<&Value>,
     path: &str,
     max: usize,
@@ -935,7 +935,7 @@ fn parse_bounded_string(
 /// Checks the artifact identifier rule of `common.schema.json`: lowercase
 /// segments joined by single hyphens, 64 characters at most, starting with a
 /// letter.
-fn is_artifact_id(value: &str) -> bool {
+pub(crate) fn is_artifact_id(value: &str) -> bool {
     value.len() <= 64
         && value
             .chars()

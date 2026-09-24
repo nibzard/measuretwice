@@ -94,6 +94,17 @@ impl RuleKeyword {
         }
     }
 
+    /// Returns the keyword of one contract string, or `None` for any other
+    /// text.
+    pub fn from_word(word: &str) -> Option<Self> {
+        match word {
+            "maxLength" => Some(Self::MaxLength),
+            "includes" => Some(Self::Includes),
+            "excludes" => Some(Self::Excludes),
+            _ => None,
+        }
+    }
+
     /// Returns the keyword of one rule.
     pub const fn of(rule: &Rule) -> Self {
         match rule {
@@ -377,8 +388,9 @@ fn assess_at(
 
 /// Checks one rule parameter against its documented range. The definition
 /// parser already rejected every authored violation, so this guard covers a
-/// directly constructed [`Rule`].
-fn validate_parameter(rule: &Rule, rule_path: &str) -> Result<(), ValidationError> {
+/// directly constructed [`Rule`]. The report record validator calls it for
+/// every recorded `applied_rule`.
+pub(crate) fn validate_parameter(rule: &Rule, rule_path: &str) -> Result<(), ValidationError> {
     match rule {
         Rule::MaxLength { max_length } => {
             if *max_length <= MAX_SAFE_INTEGER {

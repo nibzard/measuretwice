@@ -478,7 +478,7 @@ fn utf16_cmp(left: &str, right: &str) -> Ordering {
 
 /// Checks the content-hash rule of `common.schema.json`: 64 lowercase
 /// hexadecimal characters.
-fn is_hash_hex(text: &str) -> bool {
+pub(crate) fn is_hash_hex(text: &str) -> bool {
     text.len() == 64
         && text
             .chars()

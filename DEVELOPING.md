@@ -150,6 +150,24 @@ contract, and explains the outcome with a sanitized reason. A rule produces
 `pass` or `fail` and needs no evaluator, no confidence value, and no
 calibration evidence.
 
+Decided in T014: `measuretwice_core::report` owns the outcome vocabulary
+and the immutable run report record. The component outcome, the aggregate
+outcome, and the completion status are three separate types, and
+`report::aggregate` folds components with the fixed order of the contracts:
+fail, then error, then review or skipped, then pass. `ReportBuilder`
+collects one record per check and finishes one `RunReport` that offers read
+accessors only, so a late result cannot enter a completed record. The report
+keeps every component outcome, including errors beside a fail, records the
+stable identifiers, the content hashes, the raw assessments, the executed
+rules, the applied policy parameters, the actual evaluator versions,
+attempts, timing, usage, and sanitized reasons, and holds no application
+authorization field. `report::parse_run_report` rebuilds a stored report,
+enforces the conditional record rules, and rejects a stored aggregate that
+disagrees with its component outcomes. The assessment stays recorded as
+returned: the report boundary checks the structural assessment schema, and
+the semantic normalization, such as evidence authorization against the
+`using` list, stays with the evaluator adapter tasks.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

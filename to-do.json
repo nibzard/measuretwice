@@ -492,7 +492,7 @@
         "T010",
         "T011"
       ],
-      "updated_at": "2026-09-24T00:40:46Z",
+      "updated_at": "2026-09-24T00:41:24Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -507,7 +507,7 @@
       "id": "T014",
       "title": "Implement outcomes and immutable report records",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Separate component outcomes, aggregate outcome, and execution completion. Sources: MVP_SPEC.md sections 9-10; AGENTS.md sections 4, 10.",
       "steps": [
         "Write table-driven tests for pass, fail, review, error, and skipped combinations.",
@@ -526,6 +526,20 @@
         "T001",
         "T009",
         "T012"
+      ],
+      "updated_at": "2026-09-24T01:00:49Z",
+      "files": [
+        "crates/measuretwice-core/src/report.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/error.rs",
+        "crates/measuretwice-core/src/case.rs",
+        "crates/measuretwice-core/src/definition.rs",
+        "crates/measuretwice-core/src/hashing.rs",
+        "crates/measuretwice-core/src/rule.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "to-do.json"
       ]
     },
     {
