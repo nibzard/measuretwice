@@ -1,0 +1,39 @@
+# Context
+
+## Background
+T090 restores the CI and Build artifacts gates that failed at 2945a4a.
+Both workflows had never passed on the current workflow files: CI failed
+on Node 20 and on Windows, and Build artifacts failed in the zig setup of
+both cross builds, so the packages and install jobs never ran.
+
+## Why This Way
+- Node 20 V8 states only "at position N" in a JSON parse failure; the
+  line and column suffix starts with Node 22. The product now derives
+  "line L column C" from the stated position, so the invalid_json
+  contract holds on every declared Node version and the test assertion
+  stays unchanged. The derivation counts newlines before the position,
+  which matches the V8 convention on every probed input.
+- Windows reports backslashes from the fixture walk while manifest paths
+  state forward slashes; one normalization in fixtureJsonFiles fixes all
+  five failing fixture tests without touching their assertions.
+- Windows checkouts converted text files to CRLF, which broke the
+  byte-exact export comparisons and the per-line heading regex of the
+  documentation link check. .gitattributes enforces LF, because the
+  exports and hashing fixtures are byte-exact contracts.
+- The zig failure had two layers: mlugg/setup-zig@v1 requests the
+  pre-0.14 archive names, so every download 404s; after the v2 upgrade,
+  zig 0.16.0 mishandles the separate "-Wl,-exported_symbols_list"
+  arguments of cargo-zigbuild 0.23.4 on the darwin link. 1fd836a pins
+  zig 0.15.2, which links both cross targets with 0.23.4.
+
+## Verification
+- Local: full TS suite on Node 24 and Node 20 (474 tests each with the
+  working tree, 466 at the commit), Rust fmt, clippy, and 330 tests at
+  the commit, both cross builds reproduced and fixed with cargo-zigbuild
+  0.23.4, npm run verify:install green.
+- Remote at cebab0e and 1fd836a: CI fully green (Node 20, 22, 24 on
+  Linux, Node 22 on Windows and macOS), Build artifacts fully green (all
+  five binaries, package assembly, six clean installs).
+- Not verifiable: the linux-arm64-gnu clean installation has no hosted
+  runner; the packaging checks cover its tarball content, as TESTING.md
+  records.
