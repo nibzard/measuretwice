@@ -90,8 +90,10 @@ its runner rule.
   `crates/measuretwice-core/tests/contract_fixtures.rs` run the fixture
   groups that the core owns so far: the valid definition artifacts with
   their check kinds, every definition rejection record, the input
-  validation records through the complete case path, and the hashing
-  rejection records. Each validation task adds its own groups when its
+  validation records through the complete case path, the hashing rejection
+  records, the canonical hash fixtures across every domain, the
+  serialization round trips, the TypeBox pair hashes, and the profile
+  self-hash verification. Each validation task adds its own groups when its
   boundary lands.
 - Every wrapper runs every group through the Rust core. A wrapper never
   recomputes a rule, a canonical form, or a hash.

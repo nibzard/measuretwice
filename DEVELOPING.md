@@ -78,7 +78,7 @@ you add or change one.
 | Dependency | Version | Purpose | First used |
 | --- | --- | --- | --- |
 | `serde` | 1.0.229 | Serializable artifact types. | T009 |
-| `serde_json` | 1.0.151 | Parse and serialize the JSON contracts. | T009 |
+| `serde_json` | 1.0.151, with `float_roundtrip` | Parse and serialize the JSON contracts with correctly rounded floats. | T009, T012 |
 | `sha2` | 0.11.0 | SHA-256 over the tagged canonical form. | T012 |
 | `napi` | 3.13.0 | Node runtime for the binding. | T004 |
 | `napi-derive` | 3.6.9 | Export Rust functions to Node. | T004 |
@@ -120,6 +120,23 @@ schema tree and enforces the published data limits. `ValidatedCase` owns
 projection: each projected request copies only the inputs that the check
 `using` list names, so no unvalidated case, label, or unrelated field can
 reach an evaluator.
+
+Decided in T012: `measuretwice_core::hashing` implements the frozen
+canonical hashing contract alone. It covers RFC 8785 canonicalization, the
+seven hash domains, the tagged SHA-256 digest, and each artifact boundary.
+The definition domain materializes the `when_uncertain` default. Profiles
+and plans compute and verify their self-hash. Dataset and split hashes
+order records by case identifier. The core adds no canonicalization
+dependency: Rust `{:e}` formatting gives the shortest round-trip digits,
+and the module applies the ECMAScript `Number::toString` placement rules of
+RFC 8785 section 3.2.2.6. Integers above 2^53 round to their binary64
+value. The workspace also enables the serde_json `float_roundtrip`
+feature. Without it, the default parser sits one unit in the last place
+away from the binary64 value for many decimal texts, which silently changes
+canonical forms and hashes. A differential check against Node
+`JSON.stringify` over thousands of generated values found no difference.
+The fixtures in `fixtures/hashing` and the worked examples in
+`contracts/v0/hashing.md` pin every digest.
 
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.

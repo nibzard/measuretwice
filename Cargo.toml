@@ -20,7 +20,10 @@ rust-version = "1.88"
 [workspace.dependencies]
 measuretwice-core = { version = "0.1.0", path = "crates/measuretwice-core" }
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.151"
+# float_roundtrip makes float parsing correctly rounded. The default parser
+# can sit one unit in the last place away from the binary64 value, which
+# changes canonical forms and hashes, as RFC 8785 requires them.
+serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 sha2 = "0.11.0"
 napi = { version = "3.13.0", features = ["napi8"] }
 napi-derive = "3.6.9"

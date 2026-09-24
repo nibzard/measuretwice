@@ -31,6 +31,8 @@ pub mod case;
 pub mod definition;
 /// Stable typed validation errors.
 pub mod error;
+/// Canonical content hashes for every portable artifact.
+pub mod hashing;
 /// The supported input schema subset of a definition.
 pub mod input_schema;
 /// The strict JSON gate for external artifact text.

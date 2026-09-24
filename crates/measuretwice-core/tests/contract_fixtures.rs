@@ -2,13 +2,17 @@
 //! Conformance runs of the shared fixtures through the Rust core.
 //!
 //! The fixtures in `fixtures/` pin the frozen contracts. These tests run the
-//! groups that the parse boundary owns: the valid definition artifacts, the
-//! structural definition rejections, and the hashing rejection records.
+//! groups that the parse boundary and the hashing boundary own: the valid
+//! definition artifacts, the structural definition rejections, the input
+//! validation records, the hashing rejection records, the canonical hash
+//! fixtures, the serialization round trips, and the profile self-hashes.
 //! Later tasks add the remaining groups as their validation lands. The tests
 //! read local files only, so they stay offline and deterministic.
 
 use measuretwice_core::definition::{CheckKind, WhenUncertain};
 use measuretwice_core::error::ReasonCode;
+use measuretwice_core::hashing::{self, Domain};
+use measuretwice_core::testing::SplitMix64;
 use measuretwice_core::{case, definition, json};
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -325,4 +329,283 @@ fn decode_hex(hex: &str) -> Vec<u8> {
         .step_by(2)
         .map(|index| u8::from_str_radix(&hex[index..index + 2], 16).expect("a hexadecimal byte"))
         .collect()
+}
+
+#[test]
+fn hashing_canonical_fixtures_match_forms_and_digests() {
+    let document = fixture_document("hashing/canonical.json");
+    let records = document["hashes"].as_array().expect("a hash array");
+    assert!(records.len() >= 15, "the fixture group lost records");
+
+    let mut domains: BTreeSet<&str> = BTreeSet::new();
+    for record in records {
+        let note = record["note"].as_str().expect("a note");
+        let tag = record["domain"].as_str().expect("a domain");
+        let domain = hashing::Domain::from_tag(tag)
+            .unwrap_or_else(|| panic!("{note}: the tag {tag} names no domain"));
+        domains.insert(tag);
+        let value = &record["value"];
+        let expected_form = record["canonical"].as_str().expect("a canonical form");
+        let expected_hash = record["content_hash"].as_str().expect("a digest");
+
+        // Every domain runs the same canonicalizer. The definition boundary
+        // materializes the documented default, and the profile and plan
+        // boundaries remove the self-hash field, so those three run through
+        // their dedicated paths.
+        let (actual_form, actual_hash) = match domain {
+            Domain::Definition => {
+                let text = serde_json::to_string(value).expect("the artifact serializes");
+                let validated = definition::validate_definition_str(&text)
+                    .unwrap_or_else(|error| panic!("{note}: {error}"));
+                (
+                    hashing::definition_canonical_form(&validated),
+                    hashing::definition_hash(&validated),
+                )
+            }
+            Domain::Profile | Domain::Plan => (
+                hashing::canonical_form(value),
+                hashing::compute_self_hash(domain, value)
+                    .unwrap_or_else(|error| panic!("{note}: {error}")),
+            ),
+            Domain::Dataset | Domain::Split => {
+                let records = value.as_array().expect("a record array");
+                let hash = match domain {
+                    Domain::Dataset => hashing::dataset_hash(records),
+                    _ => hashing::split_hash(records),
+                }
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+                // Reordering the JSONL file does not change the dataset hash.
+                // A seeded shuffle keeps the run deterministic.
+                let mut shuffled = records.clone();
+                SplitMix64::seeded(shuffled.len() as u64).shuffle(&mut shuffled);
+                let shuffled_hash = match domain {
+                    Domain::Dataset => hashing::dataset_hash(&shuffled),
+                    _ => hashing::split_hash(&shuffled),
+                }
+                .unwrap_or_else(|error| panic!("{note}: {error}"));
+                assert_eq!(
+                    shuffled_hash, hash,
+                    "{note}: the record order changed the hash"
+                );
+                (hashing::canonical_form(value), hash)
+            }
+            _ => (
+                hashing::canonical_form(value),
+                hashing::content_hash(domain, value),
+            ),
+        };
+        assert_eq!(actual_form, expected_form, "{note}");
+        assert_eq!(actual_hash, expected_hash, "{note}");
+    }
+    for tag in [
+        "definition",
+        "input",
+        "translation",
+        "profile",
+        "plan",
+        "dataset",
+        "split",
+    ] {
+        assert!(domains.contains(tag), "no fixture record covers {tag}");
+    }
+}
+
+#[test]
+fn serialization_round_trips_keep_one_canonical_form() {
+    let document = fixture_document("serialization/round-trips.json");
+
+    for record in document["values"].as_array().expect("a value array") {
+        let note = record["note"].as_str().expect("a note");
+        let expected = record["canonical"].as_str().expect("a canonical form");
+        let canonical = hashing::canonical_form(&record["value"]);
+        assert_eq!(canonical, expected, "{note}");
+        // A canonical form parses again through the strict gate and
+        // canonicalizes to itself.
+        let parsed =
+            json::parse_strict(&canonical).unwrap_or_else(|error| panic!("{note}: {error}"));
+        assert_eq!(
+            hashing::canonical_form(&parsed),
+            canonical,
+            "{note}: the canonical form does not round trip"
+        );
+    }
+
+    for record in document["order_invariance"].as_array().expect("an array") {
+        let note = record["note"].as_str().expect("a note");
+        let expected = record["canonical"].as_str().expect("a canonical form");
+        let left = hashing::canonical_form(&record["left"]);
+        let right = hashing::canonical_form(&record["right"]);
+        assert_eq!(left, expected, "{note}");
+        assert_eq!(right, expected, "{note}");
+        assert_eq!(
+            hashing::content_hash(Domain::Input, &record["left"]),
+            hashing::content_hash(Domain::Input, &record["right"]),
+            "{note}"
+        );
+    }
+
+    for record in document["order_strictness"].as_array().expect("an array") {
+        let note = record["note"].as_str().expect("a note");
+        assert!(
+            !record["same_hash"].as_bool().expect("a flag"),
+            "{note}: the fixture no longer states strictness"
+        );
+        let left = hashing::canonical_form(&record["left"]);
+        let right = hashing::canonical_form(&record["right"]);
+        assert_eq!(
+            left,
+            record["canonical_left"].as_str().expect("a form"),
+            "{note}"
+        );
+        assert_eq!(
+            right,
+            record["canonical_right"].as_str().expect("a form"),
+            "{note}"
+        );
+        assert_ne!(left, right, "{note}");
+        assert_ne!(
+            hashing::content_hash(Domain::Input, &record["left"]),
+            hashing::content_hash(Domain::Input, &record["right"]),
+            "{note}"
+        );
+    }
+
+    for record in document["absent_stays_absent"]
+        .as_array()
+        .expect("an array")
+    {
+        let note = record["note"].as_str().expect("a note");
+        let with = hashing::canonical_form(&record["with_field"]);
+        let without = hashing::canonical_form(&record["without_field"]);
+        assert_eq!(
+            with,
+            record["canonical_with"].as_str().expect("a form"),
+            "{note}"
+        );
+        assert_eq!(
+            without,
+            record["canonical_without"].as_str().expect("a form"),
+            "{note}"
+        );
+        assert_ne!(
+            hashing::content_hash(Domain::Input, &record["with_field"]),
+            hashing::content_hash(Domain::Input, &record["without_field"]),
+            "{note}: canonicalization inserted the omitted field"
+        );
+    }
+}
+
+#[test]
+fn typebox_pairs_pin_their_definition_hashes() {
+    let document = fixture_document("authoring/typebox-pairs.json");
+    let pairs = document["pairs"].as_array().expect("a pair array");
+    assert!(pairs.len() >= 3, "the fixture group lost pairs");
+    for pair in pairs {
+        let file = pair["definition"].as_str().expect("a file name");
+        let text =
+            fs::read_to_string(fixture(&format!("definitions/valid/{file}"))).expect("the file");
+        let validated = definition::validate_definition_str(&text)
+            .unwrap_or_else(|error| panic!("{file}: {error}"));
+        assert_eq!(
+            hashing::definition_canonical_form(&validated),
+            pair["canonical"].as_str().expect("a canonical form"),
+            "{file}"
+        );
+        assert_eq!(
+            hashing::definition_hash(&validated),
+            pair["content_hash"].as_str().expect("a digest"),
+            "{file}"
+        );
+    }
+}
+
+#[test]
+fn valid_definitions_hash_identically_across_formatting() {
+    let directory = fixture("definitions/valid");
+    let mut files: Vec<PathBuf> = fs::read_dir(&directory)
+        .expect("the valid definition directory exists")
+        .map(|entry| entry.expect("a directory entry").path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "json")
+        })
+        .collect();
+    files.sort();
+
+    for file in files {
+        let text = fs::read_to_string(&file).expect("the fixture file reads");
+        let validated = definition::validate_definition_str(&text)
+            .unwrap_or_else(|error| panic!("{}: {error}", file.display()));
+        let hash = hashing::definition_hash(&validated);
+
+        // A pretty-printed copy of the same artifact keeps one hash. JSON
+        // formatting does not establish a content hash.
+        let source: Value = serde_json::from_str(&text).expect("the fixture parses");
+        let pretty = serde_json::to_string_pretty(&source).expect("the artifact serializes");
+        let reparsed = definition::validate_definition_str(&pretty)
+            .unwrap_or_else(|error| panic!("{} pretty: {error}", file.display()));
+        assert_eq!(
+            hashing::definition_hash(&reparsed),
+            hash,
+            "{}: formatting changed the hash",
+            file.display()
+        );
+    }
+
+    // The when_uncertain pair holds two files with one canonical form and
+    // one hash, the cross-file link the fixture README states.
+    let omitted = definition::validate_definition_str(
+        &fs::read_to_string(fixture("definitions/valid/memory-length.json")).unwrap(),
+    )
+    .expect("the omitted side validates");
+    let stated = definition::validate_definition_str(
+        &fs::read_to_string(fixture("definitions/valid/memory-length-explicit.json")).unwrap(),
+    )
+    .expect("the stated side validates");
+    assert_eq!(
+        hashing::definition_canonical_form(&omitted),
+        hashing::definition_canonical_form(&stated)
+    );
+    assert_eq!(
+        hashing::definition_hash(&omitted),
+        hashing::definition_hash(&stated)
+    );
+}
+
+#[test]
+fn profile_state_artifacts_verify_their_self_hash() {
+    let document = fixture_document("profiles/states.json");
+    let profiles = document["profiles"].as_array().expect("a profile array");
+    assert!(profiles.len() >= 5, "the fixture group lost profiles");
+
+    let mut stored_hashes = Vec::new();
+    for profile in profiles {
+        let id = profile["id"].as_str().expect("an identifier");
+        hashing::verify_self_hash(Domain::Profile, profile)
+            .unwrap_or_else(|error| panic!("{id}: {error}"));
+        stored_hashes.push(
+            profile["content_hash"]
+                .as_str()
+                .expect("a digest")
+                .to_owned(),
+        );
+
+        // An edited copy fails verification. The artifact is an edited or
+        // corrupted copy of the one the digest covered.
+        let mut edited = profile.clone();
+        edited["intended_use"] = Value::String("Edited after hashing.".to_owned());
+        let error = hashing::verify_self_hash(Domain::Profile, &edited)
+            .err()
+            .unwrap_or_else(|| panic!("{id}: the edited copy was accepted"));
+        assert_eq!(error.code, ReasonCode::HashMismatch, "{id}: {error}");
+        assert_eq!(error.field_path, "/content_hash");
+    }
+
+    // A digest moved from one artifact to another fails the same way.
+    let mut swapped = profiles[0].clone();
+    swapped["content_hash"] = Value::String(stored_hashes[1].clone());
+    let error = hashing::verify_self_hash(Domain::Profile, &swapped)
+        .err()
+        .unwrap_or_else(|| panic!("the moved digest was accepted"));
+    assert_eq!(error.code, ReasonCode::HashMismatch);
 }

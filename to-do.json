@@ -422,7 +422,7 @@
         "T009",
         "T010"
       ],
-      "updated_at": "2026-09-24T00:13:36Z",
+      "updated_at": "2026-09-24T00:14:30Z",
       "files": [
         "DEVELOPING.md",
         "TESTING.md",
@@ -439,7 +439,7 @@
       "id": "T012",
       "title": "Implement canonical content hashes in Rust",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Use the specified canonicalization for all artifact identities. Sources: MVP_SPEC.md sections 4-5, 8-10, 15.",
       "steps": [
         "Write shared hash fixtures before implementing the canonicalizer.",
@@ -457,6 +457,16 @@
         "T003",
         "T006",
         "T009"
+      ],
+      "updated_at": "2026-09-24T00:30:24Z",
+      "files": [
+        "Cargo.toml",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-core/src/hashing.rs",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/tests/contract_fixtures.rs",
+        "to-do.json"
       ]
     },
     {
