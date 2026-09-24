@@ -226,6 +226,30 @@ case-input type in one phantom property that the implementation never
 sets, and the `using` names constrain to the declared input names, while
 the Rust core re-checks both rules for values that arrived by cast.
 
+Decided in T018: `load` and `run` in `packages/measuretwice/src/run.ts` own
+the normal library workflow. `load` accepts the definition that
+`defineChecks` returned as one trusted import, or one explicit `.json` path.
+Every other path fails with `unsupported_format` before one read: loaders
+accept no YAML and execute no TypeScript source. The wrapper owns the three
+boundaries that the core does not, and all three are load options with Node
+defaults: `files` for file access, `now` for the clock, and `nextRunId` for
+run identifiers. Tests inject the fake clock, the identifier sequence, and
+one in-memory file access. The wrapper writes nothing; report storage stays
+with the host. Without one supplied profile, an exact-only definition
+receives its derived structural exact profile, hashed through the core in
+the profile domain and exposed as `reviewer.profile` for host persistence.
+One supplied profile path is verified through the core self-hash first, then
+structurally matched in the fixture order: an exact-only definition checks
+the policy family first, one definition with question checks checks the
+definition binding first. Every bound evaluator reference fails with
+`evaluator_mismatch`, because evaluator registration arrives with task T022.
+`run` validates the case through the core, executes the exact rules, drives
+the run state boundary attempt by attempt, and completes with the terminal
+time of the injected clock. The returned report is parsed from the frozen
+core report and deep-frozen again on the TypeScript side. A definition with
+one question check fails `run` with `evaluator_mismatch` before any work,
+and enforcement mode requires one `validated_for_scope` qualification.
+
 - Do not add Zod, Ajv, a YAML parser, or an agent framework to the
   TypeScript runtime. MVP_SPEC.md section 5 rules them out for v0.
 

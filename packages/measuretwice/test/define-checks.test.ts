@@ -607,7 +607,12 @@ test("the returned definition is serializable and immutable", () => {
   );
 });
 
-test("the package entry point exposes the authoring API without native types", () => {
-  expect(Object.keys(publicApi).sort()).toEqual(["ValidationError", "contractVersion", "defineChecks"]);
+test("the package entry point exposes the authoring and run API without native types", () => {
+  expect(Object.keys(publicApi).sort()).toEqual([
+    "ValidationError",
+    "contractVersion",
+    "defineChecks",
+    "load",
+  ]);
   expect(publicApi.contractVersion()).toBe(1);
 });

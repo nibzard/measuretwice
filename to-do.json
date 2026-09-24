@@ -642,11 +642,11 @@
         "T010",
         "T016"
       ],
-      "updated_at": "2026-09-24T02:00:44Z",
+      "updated_at": "2026-09-24T02:01:09Z",
       "files": [
-        "contracts/v0/input-schema.md",
         "DEVELOPING.md",
         "TESTING.md",
+        "contracts/v0/input-schema.md",
         "packages/measuretwice/src/define-checks.ts",
         "packages/measuretwice/src/error.ts",
         "packages/measuretwice/src/index.ts",
@@ -658,7 +658,7 @@
       "id": "T018",
       "title": "Implement load and the exact-rule run path",
       "priority": 1,
-      "status": "todo",
+      "status": "done",
       "details": "Support trusted imported definitions and explicit JSON paths without intermediate exports in the normal library workflow. Sources: MVP_SPEC.md sections 5, 9, 11.",
       "steps": [
         "Write an integration test that loads a typed definition, validates a case, and returns an exact-rule report.",
@@ -679,6 +679,16 @@
         "T015",
         "T016",
         "T017"
+      ],
+      "updated_at": "2026-09-24T02:19:18Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/run.test.ts",
+        "to-do.json"
       ]
     },
     {
