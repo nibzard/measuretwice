@@ -1,0 +1,21 @@
+# Context
+
+## Background
+Batch-lands work from autonomous Looper task sessions (T050-T078)
+that completed without per-task commits. One commit instead of a
+series because the changesets overlap heavily per task record in
+to-do.json.
+
+## Verification state at commit time
+Reviewed 2026-09-25 before commit: 564 TypeScript tests pass with
+one Vitest worker; 354 Rust tests, format, lint, build, and type
+checks pass. `npm run check` still fails when parallel Vitest
+workers crash; single-worker runs are green. Pre-existing issue,
+not introduced here.
+
+## Gotchas
+- T063 and T064 are blocked on human review and on representative
+  calibration data; see the todo note.
+- The formal-model applicability report (T078) maps every TLA+
+  transition to its owning code; update it when implementation
+  transitions change.
