@@ -1,0 +1,8 @@
+# Todo
+
+- T063 blocked: human review of public challenge labels.
+- T064 blocked: representative Cassandra calibration data.
+- Fix parallel Vitest worker crash so `npm run check` passes
+  without forcing a single worker.
+- 16 tasks remain open in to-do.json; TypeScript pilot release
+  is gated on the two blocked items above.
