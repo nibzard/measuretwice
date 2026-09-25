@@ -407,6 +407,11 @@ export interface ProfilePerformance {
   readonly intervals?: readonly ProfileInterval[];
   /** The sample counts by name. */
   readonly sample_counts?: Readonly<Record<string, number>>;
+  /**
+   * The plan's stated minimum sample counts by denominator name. Read beside
+   * `sample_counts`, so one reviewer sees which counts met their limits.
+   */
+  readonly sample_minimums?: Readonly<Record<string, number>>;
   /** The per-slice limits, such as small denominators or missing slices. */
   readonly slice_limitations?: readonly string[];
 }
@@ -727,7 +732,13 @@ function readProfileArtifact(text: string): Profile {
  * install one evaluator, so one reference outside the registry supplies no
  * entry and the core reports it.
  */
-function liveEvaluatorBindings(
+/**
+ * Builds the live evaluator state of one profile, one entry per bound
+ * check. Internal to the package: the revision workflow of `revise.ts`
+ * states the live identity of the prior profile through the same reader,
+ * and the package entry point re-exports none of it.
+ */
+export function liveEvaluatorBindings(
   profile: Profile,
   info: DefinitionInfo,
   artifact: Definition,

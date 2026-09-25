@@ -279,6 +279,10 @@ export async function runExample(options: ExampleOptions = {}): Promise<ExampleR
     "",
     renderRunReport(memorySupport, highlight),
     "",
+    "The detailed view of the same report traces every outcome to its measurement and its policy:",
+    "",
+    renderRunReport(memorySupport, highlight, { detail: "detail" }),
+    "",
     `Stored ${storedReports.length} reports and 1 profile in ${out}.`,
     "A shadow run changed no stored memory. The existing policy kept every decision.",
   );

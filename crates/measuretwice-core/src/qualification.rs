@@ -55,6 +55,10 @@
 //!   important slice carries its own evidence floor. One unmet floor,
 //!   including one slice the validation split holds no case of, states
 //!   `insufficient_evidence` and names the denominator and the counts.
+//!   Each slice row also states the metric set and the interval rows of
+//!   its own cases, selected from the interval entry of that slice, and
+//!   one slice the split holds no case of states no interval that implies
+//!   observed cases.
 //! - The result is one of the four contract statuses with calculated
 //!   reasons: `insufficient_evidence` when the evidence falls short,
 //!   `criteria_not_met` when the evidence exists and one goal fails, and
@@ -182,8 +186,9 @@ pub struct SliceResult {
     pub met: bool,
     /// The metric set of the complete check set of this slice.
     pub metrics: MetricSet,
-    /// The interval rows of the complete check set of this slice, absent
-    /// when the validation split holds no case.
+    /// The interval rows of the complete check set of this slice,
+    /// computed from the cases of this slice, absent when the validation
+    /// split holds no case.
     pub intervals: Option<IntervalSet>,
     /// The plain statement of this slice, linked to the counts above.
     pub statement: String,
@@ -523,6 +528,7 @@ pub fn qualify_candidate(
         .iter()
         .map(|slice| (slice.tag.clone(), ConfusionMatrix::default()))
         .collect();
+    let mut slice_intervals: BTreeMap<String, IntervalSet> = BTreeMap::new();
     let (scopes, intervals) = if outcomes.is_empty() {
         (Vec::new(), None)
     } else {
@@ -536,6 +542,18 @@ pub fn qualify_candidate(
                     .find(|set| set.scope == metrics::ALL_CHECKS)
                     .expect("evaluate_metrics states every scope of one slice")
                     .confusion;
+            }
+            // The interval rows of one slice come from the interval entry
+            // of that slice, so every bound states the cases of the slice
+            // alone under its own sampling evidence.
+            if let Some(sets) = interval_report.slice(tag) {
+                let own = sets
+                    .scopes
+                    .iter()
+                    .find(|set| set.scope == metrics::ALL_CHECKS)
+                    .expect("the interval report states every scope of one slice")
+                    .clone();
+                slice_intervals.insert(tag.clone(), own);
             }
         }
         let whole = interval_report
@@ -589,7 +607,7 @@ pub fn qualify_candidate(
     let slices: Vec<SliceResult> = plan
         .important_slices()
         .iter()
-        .map(|slice| measure_slice(slice, &slice_confusions, intervals.as_ref()))
+        .map(|slice| measure_slice(slice, &slice_confusions, &slice_intervals))
         .collect();
 
     let (status, reasons) =
@@ -839,10 +857,16 @@ fn measure_goal(
 }
 
 /// Measures one important slice of the plan on the validation data.
+///
+/// The interval rows come from the interval entry of this slice, so every
+/// numerator, every denominator, and every bound states the cases of the
+/// slice alone. One slice the validation split holds no case of states no
+/// interval, because no bound may imply observed cases the split never
+/// held.
 fn measure_slice(
     slice: &plan::ImportantSlice,
     confusions: &BTreeMap<String, ConfusionMatrix>,
-    intervals: Option<&IntervalSet>,
+    intervals: &BTreeMap<String, IntervalSet>,
 ) -> SliceResult {
     let confusion = confusions.get(&slice.tag).copied().unwrap_or_default();
     let denominators: BTreeMap<String, usize> = slice
@@ -881,7 +905,7 @@ fn measure_slice(
         denominators,
         met,
         metrics: MetricSet::assemble(metrics::ALL_CHECKS.to_owned(), confusion),
-        intervals: intervals.cloned(),
+        intervals: intervals.get(&slice.tag).cloned(),
         statement,
     }
 }
@@ -2004,6 +2028,112 @@ mod tests {
             slice.statement.contains("holds no case of the slice"),
             "{}",
             slice.statement
+        );
+    }
+
+    #[test]
+    fn slices_report_intervals_from_their_own_cases() {
+        // The complete validation accepts four cases with one error, and
+        // the later-corrections slice holds two of them, the one error
+        // included. One interval set copied from the complete validation
+        // would state one denominator of four behind one slice of two
+        // cases, and the empty absent-slice would carry one bound that
+        // implies observed cases the split holds none of.
+        let plan = plan_artifact(
+            "slice-interval-plan",
+            error_goal(0.5, "observed_value"),
+            json!({"accepted_cases": 1}),
+            json!([
+                {"tag": "later-corrections", "minimum_samples": {"labeled_cases": 1}},
+                {"tag": "absent-slice", "minimum_samples": {"labeled_cases": 2}}
+            ]),
+        );
+        let metadata = metadata(
+            "representative_sample",
+            &[
+                "conversation-b",
+                "conversation-c",
+                "conversation-d",
+                "conversation-e",
+            ],
+        );
+        let validation = vec![
+            record(
+                "hold-case-1",
+                "conversation-b",
+                Some("supported"),
+                &["later-corrections"],
+            ),
+            record(
+                "hold-case-2",
+                "conversation-c",
+                Some("contradicted"),
+                &["later-corrections"],
+            ),
+            record("hold-case-3", "conversation-d", Some("supported"), &[]),
+            record("hold-case-4", "conversation-e", Some("supported"), &[]),
+        ];
+        let assessments = json!({
+            "hold-case-1": {"message-supported": assessment(0.90, 0.05, 0.05)},
+            "hold-case-2": {"message-supported": assessment(0.70, 0.05, 0.25)},
+            "hold-case-3": {"message-supported": assessment(0.85, 0.10, 0.05)},
+            "hold-case-4": {"message-supported": assessment(0.80, 0.12, 0.08)}
+        });
+        let report = calibrated(
+            &plan,
+            &metadata,
+            &shared_records(&validation),
+            &independent(),
+            &assessments,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
+        let level = plan::validate_plan(&plan)
+            .expect("the plan validates")
+            .confidence_level();
+
+        // The complete validation states one error among four accepted
+        // cases, with its own bound.
+        let whole = report.intervals.as_ref().expect("the complete rows");
+        let whole_row = whole.interval(MetricName::ErrorAmongAccepted);
+        assert_eq!((whole_row.numerator, whole_row.denominator), (1, 4));
+        let (_, whole_upper) = intervals::wilson_interval(1, 4, level).expect("the bound computes");
+
+        // The measured slice: its metric set and its interval rows count
+        // the two cases of the slice alone, so every numerator, every
+        // denominator, and every bound differs from the complete row.
+        let slice = &report.slices[0];
+        assert_eq!(slice.tag, "later-corrections");
+        let rate = slice.metrics.rate(MetricName::ErrorAmongAccepted);
+        assert_eq!((rate.numerator, rate.denominator), (1, 2));
+        let rows = slice.intervals.as_ref().expect("the slice rows");
+        let row = rows.interval(MetricName::ErrorAmongAccepted);
+        assert_eq!((row.numerator, row.denominator), (1, 2));
+        assert_eq!((row.event_draws, row.draws), (1, 2));
+        let (_, upper) = intervals::wilson_interval(1, 2, level).expect("the bound computes");
+        assert_eq!(row.upper, Some(upper));
+        assert_eq!(whole_row.upper, Some(whole_upper));
+        assert_ne!(row.upper, whole_row.upper);
+
+        // The empty required slice states its unmet floor, keeps every
+        // count at zero, and states no interval that implies observed
+        // cases.
+        let empty = &report.slices[1];
+        assert_eq!(empty.tag, "absent-slice");
+        assert!(!empty.met);
+        assert_eq!(empty.denominators["labeled_cases"], 0);
+        let rate = empty.metrics.rate(MetricName::ErrorAmongAccepted);
+        assert_eq!((rate.numerator, rate.denominator), (0, 0));
+        assert!(empty.intervals.is_none());
+
+        // The unmet floor of the empty slice gates the complete status.
+        assert_eq!(report.status, Qualification::InsufficientEvidence);
+        assert!(
+            report
+                .reasons
+                .iter()
+                .any(|reason| reason.statement.contains("absent-slice")),
+            "{:?}",
+            report.reasons
         );
     }
 

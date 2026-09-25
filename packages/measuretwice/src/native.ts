@@ -381,6 +381,85 @@ export function nativeContentHash(domain: string, text: string): string {
   return call(() => binding.contentHash(domain, text));
 }
 
+/** The verified plan reference of one evidence check. */
+export interface NativeEvidencePlan {
+  /** Stable plan identifier, equal to the recorded identifier. */
+  readonly id: string;
+  /** Computed identity of the plan, equal to the recorded hash. */
+  readonly contentHash: string;
+}
+
+/** The verified dataset reference of one evidence check. */
+export interface NativeEvidenceDataset {
+  /** Stable dataset identifier, equal to the recorded identifier. */
+  readonly id: string;
+  /** Dataset revision, equal to the recorded revision. */
+  readonly revision: string;
+  /** Dataset kind, as the retained metadata states it. */
+  readonly kind: string;
+  /** Case records of the dataset. */
+  readonly recordCount: number;
+  /** Computed hash of the dataset records, equal to the recorded hash. */
+  readonly contentHash: string;
+}
+
+/** One verified split reference of one evidence check. */
+export interface NativeEvidenceSplit {
+  /** Stable split identifier, as the profile records it. */
+  readonly id: string;
+  /** Fitting or validation, as the retained dataset declares the split. */
+  readonly purpose: string;
+  /** Groups of the split, in the declared order. */
+  readonly groups: readonly string[];
+  /** Case records of the split. */
+  readonly recordCount: number;
+  /** Computed hash of the split records, equal to the recorded hash. */
+  readonly contentHash: string;
+}
+
+/** The result of one evidence check over one selected profile. */
+export interface NativeEvidenceCheck {
+  /** Stable profile identifier. */
+  readonly profileId: string;
+  /** Verified self-hash of the profile artifact. */
+  readonly profileContentHash: string;
+  /** Content hash of the definition that the profile and the plan bind. */
+  readonly definitionHash: string;
+  /** The retained plan, with the recorded identity. */
+  readonly plan: NativeEvidencePlan;
+  /** The retained dataset, with the recorded identity. */
+  readonly dataset: NativeEvidenceDataset;
+  /** Every recorded split, with the identity of the retained dataset. */
+  readonly splits: readonly NativeEvidenceSplit[];
+  /** The evaluation-report references, as the profile records them. */
+  readonly evaluationReports: readonly string[];
+  /** What the check verified, with the counts it read. */
+  readonly statement: string;
+  /** The standing limits of this check. */
+  readonly limitations: readonly string[];
+}
+
+/**
+ * Checks the recorded evidence of one profile against the retained
+ * artifacts.
+ *
+ * The core validates every artifact, compares the recorded plan, dataset,
+ * and split identities with the computed identities of the retained copies,
+ * and verifies that the plan and the dataset state one consistent
+ * calibration. One mismatch throws one native failure with `hash_mismatch`
+ * at the field path of the recorded reference.
+ */
+export function nativeCheckProfileEvidence(
+  profileText: string,
+  planText: string,
+  metadataText: string,
+  recordsText: string,
+): NativeEvidenceCheck {
+  return call(() =>
+    binding.checkProfileEvidence(profileText, planText, metadataText, recordsText),
+  );
+}
+
 /** Computes the self-hash of one profile or plan artifact. */
 export function nativeComputeSelfHash(domain: string, artifactText: string): string {
   return call(() => binding.computeSelfHash(domain, artifactText));
@@ -540,6 +619,79 @@ export function nativeCheckCalibrationDatasets(
   validationText: string,
 ): void {
   call(() => binding.checkCalibrationDatasets(planText, fittingText, validationText));
+}
+
+/**
+ * Checks whether one policy revision may replay the stored assessments of
+ * one prior calibration.
+ *
+ * The prior profile text, the prior fitting report text, and the stored
+ * run texts cross exactly as the host stored them; the plan text, the
+ * definition text, the registered text, the live text, and the two
+ * dataset texts cross exactly as the wrapper read them. One changed
+ * definition, evaluator, adapter, translation, model resolution,
+ * preprocessing identity, or input throws one native failure with the
+ * compatibility code of the registry before one assessment is replayed.
+ * The result is the verified reuse as one JSON document.
+ */
+export function nativeCheckRevision(
+  priorProfileText: string,
+  priorFittingText: string,
+  priorRuns: readonly string[],
+  planText: string,
+  definitionText: string,
+  registeredText: string,
+  liveText: string,
+  metadataText: string,
+  recordsText: string,
+): string {
+  return call(() =>
+    binding.checkRevision(
+      priorProfileText,
+      priorFittingText,
+      [...priorRuns],
+      planText,
+      definitionText,
+      registeredText,
+      liveText,
+      metadataText,
+      recordsText,
+    ),
+  );
+}
+
+/**
+ * Compares the prior policy and one revised policy over the same stored
+ * fitting assessments.
+ *
+ * The prior profile text states the applied policy the stored assessments
+ * last served, the plan text is the revision plan, and the revised policy
+ * text holds one applied-policy row per question check of the frozen
+ * candidate. The result is the complete comparison as one JSON document:
+ * the changed cases with both aggregate outcomes, the metric tradeoffs
+ * with the counts and the denominators of both sides, and the standing
+ * limits of one fitting comparison.
+ */
+export function nativeCompareRevision(
+  priorProfileText: string,
+  planText: string,
+  revisedPolicyText: string,
+  metadataText: string,
+  recordsText: string,
+  definitionText: string,
+  assessmentsText: string,
+): string {
+  return call(() =>
+    binding.compareRevision(
+      priorProfileText,
+      planText,
+      revisedPolicyText,
+      metadataText,
+      recordsText,
+      definitionText,
+      assessmentsText,
+    ),
+  );
 }
 
 /** Runs one binding call that resolves asynchronously and lifts its failure. */

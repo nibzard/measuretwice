@@ -450,6 +450,9 @@ test("one calibration qualifies the frozen candidate and returns the artifact", 
   );
   expect(errorMetric).toEqual({ scope: "all_checks", metric: "error_among_accepted", numerator: 1, denominator: 2, value: 0.5 });
   expect(profile.performance?.sample_counts).toEqual({ accepted_cases: 2 });
+  // The stated plan minimums cross beside the measured counts, so one
+  // reviewer reads the limit with the number.
+  expect(profile.performance?.sample_minimums).toEqual({ accepted_cases: 2 });
 
   // The measurement record: one run per case of both splits, in measurement
   // order, each holding one raw assessment of the question check and the
@@ -470,6 +473,22 @@ test("one calibration qualifies the frozen candidate and returns the artifact", 
   ]);
   expect(calibration.limitations).toContain(fitting.statement);
   expect(calibration.limitations).toContain(qualification?.statement ?? "");
+  // The standing retention rule: the profile records the report references,
+  // and one ignored report folder holds no required copy of the evidence.
+  expect(calibration.limitations.join(" ")).toContain("version control ignores");
+
+  // The generated profile holds identities, counts, and statements alone:
+  // no case content, no reference answer, and no reviewer name crosses into
+  // the durable artifact.
+  const serialized = JSON.stringify(profile);
+  for (const forbidden of [
+    "Customer exports stay in the EU.",
+    "The export worker serves EU customers.",
+    "reviewer-1",
+    "api_key",
+  ]) {
+    expect(serialized, `the profile names ${forbidden}`).not.toContain(forbidden);
+  }
 });
 
 test("the measurements carry no reference label and the event loop keeps running", async () => {

@@ -15,12 +15,13 @@ records the test suites and the verification commands. The task list is
 | `crates/measuretwice-node` | Thin NAPI-RS binding. It exposes serializable core operations to Node. The `npm/` directory below it holds the generated platform packages. |
 | `packages/measuretwice` | The one public TypeScript package, with the CLI entry point. |
 | `contracts/v0` | The frozen portable artifact contracts. |
+| `docs` | The published guides and references: the public API, the CLI, the artifact schemas, calibration and selection, runtime operation, and the coding-agent workflows. |
 | `fixtures` | Shared cross-language conformance fixtures for the portable contracts. Mandatory for every wrapper. |
 | `providers` | Verified provider contracts and synthetic response fixtures for the evaluator adapters. Jev lives in `providers/jev/`. |
 | `models` | TLA+ formal models with their records. See [models/README.md](models/README.md). |
 | `scripts` | Standalone build and verification scripts, such as the exact-rule smoke check and the package assembly. |
 | `.measuretwice` | Development checks for this repository: two definitions, two datasets on the frozen contract, their JSON exports, and the offline validation and opt-in Jev shadow runners. |
-| `examples` | Public teaching examples. `examples/memory-support` holds the minimal memory support workflow, `examples/intervention-review` holds the full intervention review workflow, `examples/intervention-challenge` holds the public synthetic challenge set of that definition, and `examples/cassandra-shadow` holds the application integration with the queue, the storage, and the unchanged decision paths of one host. |
+| `examples` | Public teaching examples. `examples/memory-support` holds the minimal memory support workflow, `examples/intervention-review` holds the full intervention review workflow, `examples/intervention-challenge` holds the public synthetic challenge set of that definition, `examples/cassandra-shadow` holds the application integration with the queue, the storage, and the unchanged decision paths of one host, and `examples/plan-review` holds the second, unrelated application that tests portability and records the integration friction. |
 | `tests/repo` | Repository checks for schemas, examples, links, and names. |
 | `tests/live` | Opt-in live evaluations. Empty until task T065. |
 
@@ -166,10 +167,9 @@ you add or change one.
 | `@types/node` | 26.6.2 | Node type definitions. | T004 |
 | `vitest` | 5.0.1 | TypeScript tests. | T005 |
 
-Dependency decisions still open:
-
-- The statistics routines for uncertainty intervals are not pinned yet.
-  Select them with the interval methods in T043.
+No dependency decision is open. The uncertainty intervals need no statistics
+crate; the T043 decision below records the Wilson score method, its standard
+normal quantiles, and the reference fixtures that pin them.
 
 Decided in T009: the core uses no JSON Schema crate. A general validator
 that ignores unknown keywords cannot enforce the supported subset, because
@@ -897,8 +897,8 @@ case dataset with its metadata artifact. The core owns the complete
 contract: `parse_case_record` checks one record (identifier, group,
 slice tags, input object, reference labels, label provenance),
 `parse_dataset_metadata_str` checks the metadata artifact (population,
-sampling method, revision, label guidelines, kind, languages, declared
-record count, split declarations), and `load_dataset` reads the record
+sampling method, revision, label guidelines, kind, languages, the optional
+declared record count, split declarations), and `load_dataset` reads the record
 file line by line through the strict JSON gate. Every record failure
 names its location: the field path states `/records/<line>` plus the
 pointer inside the record, counted from line 1. One empty line, one
@@ -1308,8 +1308,9 @@ the loaded dataset, the statistical method statement comes from the
 qualification report, and the host states the evaluation-report references,
 because the host owns the storage and the contracts require the complete
 evidence set. Every rate of every scope, the bounds of the complete check
-set, the measured sample counts, and the statement of every important slice
-cross into `performance` unchanged. The artifact is signed with the core
+set, the measured sample counts with the stated minimums of the plan, and
+the statement of every important slice cross into `performance` unchanged.
+The artifact is signed with the core
 self-hash, validated through the complete contract, and loaded once through
 the public boundary before it returns, so the host receives one profile
 that binds as generated. No feasible candidate is one valid result: the
@@ -1322,6 +1323,89 @@ content hash, and enforcement still refuses the candidate until then. The
 scheduler admission loop stops after one run that ended during admission,
 such as one caller abort stated from inside the first attempt, so that path
 returns the frozen cancelled report instead of one internal refusal.
+
+Decided in T051: `measuretwice_core::profile::check_evidence` owns the
+retained-evidence check and `packages/measuretwice/src/evidence.ts` owns its
+host-facing half. The host states the explicit locations of its retained
+artifacts, the plan, the dataset metadata, and the dataset records, and the
+core validates every artifact before one comparison runs: the profile
+artifact through its complete contract and its stored self-hash, the plan
+through the plan contract, and the dataset through the loader that computes
+the dataset and split identities from the loaded records. The check then
+compares every recorded identity with the computed identity of the retained
+copy in one fixed order: the plan identifier and its computed identity, the
+definition hash that the plan and the profile bind, the dataset identifier,
+revision, and record hash, every recorded split, and the two dataset
+selections of the plan, which must name recorded splits of the declared
+purpose that share no group and no case. One drift fails with `hash_mismatch`
+at the field path of the recorded reference, one swapped definition binding
+of the profile fails with `definition_mismatch`, and one incomplete recorded
+split set fails with `missing_field`. The result states the verified
+identities with the counts it read, and two standing limits: the check
+verifies content consistency and authenticates nothing, and the evaluation
+reports live in host storage that it reads none of.
+
+The retention rule crossed with the same change. The profile contract gained
+the optional `performance.sample_minimums`, which records the plan's stated
+minimum sample counts beside the measured counts, and the shared profile
+fixtures state it with re-signed artifacts. Every calibration result carries
+one standing statement that one folder version control ignores holds no
+required copy of the qualification evidence, the detailed profile view states
+the same rule beside the recorded report references, and the package README
+documents the host locations that the check reads. The suites
+`packages/measuretwice/test/evidence.test.ts`, the evidence row of the native
+suite, the calibration assertions, and the renderer assertions pin the
+behavior.
+
+Decided in T052: `measuretwice_core::revision` owns the policy revision
+boundary and `packages/measuretwice/src/revise.ts` owns its orchestration.
+`check_revision` verifies one stated prior calibration before one
+assessment is replayed: the prior profile through the complete contract and
+its self-hash, with the `calibration` origin alone, because one calibration
+records the evidence and the measurements one revision replays; the prior
+profile and the revision plan bound to the loaded definition by name and
+hash, so one changed question, criterion, schema, or input projection
+refuses with `definition_mismatch`; the plan's evaluator configuration
+against the recorded bindings and the live registry state through the
+shared shadow compatibility check, so one changed evaluator, adapter,
+translation, model, or preprocessing identity refuses with the registry
+code; the fitting split of the loaded dataset against the recorded split
+hashes of the prior profile, with the dataset content hash compared
+nowhere, because one revision may load one later revision that keeps the
+fitting records and adds fresh validation data; and every stored run
+through the run report contract, one shared measurement profile, the
+definition hash, the case input hash of the loaded record, and the
+evaluator record of every question check against the binding the prior
+profile records. The verified fitting and validation assessments cross
+back as data, so the wrapper hand-builds no replay input. The boundary
+classifies the validation split from the runs themselves: the runs that
+name its cases are the prior validation measurements, so the content was
+consumed and one new claim needs fresh evidence, and the runs that name
+cases of no loaded split are the validation measurements of one earlier
+dataset revision, retained but never replayed. The qualification status of
+the prior profile and the search status of the prior fitting report
+cross-check the stated runs, so one validated prior cannot drop its
+validation measurements and one unfinished calibration cannot invent them.
+`compare_revision` replays the stored fitting assessments under the prior
+policy and the frozen candidate through the same decision one run reads,
+and states the changed cases with both aggregate outcomes, the metric rows
+with the counts and denominators of both sides, and the fitting evidence
+class, because one replay over development data supports no validation
+claim. The Node binding crosses both as JSON documents, and the revision
+workflow reuses the calibration orchestration: the same plan, dataset, and
+binding checks before any work, the same fitting search and frozen
+validation on one worker thread, the same candidate profile builder with
+the prior bindings carried over, and the same measurement path for one
+fresh validation split alone. The wrapper declares the consumed holdout as
+previously used itself, so the frozen validation classifies it as
+development data and the new candidate states `insufficient_evidence`
+whatever the development numbers show, and one fresh split is measured
+with the model resolution compared across the stored and the fresh
+measurements. The revision promotes nothing, returns one new profile with
+its own content hash and identifier, and the prior artifact stays
+unchanged. The suites `packages/measuretwice/test/revise.test.ts`, the
+revision row of the native suite, and the module tests of the core pin the
+reuse table, the dispositions, and the comparison.
 
 Decided in T054: the CLI is one entry module and one file module.
 `packages/measuretwice/src/cli.ts` owns the surface and nothing else.
@@ -1401,6 +1485,46 @@ invocation gained the `--out` field that the T054 option table already
 accepted. The package README documents the trusted application script
 that serializes the result of `defineChecks` into
 `.measuretwice/definitions/`, because the CLI loads no TypeScript source.
+
+Decided in T056: the CLI implements the `calibrate`, `evaluate`, and
+`compare` commands of MVP_SPEC.md section 11 in the entry module, so the
+CLI stays one entry module and one file module. `evaluate` reads the
+definition, the optional profile, and the dataset through the bounded
+readers, then crosses the same `load` and `evaluate` boundary as the
+library through one in-memory file access that serves the texts the
+readers already hold: every record runs as one shadow run of the bound
+reviewer, the Rust core measures the outcomes against the reference
+labels, and the command completes with exit code 0 whatever the metrics
+state, because one measured error rate is no command failure. The
+declared purpose defaults to `exploration`, which claims the least, and
+`--out` writes the evaluation report artifact of the frozen contract.
+`compare` reads two stored reports through the report reader and crosses
+the public `compare` operation with the resolved paths as the stored-
+report references, so the core owns every rule: the report contracts, the
+matching on equal identifiers and equal input hashes, the changed, the
+missing, the errored, and the skipped cases, and the metric rows with
+their counts and their denominators. The invocation gained the `--out`
+option that writes the comparison artifact. The command states no cost
+inputs, so no comparison computes one cost and the limitation of the core
+names the fact.
+
+`calibrate` keeps the boundary of T055 and states it through the core. It
+reads the definition and the plan through the bounded readers, then calls
+the calibration binding check of the native boundary with one empty
+registered set, so the core validates the complete plan contract, checks
+the definition binding of the plan, and refuses with `evaluator_mismatch`
+and its own field path — the same code and path that one definition with
+one question check meets on `run` — and the CLI appends one boundary
+sentence that names what the host must do in its own code. The exact-only
+refusal (`policy_mismatch`) and one plan of another definition
+(`definition_mismatch`) cross the same way. The command writes no
+candidate profile on any path, because no measurement ran: one written
+candidate without one stored assessment behind it would look complete.
+The candidate output path and the report preservation of one completed
+calibration stay with the library operation, which measures through the
+evaluator that the plan names; the sampling model, the dataset locations,
+and the evaluation-report references are host statements that the CLI
+invents no defaults for.
 
 Decided in T060: the development checks of `.measuretwice` are executable
 repository artifacts, not prose. Both draft definitions compile against

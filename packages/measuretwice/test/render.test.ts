@@ -37,6 +37,7 @@ import {
   type Profile,
   type RunCheckRecord,
   type RunReport,
+  type ShadowBaseline,
 } from "../src/index.js";
 import { FakeClock, sequenceIds } from "./support/deterministic.js";
 
@@ -205,6 +206,7 @@ function memoryFiles(files: Record<string, string>): FileAccess {
 async function runWith(
   steps: readonly unknown[],
   profileOptions: Parameters<typeof createExplorationProfile>[2] = {},
+  baseline?: ShadowBaseline,
 ): Promise<{ readonly report: RunReport; readonly profile: Profile }> {
   const clock = new FakeClock(START_MS);
   const evaluator = createScriptedEvaluator({
@@ -225,7 +227,10 @@ async function runWith(
     nextRunId: sequenceIds("run"),
     setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
   });
-  return { report: await reviewer.run(CASE_INPUT), profile };
+  return {
+    report: await reviewer.run(CASE_INPUT, baseline === undefined ? {} : { baseline }),
+    profile,
+  };
 }
 
 /** Runs one renderer and returns the public failure it must throw. */
@@ -435,6 +440,52 @@ test("the detailed view exposes rules, measurements, identities, and limitations
   );
 });
 
+test("the detailed view keys the policy terms and the shadow fields it uses", async () => {
+  const { report } = await runWith(
+    [SUPPORTED, { assessment: { kind: "binary", value: true } }, MINOR],
+    {},
+    { outcome: "fail", revision: "host-policy-1" },
+  );
+  const text = renderRunReport(mixed, report, { detail: "detail" });
+
+  // One report that states one policy also states what its terms mean.
+  expect(text).toContain("Key");
+  expect(text).toContain("Acceptable mass: the assessed mass on the accepted answers of the check.");
+  expect(text).toContain("Unacceptable mass: the assessed mass on every other declared answer.");
+  expect(text).toContain(
+    "The policy passes at acceptable mass at or above the accept cutoff. " +
+      "It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.",
+  );
+  expect(text).toContain(
+    "The selected profile holds the cutoffs and the evaluator binding. The host application stores it.",
+  );
+
+  // The binary check of the definition carries no distribution, and the key
+  // says so beside the record that shows no distribution line.
+  expect(text).toContain("A binary question reports one answer and no distribution.");
+
+  // One shadow run with one baseline states both terms.
+  expect(text).toContain(
+    "Shadow mode records this assessment beside the decision of the host application. " +
+      "It changes no application action.",
+  );
+  expect(text).toContain(
+    "The baseline states the decision that the host application made itself, " +
+      "with the revision of its own policy.",
+  );
+
+  // The key sits between the identity block and the limitations.
+  const key = text.indexOf("Key");
+  expect(text.indexOf("Details")).toBeLessThan(key);
+  expect(key).toBeLessThan(text.indexOf("Limitations"));
+
+  // The summary view states no key, and the Markdown view states the same key.
+  expect(renderRunReport(mixed, report)).not.toContain("Acceptable mass:");
+  const markdown = renderRunReportMarkdown(mixed, report, { detail: "detail" });
+  expect(markdown).toContain("## Key");
+  expect(markdown).toContain("- Acceptable mass: the assessed mass on the accepted answers of the check.");
+});
+
 test("no rendered view echoes raw case content", async () => {
   const { report } = await runWith([SUPPORTED, NOTHING_NEW, MEANINGFUL]);
   const canaries = ["CANARY-PRIOR-9f31", "CANARY-TALK-77ac", "CANARY-DRAFT-5e0d"];
@@ -616,6 +667,7 @@ test("the insufficient-evidence profile renders its readiness, evidence, and cou
   expect(detail).toContain("Performance");
   expect(detail).toContain("error_among_accepted (message-supported): 0 of 9 = 0");
   expect(detail).toContain("sample counts: labeled_cases 9 · accepted_cases 9");
+  expect(detail).toContain("sample minimums: labeled_cases 200 · accepted_cases 80");
   expect(detail).toContain(
     "slice limitation: Nine labeled cases sit below the plan minimum of 200. Zero observed errors do not establish the goal.",
   );
@@ -624,6 +676,13 @@ test("the insufficient-evidence profile renders its readiness, evidence, and cou
   expect(detail).toContain(
     "The qualification status is recorded evidence, not one authenticated approval. The host reviews and selects one profile hash.",
   );
+  // The retention rule stays visible in the detailed view of every profile
+  // that records evaluation-report references.
+  expect(detail).toContain(
+    "The evaluation reports live in host storage at the recorded references. One folder that version control ignores holds no required copy of the qualification evidence.",
+  );
+  // The summary view states no measured number and no retention detail.
+  expect(summary).not.toContain("sample minimums");
 });
 
 test("the profile Markdown views state the same content as the terminal views", () => {

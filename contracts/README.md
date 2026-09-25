@@ -267,6 +267,10 @@ and evidence. It contains no credentials and no private case content.
   profile binds exact rules only, as described below.
 - A calibration profile records its plan, datasets, splits, label provenance,
   statistical method, and evaluation-report references.
+- The recorded performance states every observed count with its denominator,
+  the uncertainty intervals, the measured sample counts with the plan's stated
+  minimums, and the per-slice limits. One reviewer reads the limit beside the
+  number.
 - Qualification is `unvalidated`, `insufficient_evidence`, `criteria_not_met`,
   or `validated_for_scope`. The flag records measured evidence for a declared
   scope. It is not an authenticated approval.
@@ -276,10 +280,29 @@ and evidence. It contains no credentials and no private case content.
   Runtime checks verify content consistency and required references. They
   cannot verify the truth of a forged dataset. No run selects, promotes, or
   rewrites one profile.
+- The evidence check of the profile interface compares the recorded evidence
+  of one selected profile with the artifacts that the host retained at its own
+  explicit locations: the plan, the dataset metadata, and the dataset records.
+  Every recorded identity must equal the computed identity of the retained
+  copy, the retained plan must bind the definition that the profile binds, and
+  the plan and the dataset must state one consistent calibration. One drift
+  fails with `hash_mismatch` at the recorded reference. The check reads no
+  report file and changes nothing.
+- The host owns the retained evidence. The evaluation-report references name
+  host-managed storage, and one folder that version control ignores holds no
+  required copy: keep one reviewed copy of the fitting and qualification
+  reports beside the selected profile.
 - Changed question wording, criteria, schema, projection, preprocessing, model
   resolution, translation, or evaluator code invalidates the qualification.
   Policy-only changes may reuse compatible stored assessments for fitting, but
   need independent validation before promotion. Scope changes need new evidence.
+- The revision check of the profile interface states what one revision may
+  replay: the prior calibration, its revision plan, the loaded definition, the
+  live evaluator state, and the fitting inputs must carry one identity. The
+  validation split the prior claim consumed is development data, its stored
+  assessments replay under the revised candidate, and one new qualification
+  claim needs fresh independent evidence. One policy change records one new
+  profile with its own content hash and edits no stored one.
 
 ## Run reports
 
@@ -474,9 +497,10 @@ content. A sanitized message keeps the operational reason visible.
 
 ## Public operations
 
-The public API is `defineChecks`, `load`, `run`, `calibrate`, `evaluate`, and
-`compare`. Inspection belongs to the profile and report interfaces. All public
-types stay independent of provider SDK classes and native binding types.
+The public API is `defineChecks`, `load`, `run`, `calibrate`, `revise`,
+`evaluate`, and `compare`. Inspection belongs to the profile and report
+interfaces. All public types stay independent of provider SDK classes and
+native binding types.
 
 | Operation | Input | Output | Modes | Main failure behavior |
 | --- | --- | --- | --- | --- |
@@ -484,11 +508,18 @@ types stay independent of provider SDK classes and native binding types.
 | `load` | Trusted definition object, or an explicit JSON path; optional profile path | A bound reviewer | None | Rejects invalid artifacts, incompatible profiles, and unknown evaluator references. |
 | `run` | One case with `id` and `input`; mode; shadow baseline; the host-selected profile hash and the requested scope for enforcement | Run report | `shadow`, `enforcement` | Rejects invalid cases and incompatible bindings before any evaluator call. Enforcement also rejects one wrong scope, one unvalidated qualification, and one profile the host did not select. Keeps operational failures in the report. |
 | `calibrate` | Calibration plan, datasets, evaluator configuration | Candidate profile and calibration report | None | Invalid plans and dataset errors are explicit. No feasible policy is a valid result. Never promotes. |
+| `revise` | Stored calibration, revision plan, datasets, evaluator configuration | Revised profile, reuse verification, revision comparison | None | Refuses one changed definition, evaluator, adapter, translation, model, preprocessing, or input before any replay. One consumed validation split never validates one revised policy. Records one new profile and edits no stored one. |
 | `evaluate` | Definition, profile, JSONL dataset, purpose | Evaluation report | None | Keeps errors, skips, and partial labels visible. Never changes qualification. |
 | `compare` | Two stored report sets | Comparison | None | Lists unmatched and changed cases. Never matches on changed inputs. |
 
 `load` does not load YAML and does not execute TypeScript source. A JSON export
 is optional for the command-line interface (CLI) and for exchange.
+
+The TypeScript signatures, the options, and the failure behavior of these
+operations are recorded in the [API reference](../docs/reference/api.md),
+the command surface in the [CLI reference](../docs/reference/cli.md), and
+the package view of this schema set in the
+[artifact reference](../docs/reference/artifacts.md).
 
 ### Resource limits
 
@@ -618,6 +649,19 @@ Related contracts published after this freeze:
   because baseline agreement is not correctness. Adds no reason code and no
   schema field: the review export is derived data of the run reports, and
   the shared core owns its shape.
+- The retained-evidence rules of task T051, published on 24 September 2026.
+  Adds the optional profile field `performance.sample_minimums`, which records
+  the plan's stated minimum sample counts by denominator name beside the
+  measured `sample_counts`. Records the evidence check of the profile
+  interface: the host states the explicit locations of its retained plan,
+  dataset metadata, and dataset records, and the core compares every recorded
+  identity with the computed identity of the retained copy, requires the
+  retained plan to bind the definition that the profile binds, and requires
+  the plan and the dataset to state one consistent calibration. Records that
+  the check reads no report file, and that one folder that version control
+  ignores holds no required copy of the qualification evidence that one
+  selected profile references. Adds no reason code: identity drift fails with
+  `hash_mismatch` and one swapped definition binding with `definition_mismatch`.
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.

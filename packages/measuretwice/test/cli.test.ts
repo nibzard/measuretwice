@@ -1,25 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * CLI behavior tests, tasks T054 and T055. They cover both surfaces:
+ * CLI behavior tests, tasks T054, T055, and T056. They cover both surfaces:
  *
  * - The compiled entry point, so `npm run build` must run before the tests.
  * - The imported `runCli` and `parseCliArguments`, with injected streams,
  *   which pin the parsing rules, the exit codes, the stream separation, and
  *   the diagnostic formats without one child process per case.
  *
- * The command tests of T055 drive `validate`, `run`, and `inspect` through
- * the imported `runCli` with injected streams. They pin the readable and
- * the JSON output of every command, the pass, fail, and review reports of
- * one completed run, the report artifact of `--out`, the malformed and
- * unreadable artifacts, the incompatible profile, the unavailable
- * evaluator, the enforcement refusal, and the privacy rule that no raw
- * case content crosses either stream. The error aggregate of one run needs
- * one evaluator execution; the CLI refuses evaluator runs by design, and
- * the renderer suite of T037 covers that view.
+ * The command tests drive every command through the imported `runCli` with
+ * injected streams. They pin the readable and the JSON output of every
+ * command, the pass, fail, and review reports of one completed run, the
+ * report artifact of `--out`, the malformed and unreadable artifacts, the
+ * incompatible profile, the unavailable evaluator, the enforcement refusal,
+ * and the privacy rule that no raw case content crosses either stream. The
+ * command tests of T056 add the three calibration and evaluation commands:
+ * `calibrate` keeps the plan contract, the definition binding, and the
+ * evaluator boundary of the core and writes no candidate; `evaluate`
+ * measures one labeled dataset of an exact-only definition through the same
+ * path as the library, keeps one skipped check visible, and writes its
+ * report artifact; `compare` reads two stored evaluation reports, renders
+ * the matching and the metric rows, and refuses one foreign definition, one
+ * disjoint case set, and one edited stored count. The error aggregate of
+ * one run needs one evaluator execution; the CLI refuses evaluator runs by
+ * design, and the renderer suite of T037 covers that view.
  */
 import { test, expect } from "vitest";
 import { execFile } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +34,7 @@ import { promisify } from "node:util";
 import { parseCliArguments, runCli, USAGE } from "../src/cli.js";
 import type { CliIo } from "../src/cli.js";
 import { createExplorationProfile } from "../src/exploration.js";
+import { nativeComputeSelfHash } from "../src/native.js";
 import { createLabelOnlyEvaluator } from "../src/test-evaluator.js";
 import { load, registerEvaluators } from "../src/index.js";
 
@@ -207,6 +215,15 @@ test("parseCliArguments resolves every artifact path of every command", () => {
     candidate: "b.json",
     format: "text",
   });
+  expect(
+    parseCliArguments(["compare", "baseline", "candidate", "--out", "c.json"], { cwd }),
+  ).toEqual({
+    command: "compare",
+    baseline: path.join(cwd, ".measuretwice", "reports", "baseline.json"),
+    candidate: path.join(cwd, ".measuretwice", "reports", "candidate.json"),
+    out: "c.json",
+    format: "text",
+  });
   expect(parseCliArguments(["inspect", "candidate", "--format", "json"], { cwd })).toEqual({
     command: "inspect",
     profile: path.join(cwd, ".measuretwice", "profiles", "candidate.json"),
@@ -275,29 +292,6 @@ test("one wrong file format fails with exit code 1 before one read", async () =>
   const yaml = await cli(["inspect", "candidate.yaml"]);
   expect(yaml.code).toBe(1);
   expect(yaml.err).toContain("no YAML");
-});
-
-test("one accepted parse of one later task still reports the stub with exit code 1", async () => {
-  const text = await cli([
-    "calibrate",
-    exactRulesPath,
-    "--plan",
-    "calibration-plan",
-  ]);
-  expect(text.code).toBe(1);
-  expect(text.err).toContain("measuretwice: not_implemented:");
-  expect(text.err).toContain("not implemented in this build");
-  expect(text.out).toBe("");
-
-  const json = await cli(["evaluate", "d.json", "--cases", "holdout.jsonl", "--format", "json"]);
-  expect(json.code).toBe(1);
-  expect(json.out).toBe("");
-  const diagnostic = JSON.parse(json.err) as {
-    tool: string;
-    error: { code: string; message: string };
-  };
-  expect(diagnostic.tool).toBe("measuretwice");
-  expect(diagnostic.error.code).toBe("not_implemented");
 });
 
 test("the JSON diagnostic of one usage failure carries the stable code", async () => {
@@ -706,6 +700,649 @@ test("inspect refuses one edited profile with the registry code", async () => {
   expect(result.code).toBe(1);
   expect(result.err).toContain("hash_mismatch");
   expect(result.out).toBe("");
+});
+
+// ---------------------------------------------------------------------------
+// The calibrate command, task T056.
+// ---------------------------------------------------------------------------
+
+/**
+ * Writes one calibration plan that binds the loaded categorical fixture.
+ *
+ * The plan needs no `content_hash`: the contract keeps it optional. One
+ * stated `sign` returns one signed copy, so one later edit of that copy
+ * fails the stored self-hash of the plan domain.
+ */
+async function planFile(
+  overrides: Record<string, unknown> = {},
+  options: { readonly sign?: boolean } = {},
+): Promise<string> {
+  const reviewer = await load(categoricalPath);
+  const value = {
+    schema_version: 1,
+    id: "message-supported-plan",
+    name: "Message support plan",
+    definition: { name: reviewer.definition.name, content_hash: reviewer.definitionHash },
+    intended_population: "Proposed messages in the reviewed support traffic.",
+    sampling_assumptions: "Cases grouped by conversation. Groups are independent draws.",
+    confidence_level: 0.95,
+    constraints: [
+      { metric: "error_among_accepted", comparison: "at_most", limit: 0.5, basis: "observed_value" },
+    ],
+    objective: { metric: "review_rate", direction: "minimize" },
+    minimum_samples: { accepted_cases: 2 },
+    candidate_grid: { accept_cutoffs: [0.6, 0.8], rejection_cutoffs: [0.6] },
+    evaluator: { evaluator: "scripted-test", adapter_version: "0.1.0" },
+    datasets: {
+      fitting: { dataset: "calibration-cases", revision: "2026-09-24.1", split: "fit" },
+      validation: { dataset: "calibration-cases", revision: "2026-09-24.1", split: "holdout" },
+    },
+    ...overrides,
+  };
+  const text = JSON.stringify(
+    options.sign
+      ? { ...value, content_hash: nativeComputeSelfHash("plan", JSON.stringify(value)) }
+      : value,
+  );
+  return tempFile("plan.json", text);
+}
+
+test("calibrate refuses one plan with the evaluator boundary and writes no candidate", async () => {
+  const out = path.join(tmpdir(), "measuretwice-cli-absent-candidate.json");
+  const plan = await planFile();
+  const result = await cli([
+    "calibrate",
+    categoricalPath,
+    "--plan",
+    plan,
+    "--out",
+    out,
+    "--format",
+    "json",
+  ]);
+  expect(result.code).toBe(1);
+  expect(result.out).toBe("");
+  const diagnostic = JSON.parse(result.err) as {
+    error: { code: string; message: string; field_path: string };
+  };
+  expect(diagnostic.error.code).toBe("evaluator_mismatch");
+  expect(diagnostic.error.field_path).toBe("/plan/evaluator/evaluator");
+  expect(diagnostic.error.message).toContain("scripted-test");
+  expect(diagnostic.error.message).toContain("no calibration can measure cases here");
+  expect(diagnostic.error.message).toContain("registers the evaluator of the plan");
+  expect(existsSync(out)).toBe(false);
+});
+
+test("calibrate keeps the refusals of the plan contract and the definition binding", async () => {
+  const exactOnly = await cli(["calibrate", exactRulesPath, "--plan", await planFile()]);
+  expect(exactOnly.code).toBe(1);
+  expect(exactOnly.err).toContain("policy_mismatch");
+  expect(exactOnly.err).toContain("An exact-only definition takes no calibration plan");
+
+  const foreign = await cli(["calibrate", orderedPath, "--plan", await planFile()]);
+  expect(foreign.code).toBe(1);
+  expect(foreign.err).toContain("definition_mismatch");
+  expect(foreign.err).toContain("Bind the plan of this revision");
+
+  const unsigned = await planFile({}, { sign: true });
+  const artifact = JSON.parse(readFileSync(unsigned, "utf8")) as Record<string, unknown>;
+  const edited = tempFile(
+    "edited-plan.json",
+    JSON.stringify({ ...artifact, intended_population: "edited population" }),
+  );
+  const drifted = await cli(["calibrate", categoricalPath, "--plan", edited]);
+  expect(drifted.code).toBe(1);
+  expect(drifted.err).toContain("hash_mismatch");
+
+  const brokenGrid = await planFile({
+    candidate_grid: { accept_cutoffs: [0.3], rejection_cutoffs: [0.6] },
+  });
+  const invalid = await cli(["calibrate", categoricalPath, "--plan", brokenGrid]);
+  expect(invalid.code).toBe(1);
+  expect(invalid.err).toContain("invalid_field_type");
+  expect(invalid.err).toContain("The cutoff must stay above 0.5");
+
+  const incomplete = tempFile(
+    "incomplete-plan.json",
+    JSON.stringify({ schema_version: 1, id: "message-supported-plan" }),
+  );
+  const missing = await cli(["calibrate", categoricalPath, "--plan", incomplete]);
+  expect(missing.code).toBe(1);
+  expect(missing.err).toContain("missing_field");
+
+  const unreadable = await cli([
+    "calibrate",
+    categoricalPath,
+    "--plan",
+    path.join(tmpdir(), "measuretwice-absent-plan.json"),
+  ]);
+  expect(unreadable.code).toBe(1);
+  expect(unreadable.err).toContain("unreadable_file");
+});
+
+// ---------------------------------------------------------------------------
+// The evaluate command, task T056.
+// ---------------------------------------------------------------------------
+
+/** One labeled record of the exact-rules dataset of the evaluate tests. */
+function datasetRecord(
+  id: string,
+  summary: string,
+  notice: string,
+  expected?: Record<string, unknown>,
+): string {
+  return JSON.stringify({
+    id,
+    group: "limits",
+    ...(expected === undefined ? {} : { expected }),
+    input: { summary, notice },
+    label: { author_type: "human", reviewed: true, reviewer: "reviewer-1" },
+  });
+}
+
+/** Writes one dataset of the exact-rules fixture: one records and one metadata file. */
+function datasetFiles(
+  name: string,
+  records: readonly string[],
+): { readonly records: string; readonly metadata: string } {
+  const directory = mkdtempSync(path.join(tmpdir(), "measuretwice-cli-data-"));
+  const recordsPath = path.join(directory, `${name}.jsonl`);
+  const metadataPath = path.join(directory, `${name}.json`);
+  writeFileSync(recordsPath, records.length === 0 ? "" : `${records.join("\n")}\n`, "utf8");
+  writeFileSync(
+    metadataPath,
+    JSON.stringify({
+      schema_version: 1,
+      id: `${name}-cases`,
+      name: `${name} cases`,
+      revision: "2026-09-24.1",
+      kind: "development_fixture",
+      intended_population: "Delivery summaries of development work.",
+      sampling_method: "Selected from development work. No prevalence claim.",
+      label_guidelines: "See docs/labeling.md revision 1.",
+      languages: ["en"],
+      splits: [{ id: "holdout", purpose: "validation", groups: ["limits"] }],
+    }),
+    "utf8",
+  );
+  return { records: recordsPath, metadata: metadataPath };
+}
+
+/** One dataset of the exact-rules fixture: one passing and one failing case. */
+function exactDataset(): { readonly records: string; readonly metadata: string } {
+  return datasetFiles("delivery", [passingRecord(), failingRecord()]);
+}
+
+test("evaluate measures one dataset and prints the readable view", async () => {
+  const dataset = exactDataset();
+  const result = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--purpose",
+    "independent_validation",
+  ]);
+  expect(result.code).toBe(0);
+  expect(result.err).toBe("");
+  expect(result.out).toContain("delivery-limits · evaluation (independent_validation)");
+  expect(result.out).toContain("Dataset: delivery-cases · revision 2026-09-24.1 · 2 evaluated · 0 unevaluated");
+  expect(result.out).toContain("summary-mentions-limit: pass 1 · fail 1 · review 0 · error 0 · skipped 0");
+  expect(result.out).toContain("error_among_accepted 0/1 = 0");
+  expect(result.out).toContain("label_coverage 2/2 = 1");
+  expect(result.out).toContain("no production prevalence");
+  expect(result.out).toContain("A report authorizes no application action");
+});
+
+test("evaluate prints and writes the report artifact with the default purpose", async () => {
+  const dataset = exactDataset();
+  const out = path.join(path.dirname(dataset.records), "evaluation.json");
+  const result = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--out",
+    out,
+    "--format",
+    "json",
+  ]);
+  expect(result.code).toBe(0);
+  const printed = JSON.parse(result.out) as {
+    purpose: string;
+    definition: { readonly name: string };
+    metrics: readonly { readonly scope: string; readonly rates: readonly { readonly value: number | null }[] }[];
+  };
+  expect(printed.purpose).toBe("exploration");
+  expect(printed.definition.name).toBe("delivery-limits");
+  expect(printed.metrics.at(-1)?.scope).toBe("all_checks");
+  expect(readFileSync(out, "utf8")).toBe(`${JSON.stringify(printed, null, 2)}\n`);
+
+  const fitting = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--purpose",
+    "fitting",
+  ]);
+  expect(fitting.code).toBe(0);
+  expect(fitting.out).toContain("evaluation (fitting)");
+  expect(fitting.out).toContain("Fitting results are not validation evidence");
+});
+
+test("evaluate keeps one refused output write off stdout and leaves no artifact", async () => {
+  const dataset = exactDataset();
+  const failedOut = path.join(path.dirname(dataset.records), "absent", "evaluation.json");
+  const result = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--out",
+    failedOut,
+  ]);
+  expect(result.code).toBe(1);
+  expect(result.err).toContain("unwritable_output");
+  expect(result.err).toContain("The command wrote no artifact");
+  expect(result.out).toBe("");
+  expect(existsSync(failedOut)).toBe(false);
+});
+
+test("evaluate assesses through one stated profile and changes no artifact", async () => {
+  const dataset = exactDataset();
+  const profile = await exactProfileFile();
+  const before = readFileSync(profile, "utf8");
+  const out = path.join(path.dirname(dataset.records), "profiled.json");
+  const result = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--profile",
+    profile,
+    "--out",
+    out,
+    "--format",
+    "json",
+  ]);
+  expect(result.code).toBe(0);
+  const printed = JSON.parse(result.out) as {
+    profile: { readonly id: string; readonly content_hash: string };
+  };
+  expect(printed.profile.id).toBe("delivery-limits-exact");
+  expect(readFileSync(out, "utf8")).toBe(`${JSON.stringify(printed, null, 2)}\n`);
+  // One evaluation changes no artifact and selects no profile: the stated
+  // profile file keeps its bytes and the command writes its report alone.
+  expect(readFileSync(profile, "utf8")).toBe(before);
+  expect(readdirSync(path.dirname(dataset.records)).sort()).toEqual([
+    "delivery.json",
+    "delivery.jsonl",
+    "profiled.json",
+  ]);
+});
+
+test("evaluate refuses one question check with the CLI evaluator boundary", async () => {
+  const dataset = datasetFiles("categorical", [
+    JSON.stringify({
+      id: "q-1",
+      group: "limits",
+      input: { prior_decision: "d", conversation: "c", proposed_message: "m" },
+      label: { author_type: "human", reviewed: true, reviewer: "reviewer-1" },
+    }),
+  ]);
+  const withoutProfile = await cli([
+    "evaluate",
+    categoricalPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+  ]);
+  expect(withoutProfile.code).toBe(1);
+  expect(withoutProfile.err).toContain("evaluator_mismatch");
+  expect(withoutProfile.err).toContain("The CLI registers no evaluator adapter");
+  expect(withoutProfile.out).toBe("");
+
+  const profile = await explorationProfileFile();
+  const withProfile = await cli([
+    "evaluate",
+    categoricalPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--profile",
+    profile,
+    "--format",
+    "json",
+  ]);
+  expect(withProfile.code).toBe(1);
+  expect(withProfile.out).toBe("");
+  const diagnostic = JSON.parse(withProfile.err) as {
+    error: { code: string; field_path: string };
+  };
+  expect(diagnostic.error.code).toBe("evaluator_mismatch");
+  expect(diagnostic.error.field_path).toBe("/profile/bindings/0/evaluator");
+});
+
+test("evaluate refuses unreadable and malformed datasets", async () => {
+  const dataset = exactDataset();
+  const missing = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    path.join(tmpdir(), "measuretwice-absent.jsonl"),
+  ]);
+  expect(missing.code).toBe(1);
+  expect(missing.err).toContain("unreadable_file");
+
+  const broken = tempFile("broken-metadata.json", '{"id": "delivery-cases",\n');
+  const malformed = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    broken,
+  ]);
+  expect(malformed.code).toBe(1);
+  expect(malformed.err).toContain("invalid_json");
+
+  const foreign = datasetFiles("foreign", [
+    datasetRecord("case-foreign", "The summary states the delivery limit.", "No secrets here.", {
+      checks: { "absent-check": { outcome: "pass" } },
+      outcome: "pass",
+    }),
+  ]);
+  const rejected = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    foreign.records,
+    "--metadata",
+    foreign.metadata,
+  ]);
+  expect(rejected.code).toBe(1);
+  expect(rejected.err).toContain("absent-check");
+
+  const empty = datasetFiles("empty", []);
+  const noCase = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    empty.records,
+    "--metadata",
+    empty.metadata,
+  ]);
+  expect(noCase.code).toBe(1);
+  expect(noCase.err).toContain("insufficient_evidence");
+});
+
+test("evaluate leaks no raw case content on either stream", async () => {
+  const canary = "CANARY-CASE-CONTENT";
+  const dataset = datasetFiles("private", [
+    datasetRecord("case-private", `The summary states the delivery limit. ${canary}`, "ok"),
+  ]);
+  const result = await cli([
+    "evaluate",
+    exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--format",
+    "json",
+  ]);
+  expect(result.code).toBe(0);
+  expect(result.out).not.toContain(canary);
+  expect(result.err).not.toContain(canary);
+});
+
+test("evaluate keeps one skipped check visible and still writes the report", async () => {
+  // The structural exact profile admits 4 active and 16 pending checks, so
+  // the twenty-first rule check records one queue_full skip. The evaluation
+  // completes with exit code 0 and the report keeps the skip visible,
+  // because one measured skip is no command failure.
+  const checks = Array.from({ length: 21 }, (_, index) => ({
+    id: `length-${index}`,
+    name: `Length rule ${index}`,
+    using: ["summary"],
+    rule: { maxLength: 80 },
+  }));
+  const definition = tempFile(
+    "wide-rules.json",
+    JSON.stringify({
+      schema_version: 1,
+      name: "wide-rules",
+      inputs: {
+        type: "object",
+        properties: { summary: { type: "string", minLength: 1 } },
+        required: ["summary"],
+        additionalProperties: false,
+      },
+      checks,
+    }),
+  );
+  const dataset = datasetFiles("wide", [
+    JSON.stringify({
+      id: "wide-1",
+      group: "limits",
+      expected: { checks: { "length-0": { outcome: "pass" } }, outcome: "pass" },
+      input: { summary: "one short summary" },
+      label: { author_type: "human", reviewed: true, reviewer: "reviewer-1" },
+    }),
+  ]);
+  const out = path.join(path.dirname(dataset.records), "wide-evaluation.json");
+  const result = await cli([
+    "evaluate",
+    definition,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--out",
+    out,
+  ]);
+  expect(result.code).toBe(0);
+  expect(result.out).toContain("skipped 1");
+  expect(result.out).toContain("review_rate 1/1 = 1");
+  const written = JSON.parse(readFileSync(out, "utf8")) as {
+    metrics: readonly {
+      readonly scope: string;
+      readonly counts: Record<string, number>;
+    }[];
+  };
+  expect(written.metrics.find((set) => set.scope === "length-20")?.counts.skipped).toBe(1);
+  // The aggregate folds one skipped component into one review outcome, so
+  // the skip stays visible without turning into one pass.
+  expect(written.metrics.at(-1)?.counts.review).toBe(1);
+});
+
+// ---------------------------------------------------------------------------
+// The compare command, task T056.
+// ---------------------------------------------------------------------------
+
+/** Runs one evaluation of the exact-rules fixture and stores its report. */
+async function storedReport(
+  name: string,
+  records: readonly string[],
+  options: { readonly definition?: string } = {},
+): Promise<string> {
+  const dataset = datasetFiles(name, records);
+  const out = path.join(path.dirname(dataset.records), `${name}-report.json`);
+  const result = await cli([
+    "evaluate",
+    options.definition ?? exactRulesPath,
+    "--cases",
+    dataset.records,
+    "--metadata",
+    dataset.metadata,
+    "--purpose",
+    "independent_validation",
+    "--out",
+    out,
+    "--format",
+    "json",
+  ]);
+  expect(result.code).toBe(0);
+  return out;
+}
+
+/** One labeled record of the exact-rules dataset with every check passing. */
+function passingRecord(): string {
+  return datasetRecord("case-pass", "The summary states the delivery limit.", "No secrets here.", {
+    checks: {
+      "summary-length": { outcome: "pass" },
+      "summary-mentions-limit": { outcome: "pass" },
+      "notice-hides-secrets": { outcome: "pass" },
+    },
+    outcome: "pass",
+  });
+}
+
+/** One labeled record of the exact-rules dataset with two checks failing. */
+function failingRecord(): string {
+  return datasetRecord("case-fail", "one SECRET marker", "one SECRET marker", {
+    checks: {
+      "summary-length": { outcome: "pass" },
+      "summary-mentions-limit": { outcome: "fail" },
+      "notice-hides-secrets": { outcome: "fail" },
+    },
+    outcome: "fail",
+  });
+}
+
+test("compare renders the matching and the metric rows of two stored reports", async () => {
+  const baseline = await storedReport("baseline", [
+    passingRecord(),
+    failingRecord(),
+    datasetRecord("case-extra", "A short plain summary.", "No secrets here.", {
+      checks: { "summary-length": { outcome: "pass" } },
+      outcome: "pass",
+    }),
+  ]);
+  const candidate = await storedReport("candidate", [
+    passingRecord(),
+    failingRecord(),
+  ]);
+
+  const out = path.join(path.dirname(baseline), "comparison.json");
+  const result = await cli(["compare", baseline, candidate, "--out", out]);
+  expect(result.code).toBe(0);
+  expect(result.err).toBe("");
+  expect(result.out).toContain("comparison · independent_validation evidence");
+  expect(result.out).toContain(`Baseline: ${baseline} · profile delivery-limits-exact`);
+  expect(result.out).toContain(
+    "Matched cases: 2 · changed inputs: 0 · missing in candidate: 1 · missing in baseline: 0",
+  );
+  expect(result.out).toContain("Changed cases: 0");
+  expect(result.out).toContain("summary-mentions-limit · error_among_accepted: 0 (0/1) → 0 (0/1)");
+  expect(result.out).toContain("label_coverage: 0.666667 (2/3) → 1 (2/2)");
+  expect(result.out).toContain("candidate report omits 1 case of the baseline");
+  const written = JSON.parse(readFileSync(out, "utf8")) as {
+    schema_version: number;
+    evidence_class: string;
+    matching: { readonly matched_cases: number };
+  };
+  expect(written.schema_version).toBe(1);
+  expect(written.evidence_class).toBe("independent_validation");
+  expect(written.matching.matched_cases).toBe(2);
+
+  const json = await cli(["compare", baseline, candidate, "--format", "json"]);
+  expect(json.code).toBe(0);
+  expect(JSON.parse(json.out)).toEqual(written);
+
+  const failedOut = path.join(path.dirname(baseline), "absent", "comparison.json");
+  const refused = await cli(["compare", baseline, candidate, "--out", failedOut]);
+  expect(refused.code).toBe(1);
+  expect(refused.err).toContain("unwritable_output");
+  expect(refused.out).toBe("");
+  expect(existsSync(failedOut)).toBe(false);
+});
+
+test("compare refuses reports of another definition, disjoint cases, and broken files", async () => {
+  const baseline = await storedReport("compare-baseline", [passingRecord()]);
+
+  // One second exact-only definition over the same inputs: its report binds
+  // another definition hash, so the comparison refuses before it matches.
+  const otherDefinition = tempFile(
+    "other-rules.json",
+    JSON.stringify({
+      schema_version: 1,
+      name: "other-limits",
+      inputs: {
+        type: "object",
+        properties: {
+          summary: { type: "string", minLength: 1 },
+          notice: { type: "string", minLength: 1 },
+        },
+        required: ["summary", "notice"],
+        additionalProperties: false,
+      },
+      checks: [
+        {
+          id: "summary-length",
+          name: "The summary fits the delivery limit",
+          using: ["summary"],
+          rule: { maxLength: 80 },
+        },
+      ],
+    }),
+  );
+  const foreign = await storedReport(
+    "other-candidate",
+    [
+      datasetRecord("case-pass", "The summary states the delivery limit.", "No secrets here.", {
+        checks: { "summary-length": { outcome: "pass" } },
+        outcome: "pass",
+      }),
+    ],
+    { definition: otherDefinition },
+  );
+  const foreignDefinition = await cli(["compare", baseline, foreign, "--format", "json"]);
+  expect(foreignDefinition.code).toBe(1);
+  expect(foreignDefinition.out).toBe("");
+  const diagnostic = JSON.parse(foreignDefinition.err) as { error: { code: string } };
+  expect(diagnostic.error.code).toBe("definition_mismatch");
+
+  const disjointReport = await storedReport("disjoint-candidate", [
+    datasetRecord("case-other", "Another summary that stays short.", "No secrets here.", {
+      checks: { "summary-length": { outcome: "pass" } },
+      outcome: "pass",
+    }),
+  ]);
+  const disjoint = await cli(["compare", baseline, disjointReport]);
+  expect(disjoint.code).toBe(1);
+  expect(disjoint.err).toContain("insufficient_evidence");
+
+  const broken = tempFile("broken-report.json", '{"schema_version": 1,\n');
+  const malformed = await cli(["compare", baseline, broken]);
+  expect(malformed.code).toBe(1);
+  expect(malformed.err).toContain("invalid_json");
+
+  // One edited stored count breaks the arithmetic that the core rebuilds.
+  const artifact = JSON.parse(readFileSync(baseline, "utf8")) as {
+    metrics: readonly {
+      readonly scope: string;
+      readonly counts: Record<string, number>;
+    }[];
+  };
+  artifact.metrics[0]!.counts.pass = 99;
+  const edited = tempFile("edited-report.json", JSON.stringify(artifact));
+  const drifted = await cli(["compare", baseline, edited]);
+  expect(drifted.code).toBe(1);
+  expect(drifted.err).toContain("counts");
 });
 
 test("the compiled entry point runs one case and writes the report", async () => {

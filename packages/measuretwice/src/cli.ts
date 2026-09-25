@@ -24,21 +24,31 @@
  * - The CLI reads no credential option and no credential variable. The
  *   host keeps its credentials in its own mechanism.
  *
- * The `validate`, `run`, and `inspect` commands of MVP_SPEC.md section 11
- * run in this module. `validate` states the meaning that the Rust core
- * established for one exported definition, with no evaluator and no
- * provider call. `run` assesses one case through the same `load` and `run`
- * path as the library, renders the report through the shared renderer, and
- * writes the artifact with `--out`. The CLI registers no evaluator
- * adapter, because one loaded file installs no evaluator and the CLI
- * executes no host code, so one definition with one question check refuses
- * `run` with `evaluator_mismatch` before any work starts. Enforcement
- * needs one host-selected profile hash, so the CLI refuses
- * `--mode enforcement` with `profile_not_selected`. `inspect` renders one
- * profile through the shared renderer, and its JSON form prints the stored
- * artifact. The `calibrate`, `evaluate`, and `compare` commands arrive
- * with their task; this build reports `not_implemented` after one
- * accepted parse.
+ * The six commands of MVP_SPEC.md section 11 run in this module.
+ * `validate` states the meaning that the Rust core established for one
+ * exported definition, with no evaluator and no provider call. `run`
+ * assesses one case through the same `load` and `run` path as the library,
+ * renders the report through the shared renderer, and writes the artifact
+ * with `--out`. `evaluate` runs one dataset through the same path, measures
+ * the outcomes against the reference labels in the Rust core, and writes
+ * the evaluation report artifact with `--out`. `compare` compares two
+ * stored evaluation reports on their matching cases and writes the
+ * comparison artifact with `--out`. `inspect` renders one profile through
+ * the shared renderer, and its JSON form prints the stored artifact.
+ * `calibrate` reads the plan and crosses the same core boundary that one
+ * calibration crosses first, then states the evaluator boundary.
+ *
+ * The CLI registers no evaluator adapter, because one loaded file installs
+ * no evaluator and the CLI executes no host code. One definition with one
+ * question check therefore refuses `run` and `evaluate` with
+ * `evaluator_mismatch` before any work starts, and `calibrate` refuses
+ * every plan with the same code after the core checked its contract and
+ * its definition binding, because one calibration measures through the
+ * evaluator that the plan names. Enforcement needs one host-selected
+ * profile hash, so the CLI refuses `--mode enforcement` with
+ * `profile_not_selected`. Every command keeps the stable code and the field
+ * path of the core and adds one boundary sentence that names what the host
+ * must do in its own code.
  */
 import { realpathSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
@@ -51,16 +61,30 @@ import {
   cliFailureOf,
   datasetMetadataPath,
   readCaseFile,
+  readDatasetFiles,
   readDefinitionFile,
+  readPlanFile,
   readProfileFile,
+  readReportFile,
   resolveCliPath,
   type CliArtifactKind,
   type DefinitionFile,
 } from "./cli-files.js";
+import { compare } from "./compare.js";
+import type { Comparison, ComparisonMetric } from "./compare.js";
 import type { CheckDefinition, ExactRule, JSONValue, JsonSchemaNode } from "./define-checks.js";
+import { evaluate } from "./evaluate.js";
+import type {
+  Evaluation,
+  EvaluationCounts,
+  EvaluationRate,
+  EvaluationReport,
+} from "./evaluate.js";
+import { nativeCheckCalibrationBinding } from "./native.js";
 import { renderProfileSummary, renderRunReport } from "./render.js";
 import {
   load,
+  throughCore,
   type FileAccess,
   type RunReport,
 } from "./run.js";
@@ -77,12 +101,13 @@ Commands:
   validate <definition>              Check one exported JSON definition.
   run <definition>                   Assess one case.
                                      Options: --case, --profile, --mode.
-  calibrate <definition>             Fit one candidate profile.
-                                     Options: --plan, --out.
+  calibrate <definition>             Check one calibration plan and state the
+                                     evaluator boundary. Options: --plan, --out.
   evaluate <definition>              Assess one dataset.
                                      Options: --profile, --cases, --metadata,
                                      --purpose, --out.
   compare <baseline> <candidate>     Compare two stored evaluation reports.
+                                     Options: --out.
   inspect <profile>                  Show one profile summary.
                                      Options: --detail.
 
@@ -99,8 +124,9 @@ Options:
                             text form prints the readable view. The json
                             form prints the complete artifact of the
                             command: the summary object of validate, the
-                            run report of run, and the stored profile of
-                            inspect.
+                            run report of run, the evaluation report of
+                            evaluate, the comparison artifact of compare,
+                            and the stored profile of inspect.
   --mode <shadow|enforcement>
                             Select the run mode. Default: shadow.
   --detail <summary|detailed>
@@ -109,7 +135,8 @@ Options:
                             the execution limits, the evidence, and the
                             recorded performance.
   --purpose <exploration|fitting|independent_validation>
-                            Declare the purpose of one evaluation.
+                            Declare the purpose of one evaluation. Default:
+                            exploration, which claims the least.
   --case <path>             One case file. Required for run.
   --cases <path>            One .jsonl dataset records file.
   --metadata <path>         One dataset metadata file. Default: the records
@@ -117,7 +144,12 @@ Options:
   --plan <path>             One calibration plan. Required for calibrate.
   --profile <path>          One profile file.
   --out <path>              One output path for one written artifact. The
-                            run command writes its report artifact there.
+                            run command writes its report artifact there,
+                            evaluate its evaluation report, and compare its
+                            comparison artifact. One failed write leaves no
+                            artifact and prints no result. calibrate writes
+                            no candidate, because it refuses one calibration
+                            before any measurement.
   --help                    Print this help text.
   --version                 Print the package and contract schema versions.
 
@@ -125,25 +157,28 @@ Evaluators and modes:
   The CLI executes exact rules through the Rust core. It registers no
   evaluator adapter, because one loaded file installs no evaluator and the
   CLI executes no host code. One definition with one question check refuses
-  run with evaluator_mismatch before any work starts. Run question checks
-  through the library in your application. Enforcement selects one profile
+  run and evaluate with evaluator_mismatch before any work starts. Run
+  question checks through the library in your application. One calibration
+  measures through the evaluator that its plan names, so calibrate checks
+  the plan contract and the definition binding, then refuses with the same
+  code and writes no candidate profile. Enforcement selects one profile
   through host review, and the CLI states no selection, so --mode
   enforcement refuses with profile_not_selected.
 
 Output and exit codes:
   Command results print to stdout. Diagnostics print to stderr. With
   --format json, one failure prints one JSON error object on stderr.
-  Exit 0: the command completed. One completed run exits with code 0,
-  whatever outcome its report states. Exit 1: one failure of files,
+  Exit 0: the command completed. One completed run or evaluation exits with
+  code 0, whatever outcome its report states. Exit 1: one failure of files,
   artifacts, or data. Exit 2: one usage error.
 
 Credentials:
   The CLI reads no credential option and no credential variable. Keep
   credentials in the credential mechanism of the host.
 
-The commands above are specified in MVP_SPEC.md section 11. This build
-implements validate, run, and inspect. The calibrate, evaluate, and compare
-commands arrive with their task.
+The commands above are specified in MVP_SPEC.md section 11. No command
+installs or invokes an authoring agent, and no command selects one profile
+for the host: compare states no cost inputs, so no comparison computes one.
 `;
 
 /** The commands that MVP_SPEC.md section 11 specifies. */
@@ -194,6 +229,7 @@ export type CliInvocation =
       readonly command: "compare";
       readonly baseline: string;
       readonly candidate: string;
+      readonly out?: string;
       readonly format: CliFormat;
     }
   | {
@@ -273,7 +309,7 @@ const COMMAND_SPECS: Record<CliCommand, CommandSpec> = {
       { name: "baseline report", kind: "report" },
       { name: "candidate report", kind: "report" },
     ],
-    stringOptions: [],
+    stringOptions: ["out"],
     requiredOptions: [],
     enums: { format: FORMAT_VALUES },
   },
@@ -413,6 +449,7 @@ export function parseCliArguments(
         command,
         baseline: resolved[0] as string,
         candidate: resolved[1] as string,
+        ...(values.options.out === undefined ? {} : { out: stringValue(values, "out") }),
         format,
       };
     case "inspect":
@@ -546,7 +583,8 @@ export interface CliOptions extends ParseOptions {
  *
  * The command results print to stdout. The diagnostics print to stderr: one
  * human-readable line in text mode, one JSON error object with
- * `--format json`. The CLI writes no file in this build.
+ * `--format json`. One command writes one file only through its stated
+ * `--out` path, and one failed write leaves no artifact behind.
  *
  * @param argv The arguments after `node` and the program path.
  * @param options The streams and the convention directory.
@@ -608,16 +646,14 @@ async function dispatch(
       return validateCommand(invocation, context);
     case "run":
       return runCommand(invocation, context);
+    case "calibrate":
+      return calibrateCommand(invocation);
+    case "evaluate":
+      return evaluateCommand(invocation, context);
+    case "compare":
+      return compareCommand(invocation, context);
     case "inspect":
       return inspectCommand(invocation, context);
-    default:
-      // The calibrate, evaluate, and compare commands arrive with their
-      // task. The accepted parse keeps its exit code 1 and its stable code.
-      throw new CliFailure(
-        "not_implemented",
-        `The ${invocation.command} command is specified in MVP_SPEC.md section 11 and is not implemented in this build. This build implements validate, run, and inspect.`,
-        { exit: 1 },
-      );
   }
 }
 
@@ -780,19 +816,23 @@ async function validateCommand(
 const EVALUATOR_NOTE =
   "The CLI registers no evaluator adapter, because one loaded file installs no evaluator and the CLI executes no host code. Run question checks through the library in your application.";
 
+/** The note that the CLI adds to one refusal of the calibrate command. */
+const CALIBRATE_NOTE =
+  "The CLI registers no evaluator adapter, because one loaded file installs no evaluator and the CLI executes no host code, so no calibration can measure cases here. Run calibrate through the library in your application, where your code registers the evaluator of the plan and states the sampling model.";
+
 /** The note that the CLI adds to one enforcement refusal of the run path. */
 const SELECTION_NOTE =
   "The CLI states no host profile selection. Run enforcement through the library in your application, where your code states the reviewed profile hash.";
 
 /**
- * Adds the CLI boundary to one failure of the run path that the host can
+ * Adds the CLI boundary to one failure of a command path that the host can
  * resolve only in its own code. The stable code and the field path stay.
  */
-function withCliBoundary(error: unknown): unknown {
+function withCliBoundary(error: unknown, evaluatorNote: string = EVALUATOR_NOTE): unknown {
   const mapped = cliFailureOf(error);
   if (mapped instanceof CliFailure) {
     if (mapped.code === "evaluator_mismatch") {
-      return new CliFailure(mapped.code, `${mapped.message} ${EVALUATOR_NOTE}`, {
+      return new CliFailure(mapped.code, `${mapped.message} ${evaluatorNote}`, {
         fieldPath: mapped.fieldPath,
         exit: 1,
         cause: error,
@@ -877,6 +917,285 @@ async function runCommand(
     invocation.format === "json"
       ? JSON.stringify(report, null, 2)
       : renderRunReport(definition.artifact, report);
+  context.io.writeOut(`${text}\n`);
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// calibrate: the plan contract, the definition binding, and the boundary.
+// ---------------------------------------------------------------------------
+
+/**
+ * Checks one calibration plan against one loaded definition and states the
+ * evaluator boundary of the CLI.
+ *
+ * The command reads the definition and the plan through the bounded readers,
+ * then crosses the same core boundary that one calibration crosses before it
+ * reads one dataset or measures one case: the complete plan contract, the
+ * definition binding of the plan, and the registered evaluator that serves
+ * it. The CLI registers no evaluator, so the last check refuses every plan
+ * here with the core's own code and field path, and the command writes no
+ * candidate profile: no measurement ran, so one written candidate would look
+ * complete without one stored assessment behind it.
+ */
+async function calibrateCommand(
+  invocation: Extract<CliInvocation, { readonly command: "calibrate" }>,
+): Promise<number> {
+  const definition = await readDefinitionFile(invocation.definition);
+  const plan = await readPlanFile(invocation.plan);
+  try {
+    // One calibration measures through the evaluator that the plan names, so
+    // the binding check runs with the empty registered set of the CLI.
+    throughCore(() => nativeCheckCalibrationBinding(plan.text, definition.text, "[]"));
+  } catch (error) {
+    throw withCliBoundary(error, CALIBRATE_NOTE);
+  }
+  // One plan always names one evaluator and the registered set of the CLI
+  // stays empty, so the check above refused the calibration. This refusal
+  // keeps the command honest if that boundary ever changes.
+  throw new CliFailure(
+    "evaluator_mismatch",
+    `The plan names one evaluator that the CLI cannot register. ${CALIBRATE_NOTE}`,
+    { fieldPath: "/plan/evaluator/evaluator", exit: 1 },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// evaluate: one dataset through the same validated path as the library.
+// ---------------------------------------------------------------------------
+
+/** Formats one measured number without trailing noise. */
+function num(value: number): string {
+  return String(Math.round(value * 1e6) / 1e6);
+}
+
+/** Renders the outcome counts of one metric set as one phrase. */
+function countsPhrase(counts: EvaluationCounts): string {
+  return `pass ${counts.pass} · fail ${counts.fail} · review ${counts.review} · error ${counts.error} · skipped ${counts.skipped}`;
+}
+
+/** Renders one rate with its counts and its value, or its empty denominator. */
+function ratePhrase(rate: EvaluationRate): string {
+  const value = rate.value === null ? "no value at one zero denominator" : num(rate.value);
+  return `${rate.metric} ${rate.numerator}/${rate.denominator} = ${value}`;
+}
+
+/** Renders the readable view of one evaluation report. */
+function renderEvaluationSummary(evaluation: Evaluation): string {
+  const report = evaluation.report;
+  const lines: string[] = [
+    `${report.definition.name} · evaluation (${report.purpose})`,
+    `Definition hash: ${report.definition.content_hash}`,
+    `Profile: ${report.profile.id}`,
+    `Profile hash: ${report.profile.content_hash}`,
+    `Dataset: ${report.dataset.id} · revision ${report.dataset.revision} · ${report.cases.length} evaluated · ${evaluation.unevaluated_records} unevaluated`,
+  ];
+  lines.push("", "Metrics:");
+  for (const set of report.metrics) {
+    lines.push(`  ${set.scope}: ${countsPhrase(set.counts)}`);
+    for (const rate of set.rates) {
+      lines.push(`    ${ratePhrase(rate)}`);
+    }
+  }
+  if ((report.slices?.length ?? 0) > 0) {
+    lines.push("", "Slices:");
+    for (const slice of report.slices ?? []) {
+      for (const set of slice.metrics) {
+        lines.push(`  ${slice.tag} / ${set.scope}: ${countsPhrase(set.counts)}`);
+      }
+    }
+  }
+  const operational = report.operational;
+  if (operational !== undefined) {
+    const parts = [`${operational.attempts} attempts`];
+    if (operational.elapsed_ms !== undefined) {
+      parts.push(`${num(operational.elapsed_ms)} ms`);
+    }
+    for (const [key, amount] of Object.entries(operational.usage ?? {})) {
+      parts.push(`${key} ${num(amount)}`);
+    }
+    lines.push("", `Operational: ${parts.join(" · ")}`);
+    if (operational.errors.length > 0) {
+      lines.push("Errors:");
+      for (const reason of operational.errors) {
+        lines.push(`  - ${reason.code}: ${reason.message}`);
+      }
+    }
+  }
+  lines.push("", "Limitations:");
+  for (const limitation of evaluation.limitations) {
+    lines.push(`  - ${limitation}`);
+  }
+  lines.push("", "A report authorizes no application action.");
+  return lines.join("\n");
+}
+
+/**
+ * Assesses one dataset and writes the evaluation report artifact.
+ *
+ * Every record of the dataset runs through the bound reviewer of `load`, in
+ * record order, and the Rust core measures the outcomes against the
+ * reference labels of the records. The command completes with exit code 0
+ * whatever the metrics state, because one measured error rate is no command
+ * failure, and `--out` writes the report artifact of the evaluation. The
+ * declared purpose defaults to `exploration`, which claims the least.
+ */
+async function evaluateCommand(
+  invocation: Extract<CliInvocation, { readonly command: "evaluate" }>,
+  context: CommandContext,
+): Promise<number> {
+  const definition = await readDefinitionFile(invocation.definition);
+  const profileFile =
+    invocation.profile === undefined ? undefined : await readProfileFile(invocation.profile);
+  // The gates of the binding run before one dataset is read, so one refused
+  // profile spends no read on data it cannot assess.
+  let evaluation: Evaluation;
+  try {
+    const reviewer = await load(definition.artifact, {
+      ...(profileFile === undefined
+        ? {}
+        : {
+            profile: profileFile.path,
+            files: readAccess(new Map([[profileFile.path, profileFile.text]])),
+          }),
+    });
+    const dataset = await readDatasetFiles(invocation.metadata, invocation.cases);
+    evaluation = await evaluate(reviewer, {
+      metadata: invocation.metadata,
+      records: invocation.cases,
+      purpose: invocation.purpose ?? "exploration",
+      // The texts that the bounded reader holds cross again through the
+      // library boundary, so `evaluate` reads no file twice.
+      files: readAccess(
+        new Map([
+          [invocation.metadata, dataset.metadataText],
+          [invocation.cases, dataset.recordsText],
+        ]),
+      ),
+    });
+  } catch (error) {
+    throw withCliBoundary(error);
+  }
+  if (invocation.out !== undefined) {
+    await writeArtifact(invocation.out, evaluation.report);
+  }
+  const text =
+    invocation.format === "json"
+      ? JSON.stringify(evaluation.report, null, 2)
+      : renderEvaluationSummary(evaluation);
+  context.io.writeOut(`${text}\n`);
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// compare: two stored evaluation reports on their matching cases.
+// ---------------------------------------------------------------------------
+
+/** Renders one side of one metric row with its counts and its value. */
+function sidePhrase(side: ComparisonMetric["baseline"]): string {
+  const value = side.value === null ? "no value" : num(side.value);
+  return `${value} (${side.numerator}/${side.denominator})`;
+}
+
+/** Renders the readable view of one comparison. */
+function renderComparisonSummary(comparison: Comparison): string {
+  const report = comparison.report;
+  const matching = report.matching;
+  const lines: string[] = [
+    `comparison · ${report.evidence_class} evidence`,
+    `Baseline: ${report.baseline.report} · profile ${report.baseline.profile.id}`,
+    `Candidate: ${report.candidate.report} · profile ${report.candidate.profile.id}`,
+    `Matched cases: ${matching.matched_cases} · changed inputs: ${matching.changed_input_cases.length} · missing in candidate: ${matching.missing_in_candidate.length} · missing in baseline: ${matching.missing_in_baseline.length}`,
+  ];
+  if ((matching.errored_cases?.length ?? 0) + (matching.skipped_cases?.length ?? 0) > 0) {
+    lines.push(
+      `Errored cases: ${matching.errored_cases?.length ?? 0} · skipped cases: ${matching.skipped_cases?.length ?? 0}`,
+    );
+  }
+  lines.push("", `Changed cases: ${report.changed.length}`);
+  for (const changed of report.changed) {
+    const checks = changed.checks
+      .map((pair) => `${pair.check}: ${pair.baseline} → ${pair.candidate}`)
+      .join("; ");
+    lines.push(
+      `  ${changed.id} · ${checks} (aggregate ${changed.baseline_aggregate} → ${changed.candidate_aggregate})`,
+    );
+  }
+  lines.push("", "Metrics:");
+  for (const row of comparison.metrics) {
+    lines.push(`  ${row.scope} · ${row.metric}: ${sidePhrase(row.baseline)} → ${sidePhrase(row.candidate)}`);
+  }
+  const tradeoffs = report.tradeoffs;
+  const operational: string[] = [];
+  if (tradeoffs.elapsed_ms !== undefined) {
+    const baseline = tradeoffs.elapsed_ms.baseline;
+    const candidate = tradeoffs.elapsed_ms.candidate;
+    operational.push(
+      `latency ${baseline === undefined ? "absent" : `${num(baseline)} ms`} → ${candidate === undefined ? "absent" : `${num(candidate)} ms`}`,
+    );
+  }
+  if (tradeoffs.usage !== undefined) {
+    const keys = new Set([
+      ...Object.keys(tradeoffs.usage.baseline ?? {}),
+      ...Object.keys(tradeoffs.usage.candidate ?? {}),
+    ]);
+    for (const key of keys) {
+      const baseline = tradeoffs.usage.baseline?.[key];
+      const candidate = tradeoffs.usage.candidate?.[key];
+      operational.push(
+        `${key} ${baseline === undefined ? "absent" : num(baseline)} → ${candidate === undefined ? "absent" : num(candidate)}`,
+      );
+    }
+  }
+  if (tradeoffs.cost !== undefined) {
+    for (const [side, value] of Object.entries(tradeoffs.cost)) {
+      operational.push(`cost ${side} ${num(value)}`);
+    }
+  }
+  if (operational.length > 0) {
+    lines.push("", `Tradeoffs: ${operational.join(" · ")}`);
+  }
+  lines.push("", "Limitations:");
+  for (const limitation of comparison.limitations) {
+    lines.push(`  - ${limitation}`);
+  }
+  lines.push("", "A report authorizes no application action.");
+  return lines.join("\n");
+}
+
+/**
+ * Compares two stored evaluation reports on their matching cases.
+ *
+ * Both reports cross the bounded reader and the complete evaluation report
+ * contract of the Rust core, which matches the cases on equal identifiers
+ * and equal input hashes, lists the changed, the missing, the errored, and
+ * the skipped cases, and reads the metric tradeoffs with their counts and
+ * their denominators. The command states no cost inputs, so no comparison
+ * computes one cost. `--out` writes the comparison artifact.
+ */
+async function compareCommand(
+  invocation: Extract<CliInvocation, { readonly command: "compare" }>,
+  context: CommandContext,
+): Promise<number> {
+  const baseline = await readReportFile(invocation.baseline);
+  const candidate = await readReportFile(invocation.candidate);
+  let comparison: Comparison;
+  try {
+    comparison = compare(
+      baseline.artifact as unknown as EvaluationReport,
+      candidate.artifact as unknown as EvaluationReport,
+      { baselineReport: baseline.path, candidateReport: candidate.path },
+    );
+  } catch (error) {
+    throw cliFailureOf(error);
+  }
+  if (invocation.out !== undefined) {
+    await writeArtifact(invocation.out, comparison.report);
+  }
+  const text =
+    invocation.format === "json"
+      ? JSON.stringify(comparison.report, null, 2)
+      : renderComparisonSummary(comparison);
   context.io.writeOut(`${text}\n`);
   return 0;
 }

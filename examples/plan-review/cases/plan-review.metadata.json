@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "plan-review-cases",
+  "name": "Plan review cases",
+  "revision": "2026-09-25.1",
+  "kind": "development_fixture",
+  "intended_population": "Proposed implementation plans with the customer requirements and the capability documentation that they answer. Synthetic examples for one public lesson. No real customer.",
+  "sampling_method": "Written for this example. Five fitting cases of one engagement and four validation cases of another. No sampling of any real population.",
+  "label_guidelines": "Requirement coverage: answer covered only when every stated requirement maps to one step of the plan, partial when one mapping stays open or ambiguous, unaddressed when one stated requirement maps to no step. Capability fit: answer documented only when every named capability and limit appears in the supplied documentation, absent when the plan names one that the documentation does not offer, unclear when the documentation neither offers nor excludes it. Unrequested work: answer yes only when one work item serves no stated requirement. Delivery readiness: state the lowest level that the plan itself establishes, and mark one unresolved level for review. Rollback: the executed rule decides, so the reference states the outcome only.",
+  "languages": [
+    "en"
+  ],
+  "record_count": 9,
+  "splits": [
+    {
+      "id": "fit",
+      "purpose": "fitting",
+      "groups": [
+        "engagement-atlas"
+      ]
+    },
+    {
+      "id": "holdout",
+      "purpose": "validation",
+      "groups": [
+        "engagement-borealis"
+      ]
+    }
+  ]
+}

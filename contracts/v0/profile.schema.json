@@ -299,6 +299,11 @@
           "type": "object",
           "additionalProperties": {"type": "integer", "minimum": 0}
         },
+        "sample_minimums": {
+          "type": "object",
+          "additionalProperties": {"type": "integer", "minimum": 0},
+          "description": "The plan's stated minimum sample counts by denominator name. Read beside sample_counts, so one reviewer sees which counts met their limits."
+        },
         "slice_limitations": {
           "type": "array",
           "items": {

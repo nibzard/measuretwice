@@ -615,6 +615,7 @@ test("the package entry point exposes the authoring and run API without native t
     "JEV_TRANSLATION_VERSION",
     "ValidationError",
     "calibrate",
+    "checkEvidence",
     "classifyValidationEvidence",
     "compare",
     "contractVersion",
@@ -639,6 +640,7 @@ test("the package entry point exposes the authoring and run API without native t
     "renderRunReport",
     "renderRunReportMarkdown",
     "requireSeparatedSplits",
+    "revise",
     "translateJevQuestion",
     "validateReviewLabels",
   ]);

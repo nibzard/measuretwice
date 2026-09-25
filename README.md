@@ -21,7 +21,10 @@ Describe → draft checks → review → calibrate → shadow → use
 A coding agent or a capable language model assists with authoring,
 examples, calibration, and improvement. Tested code measures the
 performance. People set the requirements, review the reference labels, and
-select the tradeoffs.
+select the tradeoffs. The
+[coding-agent authoring guide](docs/guides/agent-authoring.md) and the
+[coding-agent review guide](docs/guides/agent-review.md) record what your
+agent may do and what you own.
 
 ## The three artifacts
 
@@ -88,6 +91,11 @@ names the inputs that the check may read, so no evaluator request carries
 more. The definition states no evaluator and no numerical cutoff. A
 generated profile owns both, and you inspect that profile separately.
 
+The example imports two npm packages. `measuretwice` is this library.
+`typebox` builds the input schema, and it installs with `measuretwice` as
+one dependency. Import it from `typebox` exactly as written; the package
+publishes under that name, not under `@sinclair/typebox`.
+
 Each check returns one outcome:
 
 | Outcome | Meaning |
@@ -144,7 +152,8 @@ you connect any provider.
 3. `npx tsc -p examples/memory-support/tsconfig.json`
 4. `node examples/memory-support/build/host.js`
 
-The run prints the profile, one line per case, and one readable report:
+The run prints the profile, one line per case, one readable report, and the
+detailed view of that report:
 
 ```text
 Memory support example
@@ -171,6 +180,45 @@ Every check passed under the selected profile.
 Completion: completed at <time>
 Next: Your application can consider this candidate. Its own permissions and delivery rules still apply.
 A report authorizes no application action.
+
+The detailed view of the same report traces every outcome to its measurement and its policy:
+
+memory-support · run <run id> · shadow mode
+
+PASS    The proposed memory follows from its original sources
+        The answer "supported": The original sources establish every material claim of the candidate text within their stated scope. Acceptable mass 0.85 meets the accept cutoff 0.8.
+        check: memory-supported · question
+        answer: supported (categorical)
+        distribution: supported 0.85 · contradicted 0.05 · insufficient 0.1
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: scripted-test · adapter 0.1.0
+        counts: queued 0 ms · executed 4 ms
+
+Overall: PASS
+Every check passed under the selected profile.
+Completion: completed at <time>
+Next: Your application can consider this candidate. Its own permissions and delivery rules still apply.
+A report authorizes no application action.
+
+Details
+  definition: memory-support · content hash <hash>
+  profile: memory-support-exploration · content hash <hash>
+  case: quiet-hours-2026-09 · input hash <hash>
+  baseline: stored · revision memory-policy-1
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+  The baseline states the decision that the host application made itself, with the revision of its own policy.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.
 
 Stored 3 reports and 1 profile in examples/memory-support/reports/.
 A shadow run changed no stored memory. The existing policy kept every decision.
@@ -260,6 +308,10 @@ Two more examples extend the same workflow:
 - [examples/cassandra-shadow](examples/cassandra-shadow/README.md)
   integrates one application. It keeps its queue, its storage, and its
   unchanged decision paths.
+- [examples/plan-review](examples/plan-review/README.md) runs one second,
+  unrelated application: it compares one implementation plan with supplied
+  requirements and capability documentation, walks the complete measured
+  workflow, and records the integration friction it met.
 
 The suite
 [packages/measuretwice/test/example-memory-support.test.ts](packages/measuretwice/test/example-memory-support.test.ts)
@@ -348,8 +400,7 @@ await writeFile(
 
 The CLI reads explicit `.json` and `.jsonl` files. It loads no YAML and it
 executes no TypeScript source. This build implements `validate`, `run`,
-and `inspect`. The `calibrate`, `evaluate`, and `compare` commands arrive
-with their task:
+`calibrate`, `evaluate`, `compare`, and `inspect`:
 
 ```sh
 npx measuretwice validate .measuretwice/definitions/example-contract.json
@@ -364,10 +415,17 @@ Checks: 1 (0 exact rules, 1 question checks)
 
 `validate` states the meaning that the Rust core established. It calls no
 evaluator and no provider. `run` assesses one case through the same path
-as the library, and `inspect` renders one profile.
-[packages/measuretwice/README.md](packages/measuretwice/README.md) records
-the complete CLI surface. [contracts/README.md](contracts/README.md)
-records the portable artifact contracts.
+as the library, and `inspect` renders one profile. The CLI registers no
+evaluator, so one definition with one question check refuses `run` and
+`evaluate` with `evaluator_mismatch`, and `calibrate` states the same
+boundary after it checks the plan. Run question checks and enforcement
+through the library in your application.
+The [CLI reference](docs/reference/cli.md) records every command, option,
+output format, and exit code. The [API reference](docs/reference/api.md)
+records every library operation. The
+[artifact reference](docs/reference/artifacts.md) records the published
+schemas and the reason codes. [contracts/README.md](contracts/README.md)
+owns the portable artifact contracts.
 
 ## From exploration to reliance
 
@@ -388,14 +446,17 @@ reliability:
    measuretwice verifies the compatibility and the qualification. Your
    review owns the trust.
 
-[MVP_SPEC.md](MVP_SPEC.md) section
+The complete path is documented in the
+[calibration and selection guide](docs/guides/calibration.md). It walks
+through reviewed cases, owner goals, one calibration plan, fitting, frozen
+validation, shadow operation, inspection, revision comparison, and explicit
+selection. [MVP_SPEC.md](MVP_SPEC.md) section
 [7](MVP_SPEC.md#7-ai-assisted-calibration) records the calibration
 workflow, and section
 [8](MVP_SPEC.md#8-profiles-inspection-and-promotion) records profiles,
 inspection, and promotion. The evaluation steps of
 [.measuretwice/README.md](.measuretwice/README.md#evaluation-and-improvement)
-work without a calibrated profile. The complete calibration guide arrives
-with its task.
+work without a calibrated profile.
 
 ## Repository guides
 
@@ -406,6 +467,14 @@ with its task.
 | [DEVELOPING.md](DEVELOPING.md) | The workspace layout, the targets, and the build commands. |
 | [TESTING.md](TESTING.md) | The test suites and the verification commands. |
 | [contracts/README.md](contracts/README.md) | The frozen portable artifact contracts. |
-| [mvp-guide.html](mvp-guide.html) | The illustrated walkthrough of the proposed design. |
+| [docs/guides/calibration.md](docs/guides/calibration.md) | The calibration and selection guide: one journey from draft checks to a selected profile hash. |
+| [docs/guides/operations.md](docs/guides/operations.md) | The operation guide: runtime bounds, failure handling, host responsibilities, and evidence retention. |
+| [docs/guides/agent-authoring.md](docs/guides/agent-authoring.md) | The coding-agent authoring guide: draft checks, proposed cases, and uncovered requirements. |
+| [docs/guides/agent-review.md](docs/guides/agent-review.md) | The coding-agent review guide: measured numbers, linked explanations, and reviewable proposals. |
+| [docs/reference/api.md](docs/reference/api.md) | The API reference: every public operation, its limits, and its failures. |
+| [docs/reference/cli.md](docs/reference/cli.md) | The CLI reference: every command, option, output format, and exit code. |
+| [docs/reference/artifacts.md](docs/reference/artifacts.md) | The published schemas, the reason codes, the string semantics, and the profile compatibility. |
+| [mvp-guide.html](mvp-guide.html) | The illustrated walkthrough of the design. Its interactive results are simulated, not measured. |
+| [research/index.md](research/index.md) | The historical research and design notes behind the specification. |
 
 The project is Apache-2.0. See [LICENSE](LICENSE).

@@ -70,7 +70,23 @@
  * fitting and qualification reports. No feasible candidate is one valid
  * result, and whatever the evidence established, the calibration promotes
  * nothing: the host reviews the recorded evidence and selects one reviewed
- * content hash through its own code.
+ * content hash through its own code. The public operation `revise` runs one
+ * policy-only revision of one stored calibration: the Rust core verifies
+ * that the prior profile, the revision plan, the loaded definition, the
+ * live evaluator state, and the fitting inputs carry one identity, the
+ * search replays the stored fitting assessments under the revised plan,
+ * one consumed validation split replays its stored assessments and
+ * declares itself as development data that one new claim cannot reuse,
+ * one fresh validation split is measured through the registered
+ * evaluator, and the result holds one new profile with its own content
+ * hash beside the revision comparison with its concrete changed cases.
+ * The prior validation never validates one revised policy, so the
+ * revision promotes nothing either. `checkEvidence` verifies the retained
+ * evidence of one selected profile: the host states the explicit locations
+ * of its plan, its dataset metadata, and its dataset records, and the Rust
+ * core compares every recorded identity with the computed identity of the
+ * retained copy, so one selected profile never rests on evidence that
+ * drifted after the review.
  *
  * This package never exposes provider SDK types or native binding types.
  * Invalid data fails with one {@link ValidationError} before execution.
@@ -268,6 +284,27 @@ export type {
   SampleRequirement,
   SelectedCandidate,
 } from "./calibrate.js";
+export { revise } from "./revise.js";
+export type {
+  Revision,
+  RevisionBinding,
+  RevisionComparison,
+  RevisionMatching,
+  RevisionPolicyRow,
+  RevisionReuse,
+  RevisionSide,
+  RevisionSplit,
+  ReviseOptions,
+  ValidationDisposition,
+} from "./revise.js";
+export { checkEvidence } from "./evidence.js";
+export type {
+  CheckEvidenceOptions,
+  EvidenceCheck,
+  EvidenceDataset,
+  EvidencePlan,
+  EvidenceSplit,
+} from "./evidence.js";
 export { exportShadowReviews, validateReviewLabels } from "./review.js";
 export type {
   AgreementSample,

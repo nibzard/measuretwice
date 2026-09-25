@@ -1,7 +1,7 @@
 # measuretwice — MVP specification
 
-Status: Draft  
-Date: 23 September 2026  
+Status: Implemented for v0 in this repository; deferred items state their own status  
+Date: 23 September 2026 · status updated 25 September 2026  
 Target: v0 · Rust core · TypeScript + TypeBox authoring · Jev first · Apache-2.0
 
 ## 1. Purpose
@@ -51,7 +51,10 @@ This specification preserves the readable, AI-assisted check-authoring workflow 
 
 A case supplies the artifact and evidence. A labeled case additionally supplies reference answers and their provenance. The profile is a durable output of calibration, not a live AI judgment made on every request.
 
-All APIs and file formats below are proposed interfaces, not published implementations.
+The v0 interfaces and file formats below are implemented and tested in this repository.
+The frozen contracts live in [contracts/README.md](contracts/README.md).
+The implemented signatures live in the [API reference](docs/reference/api.md).
+Text below that still describes one proposal states that status, and no number is a measured result unless its source is stated.
 
 ## 4. Readable TypeScript definitions
 
@@ -161,8 +164,8 @@ The length limit expresses a product requirement. A model-confidence cutoff belo
 - Initial exact rules are `maxLength`, `includes`, and `excludes` on one string input. They require no statistical calibration.
 - Define Unicode length and matching semantics once in Rust. Preserve those semantics in every language wrapper.
 
-This draft changes `inputs` from the earlier field-to-schema map to a complete object schema. Update examples and generated contracts together.
-No published format or implementation requires migration yet.
+This change replaced the earlier field-to-schema map with one complete object schema before the first published contract.
+The examples and the generated contracts changed together. No migration applies.
 
 ### Portable schema boundary
 
@@ -210,8 +213,8 @@ The `.js` import names the emitted module from the application's TypeScript buil
 `defineChecks` preserves type inference for case inputs and declared input names in `using`.
 All public interfaces remain independent of Jev SDK classes and native binding types.
 
-The main API is `defineChecks`, `load`, `run`, `calibrate`, `evaluate`, and `compare`.
-Inspection belongs to the profile and report interfaces. It does not require an orchestration framework.
+The main API is `defineChecks`, `load`, `run`, `calibrate`, `revise`, `evaluate`, and `compare`.
+Inspection belongs to the profile and report interfaces, which also verify retained evidence. It does not require an orchestration framework.
 `load` may also read an explicitly exported JSON definition. It does not load YAML or execute TypeScript source files.
 
 ### Responsibilities across the language boundary
@@ -328,7 +331,11 @@ Qualification is `unvalidated`, `insufficient_evidence`, `criteria_not_met`, or 
 
 A profile may be selected for enforcement only when it is compatible with the loaded checks and validated for the declared scope. Its qualification flag is not an authenticated approval. The host controls trusted profile files and selects a specific reviewed hash through its normal code/configuration review. Runtime validation verifies content consistency and required report references, not the truth of a forged dataset.
 
+The retained-evidence check verifies the artifacts behind one selected profile. The host states the explicit locations of its retained plan, dataset metadata, and dataset records. The check compares every recorded identity with the computed identity of the retained copy. One drift fails with `hash_mismatch`; one swapped definition binding fails with `definition_mismatch`. The check reads no report file and changes nothing, so one ignored folder holds no required copy of the evidence.
+
 Changing question wording, criteria, schema, input projection, preprocessing, model, prompt translation, evaluator code, or relevant tool behavior invalidates the prior qualification. A model alias resolving to a different model is detected and cannot silently reuse an enforcement profile. Policy-only changes can reuse compatible stored assessments for fitting, but still require independent validation before promotion. Scope changes require new evidence; hashes alone cannot detect population drift.
+
+`revise` implements the policy-only path. It refuses one changed definition, evaluator, adapter, translation, model, preprocessing, or input before any replay. It replays the stored assessments under one revised candidate from one revision plan, records one new profile, and edits no stored one. The validation split that the prior claim consumed is development data, so one new qualification claim needs fresh independent evidence.
 
 Inspection has two levels:
 

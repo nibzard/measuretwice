@@ -11,8 +11,8 @@
  * of MVP_SPEC.md section 8: the summary leads with the check meaning, the
  * component outcomes, the aggregate outcome, and the next useful action,
  * and the detail view adds the applied rules, the measurements, the
- * identities, the versions, the counts, the evidence references, and the
- * limitations.
+ * identities, the versions, the counts, the evidence references, the key
+ * of the view terms, and the limitations.
  *
  * Every explanation is generated from the check criteria of the definition
  * and the executed policy of the record. Jev produces no bespoke textual
@@ -713,6 +713,48 @@ function reportIdentityLines(report: RunReport): string[] {
   return lines.map((line) => `  ${line}`);
 }
 
+/**
+ * The key lines of one detailed report view.
+ *
+ * The new-developer test of 25 September 2026 showed that one reader of the
+ * report alone cannot decode the policy arithmetic: "acceptable mass" and
+ * the zone between the two cutoffs stayed undefined, and the shadow fields
+ * carried no explanation. The key states those terms beside the records
+ * that use them, so the detailed view explains itself. One line appears
+ * only when the report holds the fact that it explains.
+ */
+function reportKeyLines(binding: ReportBinding, report: RunReport): string[] {
+  const lines: string[] = [];
+  const hasPolicy = report.checks.some((record) => record.applied_policy !== undefined);
+  if (hasPolicy) {
+    lines.push(
+      "Acceptable mass: the assessed mass on the accepted answers of the check.",
+      "Unacceptable mass: the assessed mass on every other declared answer.",
+      "The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.",
+      "The selected profile holds the cutoffs and the evaluator binding. The host application stores it.",
+    );
+  }
+  const binary = [...binding.byId.values()].some(
+    (check) =>
+      check.answers !== undefined &&
+      Object.keys(check.answers).every((key) => key === "yes" || key === "no"),
+  );
+  if (hasPolicy && binary) {
+    lines.push("A binary question reports one answer and no distribution.");
+  }
+  if (report.mode === "shadow") {
+    lines.push(
+      "Shadow mode records this assessment beside the decision of the host application. It changes no application action.",
+    );
+  }
+  if (report.baseline !== undefined) {
+    lines.push(
+      "The baseline states the decision that the host application made itself, with the revision of its own policy.",
+    );
+  }
+  return lines;
+}
+
 /** The limitation lines of one report view. */
 const REPORT_LIMITATIONS = [
   "Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.",
@@ -760,6 +802,10 @@ function renderReportTerminal(
   );
   if (detail === "detail") {
     lines.push("", "Details", ...reportIdentityLines(report));
+    const key = reportKeyLines(binding, report);
+    if (key.length > 0) {
+      lines.push("", "Key", ...key.map((line) => `  ${line}`));
+    }
     lines.push("", "Limitations", ...REPORT_LIMITATIONS.map((line) => `  ${line}`));
   }
   return lines.join("\n");
@@ -812,12 +858,12 @@ function renderReportMarkdown(
   );
   if (detail === "detail") {
     const identity = reportIdentityLines(report).map((line) => `- ${line.slice(2)}`);
-    blocks.push(
-      "## Details",
-      identity.join("\n"),
-      "## Limitations",
-      REPORT_LIMITATIONS.map((line) => `- ${line}`).join("\n"),
-    );
+    blocks.push("## Details", identity.join("\n"));
+    const key = reportKeyLines(binding, report);
+    if (key.length > 0) {
+      blocks.push("## Key", key.map((line) => `- ${line}`).join("\n"));
+    }
+    blocks.push("## Limitations", REPORT_LIMITATIONS.map((line) => `- ${line}`).join("\n"));
   }
   return blocks.join("\n\n");
 }
@@ -1008,6 +1054,12 @@ function performanceLines(profile: Profile): string[] | undefined {
   if (counts.length > 0) {
     lines.push(`  sample counts: ${counts.map(([name, value]) => `${name} ${value}`).join(" · ")}`);
   }
+  const minimums = Object.entries(performance.sample_minimums ?? {});
+  if (minimums.length > 0) {
+    lines.push(
+      `  sample minimums: ${minimums.map(([name, value]) => `${name} ${value}`).join(" · ")}`,
+    );
+  }
   for (const limitation of performance.slice_limitations ?? []) {
     lines.push(`  slice limitation: ${limitation}`);
   }
@@ -1032,6 +1084,11 @@ function profileLimitations(profile: Profile): string[] {
     lines.push(
       "Performance values cite their counts and their denominators. A zero denominator states one unavailable value.",
       "No performance number extends past its recorded scope.",
+    );
+  }
+  if (profile.evidence?.evaluation_reports !== undefined) {
+    lines.push(
+      "The evaluation reports live in host storage at the recorded references. One folder that version control ignores holds no required copy of the qualification evidence.",
     );
   }
   if (profile.origin === "exact") {

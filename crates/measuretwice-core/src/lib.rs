@@ -63,6 +63,8 @@ pub mod qualification;
 pub mod report;
 /// The shadow review export and the validation of returned human labels.
 pub mod review;
+/// The policy revision boundary: assessment reuse and policy comparison.
+pub mod revision;
 /// The exact string rules: maxLength, includes, and excludes.
 pub mod rule;
 /// Deterministic run state transitions, checked against the TLA+ execution

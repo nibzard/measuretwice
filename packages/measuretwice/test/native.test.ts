@@ -21,7 +21,10 @@ import {
   nativeCheckCalibrationBinding,
   nativeCheckCalibrationDatasets,
   nativeCheckProfileCompatibility,
+  nativeCheckProfileEvidence,
+  nativeCheckRevision,
   nativeCompareEvaluations,
+  nativeCompareRevision,
   nativeComputeSelfHash,
   nativeContentHash,
   nativeCreateRunState,
@@ -1404,6 +1407,405 @@ test("the calibration plan boundary validates plans and checks their bindings", 
   const refused = failureOf(() => nativeValidatePlan(JSON.stringify(invalid.plan)));
   expect(refused.code).toBe(invalid.expected.reason_code);
   expect(refused.fieldPath).toBe(invalid.expected.field_path);
+});
+
+test("the evidence boundary verifies one retained set with its identities", () => {
+  const document = fixtureDocument("plans/validation.json");
+  const plan = document.plans.find(
+    (entry: Record<string, any>) => entry.id === "message-supported-calibration",
+  );
+  const definitionText = fixtureText(`definitions/valid/${String(document.definition)}`);
+  const metadataText = JSON.stringify(document.dataset);
+  const recordsText = String(document.dataset_records);
+  const planText = JSON.stringify(plan);
+  const planInfo = nativeValidatePlan(planText);
+  const dataset = nativeValidateDataset(metadataText, recordsText, definitionText);
+
+  // One calibration profile of the shared states, re-recorded on the plan
+  // and the dataset of the plans fixture and signed again through the core.
+  // The stored profile fixture holds invented evidence hashes, so the patch
+  // builds the consistent pairing that one calibration generates.
+  const stored = fixtureDocument("profiles/states.json").profiles.find(
+    (entry: Record<string, any>) => entry.id === "message-supported-validated",
+  );
+  const unsigned: Record<string, any> = { ...stored };
+  delete unsigned.content_hash;
+  unsigned.evidence = {
+    plan: { id: planInfo.id, content_hash: planInfo.contentHash },
+    datasets: [
+      {
+        id: dataset.identity.datasetId,
+        revision: dataset.identity.revision,
+        content_hash: dataset.identity.contentHash,
+      },
+    ],
+    splits: dataset.metadata.splits.map((split: any) => ({
+      id: split.id,
+      content_hash: split.contentHash,
+    })),
+    label_provenance: stored.evidence.label_provenance,
+    evaluation_reports: stored.evidence.evaluation_reports,
+    statistical_method: stored.evidence.statistical_method,
+  };
+  const profileText = JSON.stringify({
+    ...unsigned,
+    content_hash: nativeComputeSelfHash("profile", JSON.stringify(unsigned)),
+  });
+
+  // The verified set states every identity with its counts.
+  const check = nativeCheckProfileEvidence(profileText, planText, metadataText, recordsText);
+  expect(check.profileId).toBe("message-supported-validated");
+  expect(check.profileContentHash).toBe(JSON.parse(profileText).content_hash);
+  expect(check.definitionHash).toBe(planInfo.definitionHash);
+  expect(check.plan).toEqual({ id: planInfo.id, contentHash: planInfo.contentHash });
+  expect(check.dataset.id).toBe("plan-cases");
+  expect(check.dataset.revision).toBe("2026-09-24.1");
+  expect(check.dataset.kind).toBe("representative_sample");
+  expect(check.dataset.recordCount).toBe(dataset.identity.recordCount);
+  const splitRows = dataset.metadata.splits as { id: string; recordCount: number }[];
+  expect(check.splits.map((split) => [split.id, split.purpose, split.recordCount])).toEqual([
+    ["fit", "fitting", splitRows[0]!.recordCount],
+    ["holdout", "validation", splitRows[1]!.recordCount],
+  ]);
+  expect(check.evaluationReports).toEqual(stored.evidence.evaluation_reports);
+  expect(check.statement).toContain("plan-cases");
+  expect(check.limitations).toHaveLength(2);
+
+  // The stored profile records another plan, so its evidence names artifacts
+  // that the retained set never held.
+  const foreignPlan = failureOf(() =>
+    nativeCheckProfileEvidence(
+      JSON.stringify(stored),
+      planText,
+      metadataText,
+      recordsText,
+    ),
+  );
+  expect(foreignPlan.code).toBe("hash_mismatch");
+  expect(foreignPlan.fieldPath).toBe("/evidence/plan/id");
+
+  // One dataset of another revision names another dataset, so the recorded
+  // identifier fails first.
+  const otherMetadata = failureOf(() =>
+    nativeCheckProfileEvidence(
+      profileText,
+      planText,
+      JSON.stringify(document.other_dataset),
+      String(document.other_dataset_records),
+    ),
+  );
+  expect(otherMetadata.code).toBe("hash_mismatch");
+  expect(otherMetadata.fieldPath).toBe("/evidence/datasets/0/id");
+
+  // One profile without evidence states what is missing.
+  const exploration = fixtureDocument("profiles/states.json").profiles.find(
+    (entry: Record<string, any>) => entry.id === "message-supported-exploration",
+  );
+  const noEvidence = failureOf(() =>
+    nativeCheckProfileEvidence(JSON.stringify(exploration), planText, metadataText, recordsText),
+  );
+  expect(noEvidence.code).toBe("missing_field");
+  expect(noEvidence.fieldPath).toBe("/evidence");
+});
+
+test("the revision boundary verifies one prior calibration and replays its assessments", () => {
+  const document = fixtureDocument("plans/validation.json");
+  const plan = document.plans.find(
+    (entry: Record<string, any>) => entry.id === "message-supported-calibration",
+  );
+  const definitionText = fixtureText(`definitions/valid/${String(document.definition)}`);
+  const metadataText = JSON.stringify(document.dataset);
+  const recordsText = String(document.dataset_records);
+  const records = recordsText
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as Record<string, any>);
+  const planText = JSON.stringify(plan);
+  const planInfo = nativeValidatePlan(planText);
+  const dataset = nativeValidateDataset(metadataText, recordsText, definitionText);
+
+  // One prior calibration profile, re-recorded on the plan and the dataset
+  // of the plans fixture and signed again through the core, exactly as the
+  // evidence row builds it.
+  const stored = fixtureDocument("profiles/states.json").profiles.find(
+    (entry: Record<string, any>) => entry.id === "message-supported-validated",
+  );
+  const unsigned: Record<string, any> = { ...stored };
+  delete unsigned.content_hash;
+  unsigned.evidence = {
+    plan: { id: planInfo.id, content_hash: planInfo.contentHash },
+    datasets: [
+      {
+        id: dataset.identity.datasetId,
+        revision: dataset.identity.revision,
+        content_hash: dataset.identity.contentHash,
+      },
+    ],
+    splits: dataset.metadata.splits.map((split: any) => ({
+      id: split.id,
+      content_hash: split.contentHash,
+    })),
+    label_provenance: stored.evidence.label_provenance,
+    evaluation_reports: stored.evidence.evaluation_reports,
+    statistical_method: stored.evidence.statistical_method,
+  };
+  const profileText = JSON.stringify({
+    ...unsigned,
+    content_hash: nativeComputeSelfHash("profile", JSON.stringify(unsigned)),
+  });
+
+  // The stored measurements: one run per case, every run bound to one
+  // shared measurement profile, with one categorical assessment whose
+  // resolved model equals the recorded binding.
+  const translation = (stored.bindings as any[])[0].translation.content_hash as string;
+  const measurement = {
+    id: "message-supported-exploration",
+    content_hash: nativeContentHash("profile", JSON.stringify(unsigned.evidence)),
+  };
+  const masses: Record<string, number> = {
+    "plan-case-1": 0.9,
+    "plan-case-2": 0.95,
+    "plan-case-3": 0.9,
+    "plan-case-4": 0.05,
+  };
+  const massOf = (id: unknown): number => masses[String(id)] ?? 0.9;
+  const runs = records.map((record) =>
+    JSON.stringify({
+      schema_version: 1,
+      run_id: `run-${String(record.id)}`,
+      mode: "shadow",
+      definition: { name: planInfo.definitionName, content_hash: planInfo.definitionHash },
+      profile: measurement,
+      case: {
+        id: record.id,
+        input_hash: nativeContentHash("input", JSON.stringify(record.input)),
+      },
+      checks: [
+        {
+          check: "message-supported",
+          kind: "question",
+          outcome: massOf(record.id) >= 0.8 ? "pass" : "fail",
+          assessment: {
+            kind: "categorical",
+            label: massOf(record.id) >= 0.8 ? "supported" : "contradicted",
+            distribution: [
+              { name: "supported", mass: massOf(record.id) },
+              { name: "incomplete", mass: 0.05 },
+              { name: "contradicted", mass: Number((1 - massOf(record.id) - 0.05).toFixed(2)) },
+            ],
+          },
+          applied_policy: { accept_cutoff: 0.8, rejection_cutoff: 0.7 },
+          evaluator: {
+            id: "jev-choice",
+            adapter_version: "0.1.0",
+            model_resolved: "jev-1.13-2026-09-01",
+          },
+        },
+      ],
+      aggregate: { outcome: massOf(record.id) >= 0.8 ? "pass" : "fail" },
+      completion: { status: "completed" },
+    }),
+  );
+  const priorFitting = JSON.stringify({
+    plan_content_hash: planInfo.contentHash,
+    split_content_hash: (dataset.metadata.splits as any[])[0].contentHash,
+    status: "feasible",
+  });
+  const registered = JSON.stringify([{ evaluator: "jev-choice", adapter_version: "0.1.0" }]);
+  const live = JSON.stringify([
+    {
+      check: "message-supported",
+      evaluator: "jev-choice",
+      adapter_version: "0.1.0",
+      translation,
+      resolved_model: "jev-1.13-2026-09-01",
+    },
+  ]);
+
+  // The verified reuse states the identities, the disposition of the
+  // validation split, and the stored assessments as data.
+  const reuse = JSON.parse(
+    nativeCheckRevision(
+      profileText,
+      priorFitting,
+      runs,
+      planText,
+      definitionText,
+      registered,
+      live,
+      metadataText,
+      recordsText,
+    ),
+  ) as Record<string, any>;
+  expect(reuse.prior_profile_id).toBe("message-supported-validated");
+  expect(reuse.stored_fitting_cases).toBe(2);
+  expect(reuse.validation_data).toEqual({ disposition: "reused", cases: 2 });
+  expect(reuse.resolved_models).toEqual(["jev-1.13-2026-09-01"]);
+  expect(reuse.bindings[0]).toMatchObject({
+    check: "message-supported",
+    evaluator: "jev-choice",
+    adapter_version: "0.1.0",
+    model_resolved: "jev-1.13-2026-09-01",
+  });
+  expect(Object.keys(reuse.fitting_assessments).sort()).toEqual(["plan-case-1", "plan-case-2"]);
+  expect(Object.keys(reuse.validation_assessments).sort()).toEqual([
+    "plan-case-3",
+    "plan-case-4",
+  ]);
+  expect(reuse.statement).toContain("fresh independent evidence");
+  expect(reuse.limitations).toHaveLength(2);
+
+  // One changed preprocessing identity on the live state refuses with the
+  // compatibility code of the registry at the binding.
+  const preprocessed: Record<string, any> = JSON.parse(profileText);
+  delete preprocessed.content_hash;
+  preprocessed.bindings[0].preprocessing = "plain-v1";
+  const reSigned = JSON.stringify({
+    ...preprocessed,
+    content_hash: nativeComputeSelfHash("profile", JSON.stringify(preprocessed)),
+  });
+  const changedPreprocessing = failureOf(() =>
+    nativeCheckRevision(
+      reSigned,
+      priorFitting,
+      runs,
+      planText,
+      definitionText,
+      registered,
+      JSON.stringify([
+        {
+          check: "message-supported",
+          evaluator: "jev-choice",
+          adapter_version: "0.1.0",
+          translation,
+          resolved_model: "jev-1.13-2026-09-01",
+          preprocessing: "plain-v2",
+        },
+      ]),
+      metadataText,
+      recordsText,
+    ),
+  );
+  expect(changedPreprocessing.code).toBe("evaluator_mismatch");
+  expect(changedPreprocessing.fieldPath).toBe("/prior/bindings/0/preprocessing");
+
+  // One changed translation on the live state refuses at the binding.
+  const changedTranslation = failureOf(() =>
+    nativeCheckRevision(
+      profileText,
+      priorFitting,
+      runs,
+      planText,
+      definitionText,
+      registered,
+      JSON.stringify([
+        {
+          check: "message-supported",
+          evaluator: "jev-choice",
+          adapter_version: "0.1.0",
+          translation: "b".repeat(64),
+          resolved_model: "jev-1.13-2026-09-01",
+        },
+      ]),
+      metadataText,
+      recordsText,
+    ),
+  );
+  expect(changedTranslation.code).toBe("translation_mismatch");
+  expect(changedTranslation.fieldPath).toBe("/prior/bindings/0/translation/content_hash");
+
+  // One changed resolved model on the live state refuses at the binding.
+  const changedModel = failureOf(() =>
+    nativeCheckRevision(
+      profileText,
+      priorFitting,
+      runs,
+      planText,
+      definitionText,
+      registered,
+      JSON.stringify([
+        {
+          check: "message-supported",
+          evaluator: "jev-choice",
+          adapter_version: "0.1.0",
+          translation,
+          resolved_model: "jev-1.14-2026-09-20",
+        },
+      ]),
+      metadataText,
+      recordsText,
+    ),
+  );
+  expect(changedModel.code).toBe("model_resolution_changed");
+  expect(changedModel.fieldPath).toBe("/prior/bindings/0/model/resolved");
+
+  // One stored run with another input hash of one known case refuses.
+  const editedRun: Record<string, any> = JSON.parse(runs[0]!);
+  editedRun.case.input_hash = "1".repeat(64);
+  const editedInput = failureOf(() =>
+    nativeCheckRevision(
+      profileText,
+      priorFitting,
+      [JSON.stringify(editedRun), ...runs.slice(1)],
+      planText,
+      definitionText,
+      registered,
+      live,
+      metadataText,
+      recordsText,
+    ),
+  );
+  expect(editedInput.code).toBe("hash_mismatch");
+  expect(editedInput.fieldPath).toBe("/prior/runs/0/case/input_hash");
+
+  // One validated prior that states no validation run refuses.
+  const dropped = failureOf(() =>
+    nativeCheckRevision(
+      profileText,
+      priorFitting,
+      runs.slice(0, 2),
+      planText,
+      definitionText,
+      registered,
+      live,
+      metadataText,
+      recordsText,
+    ),
+  );
+  expect(dropped.code).toBe("invalid_field_type");
+  expect(dropped.fieldPath).toBe("/prior/runs");
+
+  // The comparison replays both policies over the stored fitting
+  // assessments: the 0.95 cutoff changes plan-case-1 (0.90 mass) from one
+  // pass to one review, and the metric rows keep the counts of both sides.
+  const comparison = JSON.parse(
+    nativeCompareRevision(
+      profileText,
+      planText,
+      JSON.stringify([
+        { check: "message-supported", accept_cutoff: 0.95, rejection_cutoff: 0.7 },
+      ]),
+      metadataText,
+      recordsText,
+      definitionText,
+      JSON.stringify(reuse.fitting_assessments),
+    ),
+  ) as Record<string, any>;
+  expect(comparison.evidence_class).toBe("fitting");
+  expect(comparison.baseline.policy[0].policy).toEqual({
+    accept_cutoff: 0.8,
+    rejection_cutoff: 0.7,
+  });
+  expect(comparison.matching).toEqual({
+    matched_cases: 2,
+    changed_cases: 1,
+    unchanged_cases: 1,
+  });
+  expect(comparison.changed[0].id).toBe("plan-case-1");
+  expect(comparison.changed[0].checks).toEqual([
+    { check: "message-supported", baseline: "pass", candidate: "review" },
+  ]);
+  expect(comparison.statement).toContain("fitting evidence");
 });
 
 test("the fitting search answers on the worker thread with the stated facts", async () => {

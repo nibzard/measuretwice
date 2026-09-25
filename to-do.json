@@ -1962,7 +1962,7 @@
       "id": "T050",
       "title": "Implement the calibrate API",
       "priority": 3,
-      "status": "doing",
+      "status": "done",
       "details": "Orchestrate development assessment, Rust fitting, frozen validation, and candidate artifacts. Sources: MVP_SPEC.md sections 5, 7-8, 11.",
       "steps": [
         "Write workflow tests for successful qualification, missing evidence, unmet goals, cancellation, and evaluator failure.",
@@ -1985,13 +1985,27 @@
         "T048",
         "T049"
       ],
-      "updated_at": "2026-09-24T19:10:24Z"
+      "updated_at": "2026-09-24T19:50:22Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "crates/measuretwice-node/src/lib.rs",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/src/calibrate.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/scheduler.ts",
+        "packages/measuretwice/test/calibrate.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/scheduler.test.ts"
+      ]
     },
     {
       "id": "T051",
       "title": "Preserve calibration and qualification evidence",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Write durable profile evidence with exact identities and inspectable limitations. Sources: MVP_SPEC.md sections 8, 11-12; .measuretwice/README.md.",
       "steps": [
         "Record plan, dataset, split, label provenance, statistical method, and evaluation-report references in generated profiles.",
@@ -2012,13 +2026,37 @@
         "T036",
         "T049",
         "T050"
+      ],
+      "updated_at": "2026-09-24T20:23:35Z",
+      "files": [
+        ".measuretwice/README.md",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "contracts/v0/profile.schema.json",
+        "crates/measuretwice-core/src/profile.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "fixtures/README.md",
+        "fixtures/profiles/states.json",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/src/calibrate.ts",
+        "packages/measuretwice/src/evidence.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/render.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/calibrate.test.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/evidence.test.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/render.test.ts"
       ]
     },
     {
       "id": "T052",
       "title": "Reuse compatible assessments for policy revisions",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Permit policy-only fitting reuse while requiring independent validation before promotion. Sources: MVP_SPEC.md sections 8, 10.",
       "steps": [
         "Write compatibility tests for changed questions, schemas, projections, preprocessing, models, adapters, and translations.",
@@ -2040,13 +2078,31 @@
         "T046",
         "T050",
         "T051"
+      ],
+      "updated_at": "2026-09-24T21:45:31Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "crates/measuretwice-core/src/lib.rs",
+        "crates/measuretwice-core/src/revision.rs",
+        "crates/measuretwice-node/src/lib.rs",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/src/calibrate.ts",
+        "packages/measuretwice/src/index.ts",
+        "packages/measuretwice/src/native.ts",
+        "packages/measuretwice/src/revise.ts",
+        "packages/measuretwice/src/run.ts",
+        "packages/measuretwice/test/define-checks.test.ts",
+        "packages/measuretwice/test/native.test.ts",
+        "packages/measuretwice/test/revise.test.ts"
       ]
     },
     {
       "id": "T053",
       "title": "Verify calibration workflow failure cases",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Exercise measurement integrity across the complete fitting and validation boundary. Sources: MVP_SPEC.md sections 7-8, 15; AGENTS.md sections 6, 9.",
       "steps": [
         "Test empty accepted sets, zero errors, small samples, absent labels, and missing required slices.",
@@ -2069,6 +2125,11 @@
         "T050",
         "T051",
         "T052"
+      ],
+      "updated_at": "2026-09-24T22:10:39Z",
+      "files": [
+        "TESTING.md",
+        "packages/measuretwice/test/calibrate-failures.test.ts"
       ]
     },
     {
@@ -2146,7 +2207,7 @@
       "id": "T056",
       "title": "Add calibrate, evaluate, and compare commands",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Expose the same calibration and evaluation operations through the CLI. Sources: MVP_SPEC.md section 11.",
       "steps": [
         "Implement calibrate with an explicit plan and candidate output path.",
@@ -2168,13 +2229,21 @@
         "T050",
         "T051",
         "T054"
+      ],
+      "updated_at": "2026-09-24T22:34:58Z",
+      "files": [
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/README.md",
+        "packages/measuretwice/src/cli.ts",
+        "packages/measuretwice/test/cli.test.ts"
       ]
     },
     {
       "id": "T057",
       "title": "Verify complete CLI workflows and artifact handling",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Test packaged commands from definition export through candidate inspection and comparison. Sources: MVP_SPEC.md sections 11, 15.",
       "steps": [
         "Exercise all six commands in an isolated project using the test evaluator.",
@@ -2193,6 +2262,11 @@
         "T023",
         "T055",
         "T056"
+      ],
+      "updated_at": "2026-09-24T22:57:28Z",
+      "files": [
+        "TESTING.md",
+        "packages/measuretwice/test/cli-workflow.test.ts"
       ]
     },
     {
@@ -2409,7 +2483,7 @@
       "id": "T063",
       "title": "Obtain human review of public challenge labels",
       "priority": 3,
-      "status": "todo",
+      "status": "blocked",
       "details": "Human reviewers establish the public reference labels; model suggestions remain attributed. Sources: MVP_SPEC.md sections 7, 10, 13; AGENTS.md section 9.",
       "steps": [
         "Prepare label guidelines explaining each component answer and overall outcome.",
@@ -2427,13 +2501,17 @@
       "depends_on": [
         "T040",
         "T062"
+      ],
+      "updated_at": "2026-09-24T23:01:36Z",
+      "blockers": [
+        "No human reviewer is available to this autonomous agent session. Steps 2 through 5 need recorded human judgments with reviewer attribution for all 18 records (108 reference decisions: 5 check labels plus 1 overall outcome each). Task step 6, AGENTS.md section 9, and MVP_SPEC.md section 7 forbid recording model judgments as human review, so the task cannot complete without that input."
       ]
     },
     {
       "id": "T064",
       "title": "Prepare representative Cassandra calibration data",
       "priority": 3,
-      "status": "todo",
+      "status": "blocked",
       "details": "Collect separately reviewed fitting and validation data for the declared pilot population. Sources: MVP_SPEC.md sections 7, 10, 13.",
       "steps": [
         "Record owner goals, intended population, relevant languages, important slices, and sampling assumptions.",
@@ -2455,6 +2533,13 @@
         "T045",
         "T047",
         "T061"
+      ],
+      "updated_at": "2026-09-24T23:06:04Z",
+      "blockers": [
+        "Step 1 needs owner-selected goals. MVP_SPEC.md section 7 states that no universally safe default error tolerances exist, and no owner statement about which errors matter, tolerable review effort, relevant languages, or important slices is recorded in either repository. To unblock: the owner must record goals, the intended pilot population, and sampling assumptions.",
+        "Step 2 needs actual candidate traffic, including baseline passes and silent decisions. The Cassandra application is deployed on Railway and keeps its SQLite database and Discord content on the host. This machine holds only the source checkout at /home/agent/cassandra: no .env, no cassandra.sqlite, no exported case records, and no Discord credentials, so no traffic can be collected. To unblock: supply an export of decided proposals with their stored decisions, revisions, and source groups, or grant read access to the deployment data.",
+        "Step 4 needs attributed human reference answers under written label guidelines. No human reviewer is available to this session; T063 records the same gap for its 18 public records. AGENTS.md section 9 and MVP_SPEC.md section 7 forbid recording model judgments as human review, so the agent cannot produce the labels.",
+        "Steps 3, 5, and 6 depend on the traffic, labels, and goals above, so they have no input to work on."
       ]
     },
     {
@@ -2543,7 +2628,7 @@
       "id": "T068",
       "title": "Test portability with a second application",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Use an unrelated workflow before adding more abstractions. Sources: MVP_SPEC.md section 13; research/02-use-case-examples.md; research/04-positioning-response.md section 6.",
       "steps": [
         "Implement a small example that compares an implementation plan with supplied requirements and capability documentation.",
@@ -2563,6 +2648,23 @@
         "T050",
         "T051",
         "T059"
+      ],
+      "updated_at": "2026-09-25T00:29:10Z",
+      "files": [
+        "DEVELOPING.md",
+        "README.md",
+        "TESTING.md",
+        "examples/plan-review/README.md",
+        "examples/plan-review/cases/plan-review-revision.jsonl",
+        "examples/plan-review/cases/plan-review-revision.metadata.json",
+        "examples/plan-review/cases/plan-review.jsonl",
+        "examples/plan-review/cases/plan-review.metadata.json",
+        "examples/plan-review/checks/plan.ts",
+        "examples/plan-review/definitions/plan-review.json",
+        "examples/plan-review/export-definition.ts",
+        "examples/plan-review/host.ts",
+        "examples/plan-review/tsconfig.json",
+        "packages/measuretwice/test/example-plan-review.test.ts"
       ]
     },
     {
@@ -2628,7 +2730,7 @@
       "id": "T071",
       "title": "Publish API, schema, and CLI references",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Document the implemented contracts with one authoritative explanation for each behavior. Sources: MVP_SPEC.md sections 4-12; AGENTS.md section 8.",
       "steps": [
         "Document defineChecks, load, run, calibrate, evaluate, compare, and inspection interfaces.",
@@ -2650,13 +2752,26 @@
         "T051",
         "T055",
         "T056"
+      ],
+      "updated_at": "2026-09-24T23:29:40Z",
+      "files": [
+        "DEVELOPING.md",
+        "README.md",
+        "TESTING.md",
+        "contracts/README.md",
+        "docs/reference/api.md",
+        "docs/reference/artifacts.md",
+        "docs/reference/cli.md",
+        "packages/measuretwice/README.md",
+        "tests/repo/docs.test.ts",
+        "tests/repo/reference-docs.test.ts"
       ]
     },
     {
       "id": "T072",
       "title": "Write the complete calibration and selection guide",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Document one journey from draft requirements to explicit profile selection. Sources: MVP_SPEC.md sections 7-11, 15.",
       "steps": [
         "Walk through reviewed cases, owner goals, a calibration plan, fitting, and frozen independent validation.",
@@ -2678,13 +2793,19 @@
         "T052",
         "T056",
         "T059"
+      ],
+      "updated_at": "2026-09-24T23:41:54Z",
+      "files": [
+        "README.md",
+        "docs/guides/calibration.md",
+        "packages/measuretwice/README.md"
       ]
     },
     {
       "id": "T073",
       "title": "Write coding-agent authoring and review guides",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Support existing coding agents without a built-in autonomous authoring service. Sources: MVP_SPEC.md sections 2, 7, 14-15; research/03-checks-yaml-architecture.md.",
       "steps": [
         "Guide an agent from requirements to narrow TypeScript checks and an inventory of uncovered requirements.",
@@ -2706,13 +2827,20 @@
         "T047",
         "T055",
         "T056"
+      ],
+      "updated_at": "2026-09-24T23:55:53Z",
+      "files": [
+        "README.md",
+        "docs/guides/agent-authoring.md",
+        "docs/guides/agent-review.md",
+        "packages/measuretwice/README.md"
       ]
     },
     {
       "id": "T074",
       "title": "Document runtime operation and evidence retention",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "details": "Explain resource bounds and host responsibilities with complete failure guidance. Sources: MVP_SPEC.md sections 5, 8-12; AGENTS.md sections 8, 10.",
       "steps": [
         "Document concurrency, pending work, total deadlines, backoff, retries, cancellation, and oversized-input behavior.",
@@ -2734,13 +2862,20 @@
         "T036",
         "T038",
         "T051"
+      ],
+      "updated_at": "2026-09-25T00:05:01Z",
+      "files": [
+        "README.md",
+        "docs/guides/operations.md",
+        "docs/reference/api.md",
+        "packages/measuretwice/README.md"
       ]
     },
     {
       "id": "T075",
       "title": "Update design records and existing project guides",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Align current guidance with implemented behavior while preserving historical research records. Sources: AGENTS.md sections 1, 5, 8, 11; MVP_SPEC.md; .measuretwice/README.md; mvp-guide.html; research/index.md.",
       "steps": [
         "Record material architecture choices, dependency reasons, module ownership, and data flow.",
@@ -2762,13 +2897,21 @@
         "T072",
         "T073",
         "T074"
+      ],
+      "updated_at": "2026-09-25T00:40:00Z",
+      "files": [
+        "DEVELOPING.md",
+        "MVP_SPEC.md",
+        "README.md",
+        "mvp-guide.html",
+        "research/index.md"
       ]
     },
     {
       "id": "T076",
       "title": "Test the workflow with a new developer",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Verify that the authoring and inspection experience works without an architecture lecture. Sources: MVP_SPEC.md section 15; AGENTS.md section 3.",
       "steps": [
         "Give a developer the check definition and a report before explaining internal architecture.",
@@ -2790,13 +2933,27 @@
         "T071",
         "T072",
         "T073"
+      ],
+      "updated_at": "2026-09-25T01:04:03Z",
+      "files": [
+        "DEVELOPING.md",
+        "README.md",
+        "TESTING.md",
+        "docs/guides/agent-authoring.md",
+        "docs/reference/api.md",
+        "docs/reference/artifacts.md",
+        "docs/reports/new-developer-test.md",
+        "examples/memory-support/host.ts",
+        "packages/measuretwice/src/render.ts",
+        "packages/measuretwice/test/example-memory-support.test.ts",
+        "packages/measuretwice/test/render.test.ts"
       ]
     },
     {
       "id": "T077",
       "title": "Run runtime conformance and adversarial checks",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Verify behavior across the native boundary, wrapper scheduler, adapters, and reports. Sources: MVP_SPEC.md sections 12, 15; AGENTS.md sections 6, 10.",
       "steps": [
         "Exercise cancellation, deadlines, retries, saturation, malformed assessments, and partial failure in combination.",
@@ -2821,13 +2978,19 @@
         "T038",
         "T044",
         "T050"
+      ],
+      "updated_at": "2026-09-25T01:27:03Z",
+      "files": [
+        "TESTING.md",
+        "docs/reports/runtime-conformance.md",
+        "packages/measuretwice/test/runtime-adversarial.test.ts"
       ]
     },
     {
       "id": "T078",
       "title": "Verify formal model applicability to the implementation",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "details": "Check model results and document their limited correspondence to implemented state behavior. Sources: AGENTS.md section 7; MVP_SPEC.md sections 5, 8, 12; research/05-formal-verification-extension.md section 6.",
       "steps": [
         "Map current Rust and wrapper transitions to each TLA+ model.",
@@ -2851,6 +3014,14 @@
         "T050",
         "T051",
         "T077"
+      ],
+      "updated_at": "2026-09-25T01:38:50Z",
+      "files": [
+        "TESTING.md",
+        "docs/reports/formal-applicability.md",
+        "models/README.md",
+        "models/execution/README.md",
+        "models/qualification/README.md"
       ]
     },
     {
@@ -2880,7 +3051,9 @@
         "T075",
         "T076",
         "T077",
-        "T078"
+        "T078",
+        "T089",
+        "T090"
       ]
     },
     {
@@ -3121,6 +3294,65 @@
         "T085",
         "T086",
         "T087"
+      ]
+    },
+    {
+      "id": "T089",
+      "title": "Correct qualification intervals for each slice",
+      "priority": 2,
+      "status": "done",
+      "details": "Each important slice must report intervals calculated from its own cases and sampling method. The current qualification path copies overall intervals into slice results. Sources: MVP_SPEC.md sections 7-8, 15; AGENTS.md sections 6, 9.",
+      "steps": [
+        "Add a failing regression test with different overall and slice error rates and an empty required slice.",
+        "Select each slice interval set from the interval report for that slice.",
+        "Verify that each reported interval numerator and denominator match its slice metrics.",
+        "Keep the empty slice without an interval that implies observed cases.",
+        "Run the Rust qualification tests and update the relevant test record."
+      ],
+      "tags": [
+        "correctness",
+        "qualification",
+        "testing"
+      ],
+      "depends_on": [
+        "T049"
+      ],
+      "updated_at": "2026-09-24T20:29:03Z",
+      "files": [
+        "TESTING.md",
+        "crates/measuretwice-core/src/qualification.rs"
+      ]
+    },
+    {
+      "id": "T090",
+      "title": "Restore supported CI and artifact gates",
+      "priority": 2,
+      "status": "done",
+      "details": "The latest remote CI and Build artifacts runs failed at commit 2945a4a. Recheck failures on the current code before changing tests. Sources: MVP_SPEC.md sections 14-15; AGENTS.md section 11.",
+      "steps": [
+        "Reproduce the Node 20 diagnostic and Windows path, line-ending, and documentation test failures.",
+        "Correct platform assumptions while preserving the intended assertions.",
+        "Diagnose the artifact cross-build failure and restore the downstream clean-install gate.",
+        "Run the supported CI matrix and artifact workflow on the resulting commit.",
+        "Record any platform gate that cannot be verified."
+      ],
+      "tags": [
+        "ci",
+        "packaging",
+        "testing"
+      ],
+      "depends_on": [
+        "T020",
+        "T021"
+      ],
+      "updated_at": "2026-09-24T21:03:28Z",
+      "files": [
+        ".gitattributes",
+        ".github/workflows/build-artifacts.yml",
+        "DEVELOPING.md",
+        "TESTING.md",
+        "packages/measuretwice/src/cli-files.ts",
+        "tests/repo/fixtures.test.ts"
       ]
     }
   ]

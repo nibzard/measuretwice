@@ -1,11 +1,16 @@
 # Execution-state model record
 
-Model: [Execution.tla](Execution.tla). Checked on 23 September 2026, and
+Model: [Execution.tla](Execution.tla). Checked on 23 September 2026,
 rechecked on 24 September 2026 after task T032 added the permanent branch
-of `AttemptFail`.
+of `AttemptFail`, and rechecked on 25 September 2026 by task T078 against
+the implemented boundary.
 
 Status: **complete**. Both configurations finished with no error. The
-recorded negative control fails as expected.
+recorded negative control fails as expected. Task T078 found the module
+applicable: every transition keeps one implementation owner, and no later
+implementation change altered one. See
+[docs/reports/formal-applicability.md](../../docs/reports/formal-applicability.md)
+for the verification record.
 
 This record follows the seven steps that [AGENTS.md](../../AGENTS.md)
 section 7 requires for each formal model. The model covers the
@@ -197,6 +202,20 @@ model transition maps to one implementation obligation:
 | `Cancel`, `Deadline` | Wrapper acts, Rust validates | T031 cancellation and the total deadline. T015 validates the terminal transition and takes the snapshot. |
 | `Complete` | Wrapper observes, Rust constructs | T014 report construction with the fixed aggregate order. |
 
+Task T078 rechecked every row against the implemented boundary. Three
+wrapper additions landed after T034 without changing one modeled
+transition:
+
+- The admission loop of `scheduleRun` stops after one run that ended during
+  admission. This aligns the wrapper with the guard `phase = "running"` that
+  every admission transition already carries. The regression test
+  `one abort inside the first attempt stops the admission loop` in
+  `packages/measuretwice/test/scheduler.test.ts` holds the case.
+- `calibrate` and `revise` measure their splits through the same scheduler.
+  Each measured case is one run of one case, the unit this model covers.
+- The shadow baseline of T038 is report data that the constructor validates
+  and that no transition reads, so the model holds no variable for it.
+
 Omitted behavior. The implementation must add what the model leaves out:
 
 - Time is absent. Backoff delays, attempt budgets, and queue time before
@@ -221,5 +240,8 @@ Omitted behavior. The implementation must add what the model leaves out:
 
 Update the module or this record when the implementation changes a
 modelled transition. Do not weaken an invariant to obtain a passing
-result. Task T078 rechecks the models against the implemented boundary
-and updates this applicability record.
+result. Task T078 rechecked the models against the implemented boundary,
+reran both configurations on 25 September 2026 with the recorded state
+counts, and updated this applicability record. The next audit repeats the
+commands of [models/README.md](../README.md) and compares the counts with
+section 5.

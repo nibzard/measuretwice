@@ -11,8 +11,13 @@ and the mapping to the code.
 
 | Model | Path | Record | Status |
 | --- | --- | --- | --- |
-| Execution transitions | [execution/Execution.tla](execution/Execution.tla) | [execution/README.md](execution/README.md) | Checked, complete, 23 September 2026. |
-| Profile qualification and host selection | [qualification/Qualification.tla](qualification/Qualification.tla) | [qualification/README.md](qualification/README.md) | Checked, complete, 23 September 2026. |
+| Execution transitions | [execution/Execution.tla](execution/Execution.tla) | [execution/README.md](execution/README.md) | Checked, complete. Rerun against the implementation on 25 September 2026. |
+| Profile qualification and host selection | [qualification/Qualification.tla](qualification/Qualification.tla) | [qualification/README.md](qualification/README.md) | Checked, complete. Rerun against the implementation on 25 September 2026. |
+
+Task T078 verified the applicability of both models to the implemented
+state behavior and recorded the mapping, the limits of the correspondence,
+and the release-audit decision in
+[docs/reports/formal-applicability.md](../docs/reports/formal-applicability.md).
 
 ## Running the checks
 
@@ -52,6 +57,9 @@ The repository ignores it.
 
 Continuous integration does not run TLC. The ordinary checks read local
 files only and need no network, as [TESTING.md](../TESTING.md) requires.
-Task T078 decides the release-audit integration. The repository check
-`tests/repo/models.test.ts` verifies that each record matches its module
-and its configuration.
+Task T078 decided the release-audit integration: the release audit of T079
+reruns the three commands above on one machine with Java 21 and the pinned
+jar, compares the state counts with each record, and treats one count that
+differs, one timeout, or one incomplete exploration as inconclusive. The
+repository check `tests/repo/models.test.ts` verifies that each record
+matches its module and its configuration between audits.

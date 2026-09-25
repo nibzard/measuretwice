@@ -35,7 +35,7 @@ one group through the Rust core is not conformant.
 | Adapter conformance | [adapters/conformance.json](adapters/conformance.json) | The test-adapter controls, absent optional measurements, the label-only decision rule, evaluator replacement, and independent profile bindings. |
 | Jev translations | [translations/jev.json](translations/jev.json) | The Choice, Noul, and Score translations of the question definitions, their canonical text and translation-domain digests, the evidence state envelope, and the excluded label and baseline fields. |
 | Outcomes | [reports/outcomes.json](reports/outcomes.json) | The aggregate order, every check outcome, the completion statuses, the case references with and without one host snapshot reference, and the shadow baselines with the enforcement-mode refusal. |
-| Profile states | [profiles/states.json](profiles/states.json) | Every qualification status, artifact rejections, self-hash verification, and compatibility failures with the live evaluator state, the requested scope, and the host-selected hash of the requested mode. |
+| Profile states | [profiles/states.json](profiles/states.json) | Every qualification status, the calibration evidence with its measured sample counts and the plan's stated minimums, artifact rejections, self-hash verification, and compatibility failures with the live evaluator state, the requested scope, and the host-selected hash of the requested mode. |
 | Runtime traces | [runtime/traces.json](runtime/traces.json) | Queue limits, deadlines, cancellation, retries, permanent failures, partial failure, and late results. |
 
 ## Record shapes

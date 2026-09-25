@@ -19,7 +19,15 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const ROOT_DOCUMENTS = ["README.md", "AGENTS.md", "DEVELOPING.md", "MVP_SPEC.md", "TESTING.md"];
-const INCLUDED_DIRECTORIES = ["contracts", ".measuretwice", "examples", "fixtures", "models", "providers"];
+const INCLUDED_DIRECTORIES = [
+  "contracts",
+  ".measuretwice",
+  "docs",
+  "examples",
+  "fixtures",
+  "models",
+  "providers",
+];
 const EXCLUDED_DIRECTORIES = new Set(["research", "node_modules", "target", "dist", ".git"]);
 
 function markdownFiles(): string[] {
@@ -41,19 +49,30 @@ function markdownFiles(): string[] {
   return files.map((file) => path.relative(repoRoot, file)).sort();
 }
 
-/** Removes fenced code blocks, then inline code spans. */
-function withoutCode(markdown: string): string {
+/** Removes fenced code blocks. */
+function withoutFencedBlocks(markdown: string): string {
   return markdown
     .replaceAll(/^```[\s\S]*?^```$/gm, "")
-    .replaceAll(/^~~~[\s\S]*?^~~~$/gm, "")
-    .replaceAll(/`[^`\n]*`/g, "");
+    .replaceAll(/^~~~[\s\S]*?^~~~$/gm, "");
 }
 
-/** Collects GitHub-style heading anchors, with duplicate numbering. */
+/** Removes fenced code blocks, then inline code spans. */
+function withoutCode(markdown: string): string {
+  return withoutFencedBlocks(markdown).replaceAll(/`[^`\n]*`/g, "");
+}
+
+/**
+ * Collects GitHub-style heading anchors, with duplicate numbering.
+ *
+ * The slug keeps the text inside code spans, as GitHub does, so one heading
+ * that names one identifier in backticks keeps that identifier in its
+ * anchor. Only the fenced blocks leave, because one `#` line inside one
+ * fence is no heading.
+ */
 function headingAnchors(markdown: string): Set<string> {
   const anchors = new Set<string>();
   const counts = new Map<string, number>();
-  for (const line of withoutCode(markdown).split("\n")) {
+  for (const line of withoutFencedBlocks(markdown).split("\n")) {
     const heading = /^(#{1,6})\s+(.*)$/.exec(line);
     if (heading === null) {
       continue;

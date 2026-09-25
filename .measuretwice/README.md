@@ -47,6 +47,8 @@ These initial cases are synthetic drafts; their label status remains explicit.
 Generated reports and the compiled `build/` directory are ignored by default.
 Retain evidence needed by a selected profile in a stable, explicitly managed location.
 Do not rely on ignored reports as the only copy of qualification evidence.
+The library operation `checkEvidence` verifies the retained plan and dataset
+against the identities that one selected profile records.
 The profiles and reports folders are empty until their artifacts exist.
 Public teaching examples belong in `examples/`.
 

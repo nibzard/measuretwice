@@ -518,11 +518,22 @@ export interface Calibration {
 /** The greatest length of one evaluation-report reference, from the profile contract. */
 const REPORT_REFERENCE_LIMIT = 500;
 
+/**
+ * The standing retention rule of every calibration.
+ *
+ * The profile records the references of its evaluation reports, and the
+ * host owns the storage. One folder that version control ignores, such as
+ * the default `reports/` convention, holds no required copy of the
+ * qualification evidence that one selected profile needs.
+ */
+export const RETENTION_STATEMENT =
+  "The profile records the references of its evaluation reports, and the host owns that storage. Store one reviewed copy of the fitting report, the qualification report, and the plan beside the selected profile. One folder that version control ignores holds no required copy of the qualification evidence.";
+
 /** The synthetic path that serves the measurement profile to `load`. */
-const MEASUREMENT_PROFILE_PATH = "measuretwice://calibration/measurement-profile.json";
+export const MEASUREMENT_PROFILE_PATH = "measuretwice://calibration/measurement-profile.json";
 
 /** The synthetic path that proves the candidate profile loads. */
-const CANDIDATE_PROFILE_PATH = "measuretwice://calibration/candidate-profile.json";
+export const CANDIDATE_PROFILE_PATH = "measuretwice://calibration/candidate-profile.json";
 
 // ---------------------------------------------------------------------------
 // The calibration workflow.
@@ -749,6 +760,7 @@ export async function calibrate(
     );
   }
   limitations.push(qualification.evidence.statement);
+  limitations.push(RETENTION_STATEMENT);
   const value: Calibration = {
     profile: await candidateProfile({
       measurement,
@@ -872,7 +884,7 @@ function checkOptions(options: CalibrateOptions): void {
  * refuses here with the wording of the core split locator, because no
  * identity exists for the core to compare.
  */
-function splitOf(
+export function splitOf(
   splits: readonly DatasetSplitIdentity[],
   selection: Readonly<{ dataset: string; revision: string; split: string }>,
   role: "fitting" | "validation",
@@ -889,7 +901,7 @@ function splitOf(
 }
 
 /** Moves one public split identity into the boundary shape of the core. */
-function splitIdentityValue(split: DatasetSplitIdentity): Record<string, unknown> {
+export function splitIdentityValue(split: DatasetSplitIdentity): Record<string, unknown> {
   return {
     dataset: split.dataset,
     revision: split.revision,
@@ -903,7 +915,7 @@ function splitIdentityValue(split: DatasetSplitIdentity): Record<string, unknown
 }
 
 /** Serves one synthetic artifact through one file access and delegates every other read. */
-function servingFiles(base: FileAccess, path: string, text: string): FileAccess {
+export function servingFiles(base: FileAccess, path: string, text: string): FileAccess {
   return {
     async read(filePath: string): Promise<string> {
       if (filePath === path) {
@@ -929,7 +941,7 @@ function servingFiles(base: FileAccess, path: string, text: string): FileAccess 
  * reported joins `resolvedModels`, so one alias that resolved two versions
  * refuses the calibration after the phase ends.
  */
-async function measureSplit(
+export async function measureSplit(
   reviewer: Reviewer<Readonly<Record<string, unknown>>>,
   dataset: Dataset,
   split: DatasetSplitIdentity,
@@ -996,7 +1008,7 @@ async function measureSplit(
 }
 
 /** Refuses one calibration whose signal aborted during its measurements. */
-function refuseOnAbort(signal: AbortSignal | undefined, phase: string): void {
+export function refuseOnAbort(signal: AbortSignal | undefined, phase: string): void {
   if (signal?.aborted) {
     throw new ValidationError(
       "run_cancelled",
@@ -1007,7 +1019,7 @@ function refuseOnAbort(signal: AbortSignal | undefined, phase: string): void {
 }
 
 /** Returns the one model version the measurements resolved, or undefined. */
-function singleResolution(resolvedModels: readonly string[]): string | undefined {
+export function singleResolution(resolvedModels: readonly string[]): string | undefined {
   if (resolvedModels.length > 1) {
     throw new ValidationError(
       "model_resolution_changed",
@@ -1023,7 +1035,22 @@ function singleResolution(resolvedModels: readonly string[]): string | undefined
 // ---------------------------------------------------------------------------
 
 /** The inputs of one candidate profile. */
-interface CandidateInput {
+/** The candidate-naming options the shared profile builder reads. */
+export interface CandidateNaming {
+  /** The stable identifier of the candidate profile. */
+  readonly id?: string;
+  /** The declared population and scope of the candidate. */
+  readonly intendedUse?: string;
+  /** The references to the evaluation reports in host storage. */
+  readonly evaluationReports: readonly string[];
+}
+
+/**
+ * The inputs of one candidate profile. Internal to the package: the
+ * revision workflow of `revise.ts` shares this builder, and the package
+ * entry point re-exports none of it.
+ */
+export interface CandidateInput {
   readonly measurement: Profile;
   readonly plan: NativePlanInfo;
   readonly dataset: DatasetIdentity;
@@ -1039,7 +1066,7 @@ interface CandidateInput {
   readonly definition: Definition;
   readonly evaluators: EvaluatorRegistry;
   readonly files: FileAccess;
-  readonly options: CalibrateOptions;
+  readonly options: CandidateNaming;
 }
 
 /**
@@ -1054,7 +1081,7 @@ interface CandidateInput {
  * the definition and the live evaluators as generated, so the host receives
  * one profile that `load` accepts.
  */
-async function candidateProfile(input: CandidateInput): Promise<Profile> {
+export async function candidateProfile(input: CandidateInput): Promise<Profile> {
   const bindings = input.measurement.bindings.map((binding) => ({
     ...binding,
     ...(input.resolvedModel !== undefined && binding.model !== undefined
@@ -1153,7 +1180,7 @@ function calibratedId(plan: NativePlanInfo, measurement: Profile): string {
  * The statement counts what the dataset states, keeps human judgments apart
  * from model proposals, and adds no claim of its own.
  */
-function labelProvenance(labels: LabelReview, datasetId: string): string {
+export function labelProvenance(labels: LabelReview, datasetId: string): string {
   const summary = labels.summary;
   return (
     `The dataset ${datasetId} holds ${summary.records} records: ${summary.labeled} labeled ` +
@@ -1167,11 +1194,12 @@ function labelProvenance(labels: LabelReview, datasetId: string): string {
  * Reads the recorded performance of one qualification report.
  *
  * Every rate of every scope, the bounds of the complete check set, the
- * measured sample counts, and the statement of every important slice cross
- * unchanged, so one profile states what the validation measured and nothing
- * else.
+ * measured sample counts with the stated minimums of the plan, and the
+ * statement of every important slice cross unchanged, so one profile states
+ * what the validation measured and the limits that the plan declared, and
+ * nothing else.
  */
-function performanceOf(report: QualificationReport): ProfilePerformance {
+export function performanceOf(report: QualificationReport): ProfilePerformance {
   const metrics = report.scopes.flatMap((set) =>
     set.rates.map((rate) => ({
       scope: set.scope,
@@ -1192,13 +1220,16 @@ function performanceOf(report: QualificationReport): ProfilePerformance {
       upper: interval.upper as number,
     }));
   const sample_counts: Record<string, number> = {};
+  const sample_minimums: Record<string, number> = {};
   for (const requirement of report.sample_requirements) {
     sample_counts[requirement.denominator] = requirement.measured;
+    sample_minimums[requirement.denominator] = requirement.stated;
   }
   return {
     metrics,
     ...(intervals.length === 0 ? {} : { intervals }),
     sample_counts,
+    sample_minimums,
     ...(report.slices.length === 0
       ? {}
       : { slice_limitations: report.slices.map((slice) => slice.statement) }),
@@ -1206,7 +1237,7 @@ function performanceOf(report: QualificationReport): ProfilePerformance {
 }
 
 /** The statistical-method statement of one calibration without one feasible candidate. */
-function noCandidateMethod(fitting: FittingReport): string {
+export function noCandidateMethod(fitting: FittingReport): string {
   return (
     `The fitting method ${fitting.method} measured ${fitting.case_count} fitting cases of the split ` +
     `${JSON.stringify(fitting.split)} at confidence ${fitting.confidence_level}, with ` +
@@ -1216,7 +1247,7 @@ function noCandidateMethod(fitting: FittingReport): string {
 }
 
 /** The standing limitations of one calibration without one feasible candidate. */
-function noCandidateLimitations(fitting: FittingReport, identity: DatasetIdentity): string[] {
+export function noCandidateLimitations(fitting: FittingReport, identity: DatasetIdentity): string[] {
   const limitations: string[] = [fitting.statement];
   if (!identity.states_prevalence) {
     limitations.push(
@@ -1231,6 +1262,7 @@ function noCandidateLimitations(fitting: FittingReport, identity: DatasetIdentit
   limitations.push(
     "No candidate of the permitted family meets the declared goals. The recorded policy is the objective-best candidate of the family, it fails the declared goals, and it supports no enforcement use.",
   );
+  limitations.push(RETENTION_STATEMENT);
   return limitations;
 }
 
@@ -1239,7 +1271,7 @@ function noCandidateLimitations(fitting: FittingReport, identity: DatasetIdentit
 // ---------------------------------------------------------------------------
 
 /** Runs one core operation that resolves asynchronously and lifts its failure. */
-async function throughCoreAsync<T>(operation: () => Promise<T>): Promise<T> {
+export async function throughCoreAsync<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
   } catch (error) {
@@ -1251,14 +1283,14 @@ async function throughCoreAsync<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 /** Parses and freezes one fitting report of the core. */
-function parseFittingReport(text: string): FittingReport {
+export function parseFittingReport(text: string): FittingReport {
   const value: unknown = JSON.parse(text);
   deepFreeze(value);
   return value as FittingReport;
 }
 
 /** Parses and freezes one qualification report of the core. */
-function parseQualificationReport(text: string): QualificationReport {
+export function parseQualificationReport(text: string): QualificationReport {
   const value: unknown = JSON.parse(text);
   deepFreeze(value);
   return value as QualificationReport;
@@ -1272,7 +1304,7 @@ function parseQualificationReport(text: string): QualificationReport {
  * enumeration order wins one tie. The result records what the family offers;
  * the profile states `criteria_not_met`, so it supports no enforcement use.
  */
-function objectiveBest(fitting: FittingReport): FittingCandidate | undefined {
+export function objectiveBest(fitting: FittingReport): FittingCandidate | undefined {
   let best: FittingCandidate | undefined;
   for (const candidate of fitting.candidates) {
     if (best === undefined || betterOnObjective(fitting, candidate.objective, best.objective)) {

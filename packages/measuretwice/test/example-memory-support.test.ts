@@ -212,6 +212,21 @@ test("the summary states the unvalidated profile, the provenance, and the disagr
   expect(result.summary).toContain("A shadow run changed no stored memory.");
 });
 
+test("the summary prints the detailed view that traces the outcome to its policy", () => {
+  // The printed summary follows one summary render with one detailed render
+  // of the same report, so one reader traces the outcome without writing
+  // code. The detailed view states the measurement, the executed policy,
+  // and the key that defines the terms.
+  expect(result.summary).toContain(
+    "The detailed view of the same report traces every outcome to its measurement and its policy:",
+  );
+  expect(result.summary).toContain("answer: supported (categorical)");
+  expect(result.summary).toContain("distribution: supported 0.85 · contradicted 0.05 · insufficient 0.1");
+  expect(result.summary).toContain("policy: accept >= 0.8 · reject >= 0.6");
+  expect(result.summary).toContain("Acceptable mass: the assessed mass on the accepted answers of the check.");
+  expect(result.summary).toContain("Shadow mode records this assessment beside the decision of the host application.");
+});
+
 test("enforcement refuses the unvalidated profile before any case work", async () => {
   const caseInput = result.dataset.cases.map((record) => result.dataset.runCase(record))[0]!;
   const failure = await result.reviewer

@@ -30,7 +30,7 @@ use measuretwice_core::report::parse_check_record;
 use measuretwice_core::run_state::AttemptResolution;
 use measuretwice_core::{
     assessment, case, comparison, dataset, definition, fitting, hashing, intervals, json, metrics,
-    plan, policy, profile, qualification, report, review, rule, run_state, splits,
+    plan, policy, profile, qualification, report, review, revision, rule, run_state, splits,
 };
 use napi::bindgen_prelude::AsyncTask;
 use napi::{Env, Task};
@@ -877,6 +877,125 @@ pub fn check_profile_compatibility(
     ))
 }
 
+/// The verified plan reference of one evidence check.
+#[napi(object)]
+pub struct EvidencePlanEntry {
+    /// Stable plan identifier, equal to the recorded identifier.
+    pub id: String,
+    /// Computed identity of the plan, equal to the recorded hash.
+    pub content_hash: String,
+}
+
+/// The verified dataset reference of one evidence check.
+#[napi(object)]
+pub struct EvidenceDatasetEntry {
+    /// Stable dataset identifier, equal to the recorded identifier.
+    pub id: String,
+    /// Dataset revision, equal to the recorded revision.
+    pub revision: String,
+    /// Dataset kind, as the retained metadata states it.
+    pub kind: String,
+    /// Case records of the dataset.
+    pub record_count: u32,
+    /// Computed hash of the dataset records, equal to the recorded hash.
+    pub content_hash: String,
+}
+
+/// One verified split reference of one evidence check.
+#[napi(object)]
+pub struct EvidenceSplitEntry {
+    /// Stable split identifier, as the profile records it.
+    pub id: String,
+    /// Fitting or validation, as the retained dataset declares the split.
+    pub purpose: String,
+    /// Groups of the split, in the declared order.
+    pub groups: Vec<String>,
+    /// Case records of the split.
+    pub record_count: u32,
+    /// Computed hash of the split records, equal to the recorded hash.
+    pub content_hash: String,
+}
+
+/// The result of one evidence check over one selected profile.
+#[napi(object)]
+pub struct EvidenceCheckResult {
+    /// Stable profile identifier.
+    pub profile_id: String,
+    /// Verified self-hash of the profile artifact.
+    pub profile_content_hash: String,
+    /// Content hash of the definition that the profile and the plan bind.
+    pub definition_hash: String,
+    /// The retained plan, with the recorded identity.
+    pub plan: EvidencePlanEntry,
+    /// The retained dataset, with the recorded identity.
+    pub dataset: EvidenceDatasetEntry,
+    /// Every recorded split, with the identity of the retained dataset.
+    pub splits: Vec<EvidenceSplitEntry>,
+    /// The evaluation-report references, as the profile records them.
+    pub evaluation_reports: Vec<String>,
+    /// What the check verified, with the counts it read.
+    pub statement: String,
+    /// The standing limits of this check.
+    pub limitations: Vec<String>,
+}
+
+/// Checks the recorded evidence of one profile against the retained
+/// artifacts.
+///
+/// The profile text must validate through `validateProfile`. The plan text,
+/// the metadata text, and the records text cross exactly as the host read
+/// them from its own retained locations. The core validates every artifact,
+/// then compares the recorded plan, dataset, and split identities with the
+/// computed identities of the retained copies, and verifies that the plan
+/// and the dataset state one consistent calibration. One mismatch throws
+/// `hash_mismatch` with the field path of the recorded reference. The check
+/// reads no report file: the evaluation-report references name host-managed
+/// storage, and the result states the retention rule.
+#[napi]
+pub fn check_profile_evidence(
+    profile_text: String,
+    plan_text: String,
+    metadata_text: String,
+    records_text: String,
+) -> Result<EvidenceCheckResult, napi::Error> {
+    let check = lift(profile::check_evidence(
+        &profile_text,
+        &plan_text,
+        &metadata_text,
+        &records_text,
+    ))?;
+    Ok(EvidenceCheckResult {
+        profile_id: check.profile_id,
+        profile_content_hash: check.profile_content_hash,
+        definition_hash: check.definition_hash,
+        plan: EvidencePlanEntry {
+            id: check.plan.id,
+            content_hash: check.plan.content_hash,
+        },
+        dataset: EvidenceDatasetEntry {
+            id: check.dataset.id,
+            revision: check.dataset.revision,
+            kind: check.dataset.kind,
+            record_count: check.dataset.record_count as u32,
+            content_hash: check.dataset.content_hash,
+        },
+        splits: check
+            .splits
+            .into_iter()
+            .map(|split| EvidenceSplitEntry {
+                id: split.id,
+                purpose: split.purpose,
+                groups: split.groups,
+                record_count: split.record_count as u32,
+                content_hash: split.content_hash,
+            })
+            .collect(),
+        evaluation_reports: check.evaluation_reports,
+        statement: check.statement,
+        limitations: check.limitations,
+    })
+}
+
 /// Reads one hash domain from its contract tag, or rejects the text.
 fn domain_from_tag(tag: &str) -> Result<hashing::Domain, napi::Error> {
     hashing::Domain::from_tag(tag).ok_or_else(|| {
@@ -1193,6 +1312,90 @@ pub fn check_calibration_datasets(
         &validation,
         "/plan",
     ))
+}
+
+/// Checks whether one policy revision may replay the stored assessments
+/// of one prior calibration.
+///
+/// The prior profile text, the prior fitting report text, and the stored
+/// run texts cross exactly as the host stored them, and the plan text,
+/// the definition text, the registered text, the live text, and the two
+/// dataset texts cross exactly as the wrapper read them. The core
+/// validates every artifact, compares every recorded identity with the
+/// loaded world, classifies the validation data, and returns the verified
+/// reuse as one JSON document: the identities, the split rows, the
+/// disposition, the resolved models, and the stored assessments keyed by
+/// case and by question check. One changed definition, evaluator,
+/// adapter, translation, model resolution, preprocessing identity, or
+/// input throws one native failure with the compatibility code of the
+/// registry before one assessment is replayed.
+#[napi]
+// The boundary crosses every artifact exactly as the wrapper read it, so
+// one input struct would name the same texts without grouping them.
+#[allow(clippy::too_many_arguments)]
+pub fn check_revision(
+    prior_profile_text: String,
+    prior_fitting_text: String,
+    prior_runs: Vec<String>,
+    plan_text: String,
+    definition_text: String,
+    registered_text: String,
+    live_text: String,
+    metadata_text: String,
+    records_text: String,
+) -> Result<String, napi::Error> {
+    let registered = lift(plan::parse_registered_evaluators(
+        &strict(&registered_text)?,
+        "/evaluators",
+    ))?;
+    let live = lift(profile::parse_live_bindings(&strict(&live_text)?, "/live"))?;
+    let runs: Vec<&str> = prior_runs.iter().map(String::as_str).collect();
+    let reuse = lift(revision::check_revision(
+        &prior_profile_text,
+        &prior_fitting_text,
+        &runs,
+        &plan_text,
+        &definition_text,
+        &registered,
+        &live,
+        &metadata_text,
+        &records_text,
+    ))?;
+    Ok(serde_json::to_string(&reuse).expect("the reuse serializes"))
+}
+
+/// Compares the prior policy and one revised policy over the same stored
+/// fitting assessments.
+///
+/// The prior profile text states the applied policy the stored
+/// assessments last served, the plan text is the revision plan, and the
+/// revised policy text holds one applied-policy row per question check of
+/// the frozen candidate. The assessments text holds the stored fitting
+/// assessments as `checkRevision` returned them. The result is the
+/// complete comparison as one JSON document: the changed cases with both
+/// aggregate outcomes, the metric tradeoffs with the counts and the
+/// denominators of both sides, and the standing limits of one fitting
+/// comparison.
+#[napi]
+pub fn compare_revision(
+    prior_profile_text: String,
+    plan_text: String,
+    revised_policy_text: String,
+    metadata_text: String,
+    records_text: String,
+    definition_text: String,
+    assessments_text: String,
+) -> Result<String, napi::Error> {
+    let comparison = lift(revision::compare_revision(
+        &prior_profile_text,
+        &plan_text,
+        &revised_policy_text,
+        &metadata_text,
+        &records_text,
+        &definition_text,
+        &assessments_text,
+    ))?;
+    Ok(serde_json::to_string(&comparison).expect("the comparison serializes"))
 }
 
 /// Rebuilds the validated inputs of one calibration calculation.

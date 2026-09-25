@@ -181,6 +181,10 @@
           "labeled_cases": 200,
           "accepted_cases": 80
         },
+        "sample_minimums": {
+          "labeled_cases": 200,
+          "accepted_cases": 80
+        },
         "slice_limitations": [
           "The later-corrections slice holds 31 labeled cases, above the plan minimum of 30."
         ]
@@ -192,7 +196,7 @@
           "measured_evidence"
         ]
       },
-      "content_hash": "bd255537e343281756d3f0b61e6335b6412c00494f2635d8fd7922d46d135760"
+      "content_hash": "e696f33a1606190b2bb041a80e3113c7bd2aeb6a30b6d6529c85d29033de396d"
     },
     {
       "schema_version": 1,
@@ -277,6 +281,10 @@
           "labeled_cases": 9,
           "accepted_cases": 9
         },
+        "sample_minimums": {
+          "labeled_cases": 200,
+          "accepted_cases": 80
+        },
         "slice_limitations": [
           "Nine labeled cases sit below the plan minimum of 200. Zero observed errors do not establish the goal."
         ]
@@ -289,7 +297,7 @@
           "insufficient_evidence"
         ]
       },
-      "content_hash": "d75155c87ed697ed6bbfab011eab5239f8c3bdf9c5d5db35949144f3010316c3"
+      "content_hash": "b110d32d3a489f99800b2473c1329d60b28a197f90b3f0895531a3ee458b4233"
     },
     {
       "schema_version": 1,
@@ -384,6 +392,10 @@
           "labeled_cases": 200,
           "accepted_cases": 80
         },
+        "sample_minimums": {
+          "labeled_cases": 200,
+          "accepted_cases": 80
+        },
         "slice_limitations": [
           "The interval upper bound 0.1554 exceeds the plan limit 0.05."
         ]
@@ -396,7 +408,7 @@
           "criteria_not_met"
         ]
       },
-      "content_hash": "5fe97b829b5978284b549dd0021c9600cd9da2aa4fb1860163c3a15aec6a7a29"
+      "content_hash": "3d454998fe2012bbb58ed2e32c5b83f22e0d31e458a6bf69ebc40f3b3f7e8985"
     }
   ],
   "invalid": [
@@ -799,7 +811,7 @@
       "against_definition": "categorical-question.json",
       "mode": "enforcement",
       "requested_scope": "The Cassandra pilot conversation population declared in the plan.",
-      "selected_hash": "bd255537e343281756d3f0b61e6335b6412c00494f2635d8fd7922d46d135760",
+      "selected_hash": "e696f33a1606190b2bb041a80e3113c7bd2aeb6a30b6d6529c85d29033de396d",
       "live": [
         {
           "check": "message-supported",
@@ -815,7 +827,7 @@
       "against_definition": "categorical-question.json",
       "mode": "enforcement",
       "requested_scope": "The Cassandra pilot conversation population declared in the plan.",
-      "selected_hash": "bd255537e343281756d3f0b61e6335b6412c00494f2635d8fd7922d46d135760",
+      "selected_hash": "e696f33a1606190b2bb041a80e3113c7bd2aeb6a30b6d6529c85d29033de396d",
       "live": [
         {
           "check": "message-supported",
@@ -835,7 +847,7 @@
       "against_definition": "categorical-question.json",
       "mode": "enforcement",
       "requested_scope": "The Cassandra pilot conversation population declared in the plan.",
-      "selected_hash": "5fe97b829b5978284b549dd0021c9600cd9da2aa4fb1860163c3a15aec6a7a29",
+      "selected_hash": "3d454998fe2012bbb58ed2e32c5b83f22e0d31e458a6bf69ebc40f3b3f7e8985",
       "live": [
         {
           "check": "message-supported",

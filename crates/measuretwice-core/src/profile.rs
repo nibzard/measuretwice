@@ -7,7 +7,9 @@
 //! one [`ValidatedProfile`] or one typed rejection with a field path.
 //! [`check_compatibility`] then compares one validated profile against one
 //! loaded definition, the registered evaluators, and the requested use,
-//! before any evaluator runs.
+//! before any evaluator runs. [`check_evidence`] compares the recorded
+//! evidence of one selected profile against the artifacts that the host
+//! retained at its own explicit locations.
 //!
 //! Artifact validation covers the schema file and the cross-field rules
 //! that the contracts README states:
@@ -98,7 +100,13 @@ const EVIDENCE_FIELDS: &[&str] = &[
 ];
 
 /// Fields of one performance object, from the schema file.
-const PERFORMANCE_FIELDS: &[&str] = &["metrics", "intervals", "sample_counts", "slice_limitations"];
+const PERFORMANCE_FIELDS: &[&str] = &[
+    "metrics",
+    "intervals",
+    "sample_counts",
+    "sample_minimums",
+    "slice_limitations",
+];
 
 /// Fields of one qualification object, from the schema file.
 const QUALIFICATION_FIELDS: &[&str] = &["status", "scope", "reasons"];
@@ -986,6 +994,18 @@ fn validate_performance(root: &Map<String, Value>) -> Result<(), ValidationError
             required_whole(counts, name, "/performance/sample_counts", 0, None)?;
         }
     }
+    if let Some(minimums) = performance.get("sample_minimums") {
+        let minimums = expect_object(minimums, "/performance/sample_minimums")?;
+        for (name, minimum) in minimums {
+            if !minimum.is_number() {
+                return Err(ValidationError::invalid_field_type(
+                    format!("/performance/sample_minimums/{name}"),
+                    "Every sample minimum must hold one whole number of zero or more.",
+                ));
+            }
+            required_whole(minimums, name, "/performance/sample_minimums", 0, None)?;
+        }
+    }
     if let Some(Value::Array(limitations)) = performance.get("slice_limitations") {
         for (index, item) in limitations.iter().enumerate() {
             parse_bounded_string(
@@ -1484,6 +1504,415 @@ fn check_enforcement_gate(
 }
 
 // ---------------------------------------------------------------------------
+// Retained qualification evidence.
+// ---------------------------------------------------------------------------
+
+/// The verified plan reference of one evidence check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EvidencePlanRow {
+    /// Stable plan identifier, equal to the recorded identifier.
+    pub id: String,
+    /// Computed identity of the plan, equal to the recorded hash.
+    pub content_hash: String,
+}
+
+/// The verified dataset reference of one evidence check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EvidenceDatasetRow {
+    /// Stable dataset identifier, equal to the recorded identifier.
+    pub id: String,
+    /// Dataset revision, equal to the recorded revision.
+    pub revision: String,
+    /// Dataset kind, as the retained metadata states it.
+    pub kind: String,
+    /// Case records of the dataset.
+    pub record_count: usize,
+    /// Computed hash of the dataset records, equal to the recorded hash.
+    pub content_hash: String,
+}
+
+/// One verified split reference of one evidence check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EvidenceSplitRow {
+    /// Stable split identifier, as the profile records it.
+    pub id: String,
+    /// Fitting or validation, as the retained dataset declares the split.
+    pub purpose: String,
+    /// Groups of the split, in the declared order.
+    pub groups: Vec<String>,
+    /// Case records of the split.
+    pub record_count: usize,
+    /// Computed hash of the split records, equal to the recorded hash.
+    pub content_hash: String,
+}
+
+/// The result of one evidence check over one selected profile.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EvidenceCheck {
+    /// Stable profile identifier.
+    pub profile_id: String,
+    /// Verified self-hash of the profile artifact.
+    pub profile_content_hash: String,
+    /// Content hash of the definition that the profile and the plan bind.
+    pub definition_hash: String,
+    /// The retained plan, with the recorded identity.
+    pub plan: EvidencePlanRow,
+    /// The retained dataset, with the recorded identity.
+    pub dataset: EvidenceDatasetRow,
+    /// Every recorded split, with the identity of the retained dataset.
+    pub splits: Vec<EvidenceSplitRow>,
+    /// The evaluation-report references, as the profile records them.
+    pub evaluation_reports: Vec<String>,
+    /// What the check verified, with the counts it read.
+    pub statement: String,
+    /// The standing limits of this check.
+    pub limitations: Vec<String>,
+}
+
+/// Checks the recorded evidence of one profile against the retained
+/// artifacts.
+///
+/// The host owns the storage of the qualification evidence, so it states the
+/// explicit locations of the retained artifacts: the plan text, the dataset
+/// metadata text, and the dataset records text. The check verifies, in one
+/// fixed order, that every recorded identity names the retained artifact:
+///
+/// 1. The profile artifact passes the complete contract and its stored
+///    self-hash, and it records evidence at all.
+/// 2. The retained plan carries the recorded identifier and the recorded
+///    computed identity, and it binds the definition that the profile binds.
+/// 3. The retained dataset carries the recorded identifier, revision, and
+///    computed record hash.
+/// 4. Every recorded split exists in the retained dataset and carries its
+///    computed record hash, and the two dataset selections of the plan name
+///    recorded splits of the declared purpose that share no group and no
+///    case.
+///
+/// The comparison verifies content consistency alone. It cannot verify the
+/// truth of a forged dataset, one label, or one population claim, and it
+/// authenticates no host approval. The evaluation-report references name
+/// host-managed storage; the check reads none, so one ignored folder can
+/// hold no required copy of the evidence.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] with `missing_field` when the profile
+/// records no complete evidence set, with `hash_mismatch` when one retained
+/// artifact differs from the recorded identity, and with
+/// `definition_mismatch` when the retained plan binds another definition
+/// revision.
+pub fn check_evidence(
+    profile_text: &str,
+    plan_text: &str,
+    metadata_text: &str,
+    records_text: &str,
+) -> Result<EvidenceCheck, ValidationError> {
+    let profile = validate_profile_str(profile_text)?;
+    let root = profile.as_artifact();
+    let no_evidence = || {
+        ValidationError::new(
+            ReasonCode::MissingField,
+            "/evidence",
+            format!(
+                "The profile {} records no evidence. Only one calibration profile records the plan, the datasets, the splits, and the reports that this check verifies.",
+                fragment(profile.id())
+            ),
+        )
+    };
+    let evidence = match root.get("evidence") {
+        Some(value) => expect_object(value, "/evidence").map_err(|_| no_evidence())?,
+        None => return Err(no_evidence()),
+    };
+
+    // The retained plan states its own identity, which the calibration
+    // recorded. One edited plan keeps its identifier but changes its
+    // computed identity, and one foreign plan changes both.
+    let plan = crate::plan::validate_plan_str(plan_text)?;
+    let recorded_plan = required_object(evidence, "plan", "/evidence")?;
+    let recorded_plan_id = required_artifact_id(recorded_plan, "id", "/evidence/plan/id")?;
+    let recorded_plan_hash =
+        required_hash(recorded_plan, "content_hash", "/evidence/plan/content_hash")?;
+    if recorded_plan_id != plan.id() {
+        return Err(ValidationError::new(
+            ReasonCode::HashMismatch,
+            "/evidence/plan/id",
+            format!(
+                "The retained plan is {}. The profile records the plan {}. Retain the plan that the profile names.",
+                fragment(plan.id()),
+                fragment(&recorded_plan_id)
+            ),
+        ));
+    }
+    if recorded_plan_hash != plan.content_hash() {
+        return Err(ValidationError::new(
+            ReasonCode::HashMismatch,
+            "/evidence/plan/content_hash",
+            format!(
+                "The retained plan {} computes the identity {}. The profile records {}. One edited plan is one new plan, so the retained copy is not the evidence of this profile.",
+                fragment(plan.id()),
+                fragment(plan.content_hash()),
+                fragment(&recorded_plan_hash)
+            ),
+        ));
+    }
+    if plan.definition_hash() != profile.definition_hash() {
+        return Err(ValidationError::new(
+            ReasonCode::DefinitionMismatch,
+            "/definition",
+            "The retained plan binds another content hash of the definition. The profile measured one revision and the plan states another, so the two artifacts report different evidence. Retain the plan that the profile records.",
+        ));
+    }
+
+    // The retained dataset states its identity through its records: the
+    // loader computes the dataset hash and the split hashes from the loaded
+    // content, so one edited record changes every identity that follows.
+    let dataset = crate::dataset::load_dataset(metadata_text, records_text)?;
+    let loaded = crate::splits::dataset_splits(&dataset)?;
+    let identity = loaded.identity();
+    let recorded_datasets = match evidence.get("datasets") {
+        Some(Value::Array(items)) => items,
+        Some(_) => {
+            return Err(ValidationError::invalid_field_type(
+                "/evidence/datasets",
+                "The datasets field must hold one array.",
+            ));
+        }
+        None => {
+            return Err(ValidationError::new(
+                ReasonCode::MissingField,
+                "/evidence/datasets",
+                "A calibration profile records its datasets. The retained evidence needs one dataset at least.",
+            ));
+        }
+    };
+    if recorded_datasets.len() != 1 {
+        return Err(ValidationError::invalid_field_type(
+            "/evidence/datasets",
+            format!(
+                "The evidence check verifies one retained dataset, and the profile records {}. The calibration of one plan reads one dataset revision. Retain the dataset that the profile records.",
+                recorded_datasets.len()
+            ),
+        ));
+    }
+    let recorded_dataset = expect_object(&recorded_datasets[0], "/evidence/datasets/0")?;
+    let recorded_dataset_id =
+        required_artifact_id(recorded_dataset, "id", "/evidence/datasets/0/id")?;
+    let recorded_dataset_revision = required_bounded_string(
+        recorded_dataset,
+        "revision",
+        "/evidence/datasets/0/revision",
+        64,
+    )?;
+    let recorded_dataset_hash = required_hash(
+        recorded_dataset,
+        "content_hash",
+        "/evidence/datasets/0/content_hash",
+    )?;
+    if recorded_dataset_id != identity.dataset_id {
+        return Err(ValidationError::new(
+            ReasonCode::HashMismatch,
+            "/evidence/datasets/0/id",
+            format!(
+                "The retained dataset is {}. The profile records the dataset {}. Retain the dataset that the profile names.",
+                fragment(&identity.dataset_id),
+                fragment(&recorded_dataset_id)
+            ),
+        ));
+    }
+    if recorded_dataset_revision != identity.revision {
+        return Err(ValidationError::new(
+            ReasonCode::HashMismatch,
+            "/evidence/datasets/0/revision",
+            format!(
+                "The retained dataset {} states the revision {}. The profile records {}. One changed revision is one new dataset, so the retained copy is not the evidence of this profile.",
+                fragment(&identity.dataset_id),
+                fragment(&identity.revision),
+                fragment(&recorded_dataset_revision)
+            ),
+        ));
+    }
+    if recorded_dataset_hash != identity.content_hash {
+        return Err(ValidationError::new(
+            ReasonCode::HashMismatch,
+            "/evidence/datasets/0/content_hash",
+            format!(
+                "The retained dataset {} revision {} computes the content hash {}. The profile records {}. One edited record changes the hash, so the retained records are not the evidence of this profile.",
+                fragment(&identity.dataset_id),
+                fragment(&identity.revision),
+                fragment(&identity.content_hash),
+                fragment(&recorded_dataset_hash)
+            ),
+        ));
+    }
+
+    // Every recorded split must exist in the retained dataset with the
+    // recorded content, and the plan must name recorded splits for both of
+    // its selections, so no retained set mixes two calibrations.
+    let recorded_splits = match evidence.get("splits") {
+        Some(Value::Array(items)) => items,
+        Some(_) => {
+            return Err(ValidationError::invalid_field_type(
+                "/evidence/splits",
+                "The splits field must hold one array.",
+            ));
+        }
+        None => {
+            return Err(ValidationError::new(
+                ReasonCode::MissingField,
+                "/evidence/splits",
+                "A calibration profile records its splits. The retained evidence needs the fitting split and the validation split.",
+            ));
+        }
+    };
+    let mut rows = Vec::with_capacity(recorded_splits.len());
+    for (index, item) in recorded_splits.iter().enumerate() {
+        let base = format!("/evidence/splits/{index}");
+        let recorded = expect_object(item, &base)?;
+        let recorded_id = required_artifact_id(recorded, "id", &format!("{base}/id"))?;
+        let recorded_hash =
+            required_hash(recorded, "content_hash", &format!("{base}/content_hash"))?;
+        let Some(split) = loaded.split(&recorded_id) else {
+            return Err(ValidationError::new(
+                ReasonCode::HashMismatch,
+                format!("{base}/id"),
+                format!(
+                    "The profile records the split {}, but the retained dataset {} declares no split of that identifier. Retain the dataset that the profile records.",
+                    fragment(&recorded_id),
+                    fragment(&identity.dataset_id)
+                ),
+            ));
+        };
+        let split_identity = split.identity();
+        if recorded_hash != split_identity.content_hash {
+            return Err(ValidationError::new(
+                ReasonCode::HashMismatch,
+                format!("{base}/content_hash"),
+                format!(
+                    "The retained split {} of the dataset {} computes the content hash {}. The profile records {}. One edited record changes the hash, so the retained split is not the evidence of this profile.",
+                    fragment(&recorded_id),
+                    fragment(&identity.dataset_id),
+                    fragment(&split_identity.content_hash),
+                    fragment(&recorded_hash)
+                ),
+            ));
+        }
+        rows.push(EvidenceSplitRow {
+            id: split_identity.split_id.clone(),
+            purpose: split_identity.purpose.as_str().to_owned(),
+            groups: split_identity.groups.clone(),
+            record_count: split_identity.record_count,
+            content_hash: split_identity.content_hash.clone(),
+        });
+    }
+    let recorded_split_ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
+    let fitting = plan_split(&plan, &loaded, "fitting")?;
+    let validation = plan_split(&plan, &loaded, "validation")?;
+    for (role, selection) in [("fitting", &fitting), ("validation", &validation)] {
+        if !recorded_split_ids.contains(&selection.split_id.as_str()) {
+            return Err(ValidationError::new(
+                ReasonCode::MissingField,
+                "/evidence/splits",
+                format!(
+                    "The plan names the split {} for the {} selection, but the profile records no split of that identifier. The retained evidence must cover every split that the plan measured.",
+                    fragment(&selection.split_id),
+                    role
+                ),
+            ));
+        }
+    }
+    crate::plan::check_plan_datasets(&plan, &fitting, &validation, "/evidence")?;
+
+    let evaluation_reports = match evidence.get("evaluation_reports") {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|item| {
+                item.as_str().map(str::to_owned).ok_or_else(|| {
+                    ValidationError::invalid_field_type(
+                        "/evidence/evaluation_reports",
+                        "The evaluation-report references must hold one array of strings.",
+                    )
+                })
+            })
+            .collect::<Result<Vec<String>, ValidationError>>()?,
+        Some(_) => {
+            return Err(ValidationError::invalid_field_type(
+                "/evidence/evaluation_reports",
+                "The evaluation-report references must hold one array of strings.",
+            ));
+        }
+        None => {
+            return Err(ValidationError::new(
+                ReasonCode::MissingField,
+                "/evidence/evaluation_reports",
+                "A calibration profile records its evaluation reports. The retained evidence needs the references of the reports in host storage.",
+            ));
+        }
+    };
+
+    let statement = format!(
+        "The retained plan {}, the dataset {} revision {}, and {} recorded split(s) carry the identities that the profile {} records. The dataset holds {} case records.",
+        fragment(plan.id()),
+        fragment(&identity.dataset_id),
+        fragment(&identity.revision),
+        rows.len(),
+        fragment(profile.id()),
+        identity.record_count
+    );
+    Ok(EvidenceCheck {
+        profile_id: profile.id().to_owned(),
+        profile_content_hash: profile.content_hash().to_owned(),
+        definition_hash: profile.definition_hash().to_owned(),
+        plan: EvidencePlanRow {
+            id: plan.id().to_owned(),
+            content_hash: plan.content_hash().to_owned(),
+        },
+        dataset: EvidenceDatasetRow {
+            id: identity.dataset_id.clone(),
+            revision: identity.revision.clone(),
+            kind: identity.kind.as_str().to_owned(),
+            record_count: identity.record_count,
+            content_hash: identity.content_hash.clone(),
+        },
+        splits: rows,
+        evaluation_reports,
+        statement,
+        limitations: vec![
+            "This check verifies content consistency. It cannot verify the truth of a forged dataset, one label, or one population claim, and it authenticates no host approval.".to_owned(),
+            "The evaluation reports live in host storage at the recorded references. Retain one reviewed copy outside every folder that version control ignores, because one ignored report is no required copy of the qualification evidence.".to_owned(),
+        ],
+    })
+}
+
+/// Reads one dataset selection of one plan as the split identity that the
+/// retained dataset computes.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] with `hash_mismatch` when the plan names a
+/// split that the retained dataset does not declare.
+fn plan_split(
+    plan: &crate::plan::ValidatedPlan,
+    loaded: &crate::splits::DatasetSplits<'_>,
+    role: &str,
+) -> Result<crate::splits::SplitIdentity, ValidationError> {
+    let selection = match role {
+        "fitting" => &plan.datasets().fitting,
+        _ => &plan.datasets().validation,
+    };
+    let Some(split) = loaded.split(&selection.split) else {
+        return Err(ValidationError::new(
+            ReasonCode::HashMismatch,
+            format!("/evidence/datasets/{role}/split"),
+            format!(
+                "The plan names the split {}, but the retained dataset declares no split of that identifier.",
+                fragment(&selection.split)
+            ),
+        ));
+    };
+    Ok(split.identity().clone())
+}
+
+// ---------------------------------------------------------------------------
 // Field readers.
 // ---------------------------------------------------------------------------
 
@@ -1826,6 +2255,7 @@ mod tests {
                     "upper": 0.0458
                 }],
                 "sample_counts": {"labeled_cases": 200, "accepted_cases": 80},
+                "sample_minimums": {"labeled_cases": 200, "accepted_cases": 80},
                 "slice_limitations": ["The later-corrections slice holds 31 labeled cases."]
             },
             "qualification": {
@@ -2254,6 +2684,16 @@ mod tests {
                 ReasonCode::InvalidFieldType,
                 "/performance/sample_counts/labeled_cases",
             ),
+            (
+                "one fractional sample minimum",
+                {
+                    let mut edited = calibration_artifact();
+                    edited["performance"]["sample_minimums"]["accepted_cases"] = json!(2.5);
+                    edited
+                },
+                ReasonCode::InvalidFieldType,
+                "/performance/sample_minimums/accepted_cases",
+            ),
         ];
         for (note, edited, code, path) in rows {
             let text = resigned(&edited);
@@ -2308,6 +2748,342 @@ mod tests {
             profile.qualification_scope(),
             Some("The pilot conversation population declared in the plan.")
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // The retained-evidence check.
+    // -----------------------------------------------------------------------
+
+    /// The retained artifacts of the evidence tests: one calibration
+    /// profile, the plan it records, and the dataset that the plan measured.
+    struct Retained {
+        profile: String,
+        plan: String,
+        metadata: String,
+        records: String,
+    }
+
+    /// One dataset metadata of the evidence tests: one fitting and one
+    /// validation split over two conversation groups.
+    fn evidence_metadata() -> String {
+        serde_json::to_string(&json!({
+            "schema_version": 1,
+            "id": "evidence-cases",
+            "name": "Evidence cases",
+            "revision": "2026-09-24.1",
+            "kind": "representative_sample",
+            "intended_population": "Proposed messages in the reviewed support traffic.",
+            "sampling_method": "Sampled at random from reviewed traffic of one week.",
+            "label_guidelines": "See docs/labeling.md revision 3.",
+            "splits": [
+                {"id": "fitting", "purpose": "fitting", "groups": ["conversation-a"]},
+                {"id": "holdout", "purpose": "validation", "groups": ["conversation-b"]}
+            ]
+        }))
+        .expect("serializes")
+    }
+
+    /// One case record of the evidence tests.
+    fn evidence_record(id: &str, group: &str) -> Value {
+        json!({
+            "id": id,
+            "group": group,
+            "input": {
+                "message": "The export worker serves EU customers.",
+                "evidence": "Customer exports stay in the EU."
+            },
+            "label": {"author_type": "human", "reviewed": true, "reviewer": "reviewer-1"}
+        })
+    }
+
+    /// One plan artifact over the categorical definition and the evidence
+    /// dataset.
+    fn evidence_plan(definition_hash: String) -> String {
+        serde_json::to_string(&json!({
+            "schema_version": 1,
+            "id": "message-supported-plan",
+            "name": "Limit wrong messages, then minimize review",
+            "definition": {"name": "message-supported", "content_hash": definition_hash},
+            "intended_population": "Proposed messages in the reviewed support traffic.",
+            "sampling_assumptions": "Cases grouped by conversation. Groups are independent draws.",
+            "confidence_level": 0.95,
+            "constraints": [{
+                "metric": "error_among_accepted",
+                "comparison": "at_most",
+                "limit": 0.5,
+                "basis": "observed_value"
+            }],
+            "objective": {"metric": "review_rate", "direction": "minimize"},
+            "minimum_samples": {"accepted_cases": 2},
+            "candidate_grid": {"accept_cutoffs": [0.6, 0.8], "rejection_cutoffs": [0.6]},
+            "evaluator": {"evaluator": "jev-choice", "adapter_version": "0.1.0"},
+            "datasets": {
+                "fitting": {"dataset": "evidence-cases", "revision": "2026-09-24.1", "split": "fitting"},
+                "validation": {"dataset": "evidence-cases", "revision": "2026-09-24.1", "split": "holdout"}
+            }
+        }))
+        .expect("serializes")
+    }
+
+    /// Builds one retained evidence set and one calibration profile that
+    /// records the computed identities of its artifacts.
+    fn retained() -> Retained {
+        let definition_hash = hashing::definition_hash(&validated(CATEGORICAL));
+        let plan = evidence_plan(definition_hash);
+        let metadata = evidence_metadata();
+        let records = [
+            evidence_record("fit-1", "conversation-a"),
+            evidence_record("fit-2", "conversation-a"),
+            evidence_record("hold-1", "conversation-b"),
+            evidence_record("hold-2", "conversation-b"),
+        ]
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("serializes"))
+        .collect::<Vec<String>>()
+        .join("\n");
+
+        let validated_plan =
+            crate::plan::validate_plan_str(&plan).expect("the test plan validates");
+        let dataset =
+            crate::dataset::load_dataset(&metadata, &records).expect("the test dataset loads");
+        let loaded = crate::splits::dataset_splits(&dataset).expect("the splits compute");
+        let identity = loaded.identity();
+        let fitting = loaded
+            .split("fitting")
+            .expect("the fitting split")
+            .identity();
+        let holdout = loaded
+            .split("holdout")
+            .expect("the holdout split")
+            .identity();
+
+        let mut profile = json!({
+            "schema_version": 1,
+            "id": "message-supported-calibrated",
+            "origin": "calibration",
+            "intended_use": "Proposed messages in the reviewed support traffic.",
+            "definition": {"name": "message-supported", "content_hash": validated_plan.definition_hash()},
+            "bindings": [{
+                "check": "message-supported",
+                "evaluator": "jev-choice",
+                "adapter_version": "0.1.0",
+                "translation": {
+                    "content_hash": HASH_A,
+                    "question": "Does every material claim in the proposed message follow from the evidence?"
+                }
+            }],
+            "policy": {
+                "family": "probability_mass_v0",
+                "checks": [{"check": "message-supported", "accept_cutoff": 0.8, "rejection_cutoff": 0.6}]
+            },
+            "execution": {
+                "max_active": 4, "max_pending": 16, "deadline_ms": 30000,
+                "max_attempts": 2, "backoff_ms": 200
+            },
+            "evidence": {
+                "plan": {"id": validated_plan.id(), "content_hash": validated_plan.content_hash()},
+                "datasets": [{
+                    "id": identity.dataset_id,
+                    "revision": identity.revision,
+                    "content_hash": identity.content_hash
+                }],
+                "splits": [
+                    {"id": fitting.split_id, "content_hash": fitting.content_hash},
+                    {"id": holdout.split_id, "content_hash": holdout.content_hash}
+                ],
+                "label_provenance": "Two reviewed human references per split. No model proposal.",
+                "evaluation_reports": [".measuretwice/reports/message-supported-validation.json"],
+                "statistical_method": "Wilson score intervals at 95 percent confidence over grouped cases."
+            },
+            "performance": {
+                "metrics": [{
+                    "scope": "message-supported",
+                    "metric": "error_among_accepted",
+                    "numerator": 0,
+                    "denominator": 2,
+                    "value": 0
+                }],
+                "sample_counts": {"accepted_cases": 2},
+                "sample_minimums": {"accepted_cases": 2}
+            },
+            "qualification": {
+                "status": "validated_for_scope",
+                "scope": "Proposed messages in the reviewed support traffic.",
+                "reasons": ["measured_evidence"]
+            }
+        });
+        signed(&mut profile);
+        Retained {
+            profile: serde_json::to_string(&profile).expect("serializes"),
+            plan,
+            metadata,
+            records,
+        }
+    }
+
+    /// Runs one evidence check and expects the stated rejection.
+    fn evidence_error(
+        set: &Retained,
+        plan: Option<String>,
+        metadata: Option<String>,
+        records: Option<String>,
+    ) -> ValidationError {
+        check_evidence(
+            &set.profile,
+            plan.as_deref().unwrap_or(&set.plan),
+            metadata.as_deref().unwrap_or(&set.metadata),
+            records.as_deref().unwrap_or(&set.records),
+        )
+        .expect_err("the retained set fails")
+    }
+
+    #[test]
+    fn one_retained_set_verifies_against_the_recorded_identities() {
+        let set = retained();
+        let check = check_evidence(&set.profile, &set.plan, &set.metadata, &set.records)
+            .expect("the retained evidence verifies");
+        let plan = crate::plan::validate_plan_str(&set.plan).expect("the plan validates");
+        assert_eq!(check.profile_id, "message-supported-calibrated");
+        assert_eq!(check.plan.id, plan.id());
+        assert_eq!(check.plan.content_hash, plan.content_hash());
+        assert_eq!(check.dataset.id, "evidence-cases");
+        assert_eq!(check.dataset.revision, "2026-09-24.1");
+        assert_eq!(check.dataset.kind, "representative_sample");
+        assert_eq!(check.dataset.record_count, 4);
+        assert_eq!(check.splits.len(), 2);
+        assert_eq!(check.splits[0].id, "fitting");
+        assert_eq!(check.splits[0].purpose, "fitting");
+        assert_eq!(check.splits[0].groups, vec!["conversation-a".to_owned()]);
+        assert_eq!(check.splits[0].record_count, 2);
+        assert_eq!(check.splits[1].id, "holdout");
+        assert_eq!(check.splits[1].purpose, "validation");
+        assert_eq!(check.evaluation_reports.len(), 1);
+        assert!(
+            check.statement.contains("evidence-cases"),
+            "{}",
+            check.statement
+        );
+        assert_eq!(check.limitations.len(), 2);
+        // The check verifies content consistency, and the statement keeps
+        // the counts it read beside the identities it compared.
+        assert!(
+            check.statement.contains("4 case records"),
+            "{}",
+            check.statement
+        );
+        assert!(check.limitations[1].contains("version control ignores"));
+    }
+
+    #[test]
+    fn one_edited_plan_fails_its_recorded_identity() {
+        let set = retained();
+        // One edited limit keeps the identifier and changes the computed
+        // identity, so the retained copy is one new plan.
+        let edited = set.plan.replace("\"limit\":0.5", "\"limit\":0.4");
+        assert_ne!(edited, set.plan);
+        let error = evidence_error(&set, Some(edited), None, None);
+        assert_eq!(error.code, ReasonCode::HashMismatch);
+        assert_eq!(error.field_path, "/evidence/plan/content_hash");
+    }
+
+    #[test]
+    fn one_foreign_plan_fails_its_recorded_identifier() {
+        let set = retained();
+        let definition_hash = hashing::definition_hash(&validated(CATEGORICAL));
+        let foreign = evidence_plan(definition_hash)
+            .replace("\"message-supported-plan\"", "\"another-supported-plan\"");
+        let error = evidence_error(&set, Some(foreign), None, None);
+        assert_eq!(error.code, ReasonCode::HashMismatch);
+        assert_eq!(error.field_path, "/evidence/plan/id");
+    }
+
+    #[test]
+    fn one_swapped_definition_binding_of_the_profile_fails() {
+        let set = retained();
+        // The retained plan stays the recorded plan, but the profile binds
+        // another definition revision than the plan measured. The pairing
+        // reports two evidences for two different requirements.
+        let mut edited = serde_json::from_str::<Value>(&set.profile).expect("parses");
+        edited["definition"]["content_hash"] = json!(HASH_B);
+        let error = check_evidence(&resigned(&edited), &set.plan, &set.metadata, &set.records)
+            .expect_err("the swapped definition fails");
+        assert_eq!(error.code, ReasonCode::DefinitionMismatch);
+        assert_eq!(error.field_path, "/definition");
+    }
+
+    #[test]
+    fn one_edited_record_fails_the_dataset_identity() {
+        let set = retained();
+        let extra = format!(
+            "{}\n{}",
+            set.records,
+            serde_json::to_string(&evidence_record("hold-3", "conversation-b"))
+                .expect("serializes")
+        );
+        let error = evidence_error(&set, None, None, Some(extra));
+        assert_eq!(error.code, ReasonCode::HashMismatch);
+        assert_eq!(error.field_path, "/evidence/datasets/0/content_hash");
+    }
+
+    #[test]
+    fn one_revised_dataset_fails_its_recorded_revision() {
+        let set = retained();
+        let revised = set.metadata.replace("2026-09-24.1", "2026-09-24.2");
+        let error = evidence_error(&set, None, Some(revised), None);
+        assert_eq!(error.code, ReasonCode::HashMismatch);
+        assert_eq!(error.field_path, "/evidence/datasets/0/revision");
+    }
+
+    #[test]
+    fn one_renamed_dataset_fails_its_recorded_identifier() {
+        let set = retained();
+        let renamed = set
+            .metadata
+            .replace("\"evidence-cases\"", "\"other-cases\"");
+        let error = evidence_error(&set, None, Some(renamed), None);
+        assert_eq!(error.code, ReasonCode::HashMismatch);
+        assert_eq!(error.field_path, "/evidence/datasets/0/id");
+    }
+
+    #[test]
+    fn one_absent_split_fails_its_recorded_reference() {
+        let set = retained();
+        let mut edited = serde_json::from_str::<Value>(&set.profile).expect("parses");
+        edited["evidence"]["splits"][1]["id"] = json!("holdout-two");
+        let error = check_evidence(&resigned(&edited), &set.plan, &set.metadata, &set.records)
+            .expect_err("the absent split fails");
+        assert_eq!(error.code, ReasonCode::HashMismatch);
+        assert_eq!(error.field_path, "/evidence/splits/1/id");
+    }
+
+    #[test]
+    fn one_missing_recorded_split_fails_the_plan_selection() {
+        let set = retained();
+        // The plan measures the holdout split, so one profile that records
+        // the fitting split alone states an incomplete retained set.
+        let mut edited = serde_json::from_str::<Value>(&set.profile).expect("parses");
+        edited["evidence"]["splits"]
+            .as_array_mut()
+            .expect("an array")
+            .remove(1);
+        let error = check_evidence(&resigned(&edited), &set.plan, &set.metadata, &set.records)
+            .expect_err("the incomplete evidence fails");
+        assert_eq!(error.code, ReasonCode::MissingField);
+        assert_eq!(error.field_path, "/evidence/splits");
+    }
+
+    #[test]
+    fn one_profile_without_evidence_states_what_is_missing() {
+        let set = retained();
+        let error = check_evidence(
+            &serde_json::to_string(&exploration_artifact()).expect("serializes"),
+            &set.plan,
+            &set.metadata,
+            &set.records,
+        )
+        .expect_err("the exploration profile records no evidence");
+        assert_eq!(error.code, ReasonCode::MissingField);
+        assert_eq!(error.field_path, "/evidence");
     }
 
     #[test]

@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "name": "plan-review",
+  "when_uncertain": "review",
+  "inputs": {
+    "type": "object",
+    "required": [
+      "customer_requirements",
+      "capability_notes",
+      "proposed_plan"
+    ],
+    "properties": {
+      "customer_requirements": {
+        "type": "string",
+        "minLength": 1
+      },
+      "capability_notes": {
+        "type": "string",
+        "minLength": 1
+      },
+      "proposed_plan": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "checks": [
+    {
+      "id": "requirement-coverage",
+      "name": "The plan addresses every stated requirement",
+      "using": [
+        "customer_requirements",
+        "proposed_plan"
+      ],
+      "question": "Does the plan address every requirement the customer stated?",
+      "answers": {
+        "covered": "Every stated requirement maps to one step of the plan.",
+        "partial": "The plan maps some requirements, and the mapping of another stays open or ambiguous.",
+        "unaddressed": "One stated requirement maps to no step of the plan."
+      },
+      "accept": "covered",
+      "review": "partial"
+    },
+    {
+      "id": "capability-fit",
+      "name": "The plan uses documented capabilities",
+      "using": [
+        "capability_notes",
+        "proposed_plan"
+      ],
+      "question": "Does every capability and limit the plan names appear in the supplied capability documentation?",
+      "answers": {
+        "documented": "Every named capability, limit, and configuration value appears in the documentation.",
+        "absent": "The plan names one capability or value that the documentation does not offer.",
+        "unclear": "The documentation neither offers nor excludes one named capability or value."
+      },
+      "accept": "documented",
+      "review": "unclear"
+    },
+    {
+      "id": "unrequested-work",
+      "name": "The plan adds no unrequested work",
+      "using": [
+        "customer_requirements",
+        "proposed_plan"
+      ],
+      "question": "Does the plan contain work that no stated requirement asks for?",
+      "answers": {
+        "yes": "The plan contains one work item that no stated requirement asks for.",
+        "no": "Every work item of the plan serves one stated requirement."
+      },
+      "accept": "no"
+    },
+    {
+      "id": "delivery-readiness",
+      "name": "The plan is ready to deliver",
+      "using": [
+        "customer_requirements",
+        "capability_notes",
+        "proposed_plan"
+      ],
+      "question": "How ready is this plan for delivery as written?",
+      "scale": [
+        {
+          "sketch": "The plan lists steps with no owners, no sequence, and no verification."
+        },
+        {
+          "workable": "The plan sequences the work with owners and one verification step."
+        },
+        {
+          "complete": "The plan also covers migration, rollback, and acceptance with the customer."
+        }
+      ],
+      "accept": {
+        "at_least": "workable"
+      }
+    },
+    {
+      "id": "rollback-section",
+      "name": "The plan states one rollback step",
+      "using": [
+        "proposed_plan"
+      ],
+      "rule": {
+        "includes": "Rollback"
+      }
+    }
+  ]
+}

@@ -1,9 +1,15 @@
 # Profile-qualification model record
 
-Model: [Qualification.tla](Qualification.tla). Checked on 23 September 2026.
+Model: [Qualification.tla](Qualification.tla). Checked on 23 September 2026,
+and rechecked on 25 September 2026 by task T078 against the implemented
+boundary.
 
 Status: **complete**. The configuration finished with no error. All six
-recorded negative controls fail as expected.
+recorded negative controls fail as expected. Task T078 found the module
+applicable: every transition keeps one implementation owner, and no later
+implementation change altered one. See
+[docs/reports/formal-applicability.md](../../docs/reports/formal-applicability.md)
+for the verification record.
 
 This record follows the seven steps that [AGENTS.md](../../AGENTS.md)
 section 7 requires for each formal model. The model covers the profile
@@ -207,14 +213,41 @@ Each transition maps to one implementation obligation:
 | Transition | Owner | Implementation |
 | --- | --- | --- |
 | `PublishStarter` | Rust validates | T029: an exploration profile is generated `unvalidated` with reason `starter_policy`. |
-| `Qualify` | Rust computes | T049, implemented: `measuretwice_core::qualification` computes the status of one frozen candidate on independent cases and returns the candidate unchanged. T050 wires the boundary into the calibrate API. |
+| `Qualify` | Rust computes | T049, implemented: `measuretwice_core::qualification` computes the status of one frozen candidate on independent cases and returns the candidate unchanged. T050 wires the boundary into the calibrate API, and the revision workflow of T052 ends in the same step. |
 | `RunEvaluation` | Wrapper runs, Rust validates | T044: `evaluate` reports metrics and changes no qualification and no selection. It reuses the shadow admission of the implemented gate. |
 | `RunShadow` | Wrapper runs, Rust validates | T038: a shadow report records the outcome next to the baseline. No application action follows. |
 | `RunEnforcement` | Rust admits | T035, implemented: enforcement mode checks the complete gate before any evaluator runs. The wrapper passes the requested scope and the host-selected hash through `RunOptions.scope` and `RunOptions.selectedProfileHash`. |
 | `RefuseRun` | Rust refuses | T035 and T028, implemented: typed rejections before execution. See the reason mapping below. |
 | `HostSelect`, `HostDeselect` | Host | T035, implemented: the host selects one reviewed profile hash through code or configuration review and states it per enforcement run. The library never selects, and no accepted run leaves one sticky selection. |
 | `HostAuthorize`, `HostRevoke` | Host | T036 and T038: application authorization stays in the host application. No report or profile grants it. |
-| `ModelDrift` | Rust detects | T028: a changed model resolution reports `model_resolution_changed` and invalidates the qualification. |
+| `ModelDrift` | Rust detects | T028: a changed model resolution reports `model_resolution_changed` in every mode, because the live-binding comparison runs before the mode clauses. See the correspondence limit below. |
+
+Task T078 rechecked every row against the implemented boundary and added
+three notes:
+
+- The revision workflow of T052 maps to transitions this model already
+  holds. `check_revision` refuses one changed definition, evaluator,
+  adapter, translation, model resolution, preprocessing identity, or input
+  before any replay, which is the `RefuseRun` side of the compatibility
+  clauses. The replay runs no evaluator and edits no artifact, so no run
+  step exists and `RunsDoNotPromote` cannot fire. The revision ends in
+  `Qualify` for one new artifact. One validation split that an earlier
+  claim consumed is development data, so the qualification returns
+  `insufficient_evidence` whatever the replayed numbers say. The regression
+  test `one consumed holdout never validates one revised policy` in
+  `packages/measuretwice/test/revise.test.ts` holds that case.
+- The retained-evidence check of T051, `check_evidence`, verifies the
+  retained plan, dataset metadata, and dataset records of one selected
+  profile. It reads and compares, and it changes nothing, so it adds no
+  modeled transition. It narrows the omitted behavior named "artifact
+  integrity" without covering it: the check verifies content consistency,
+  not the truth of one forged dataset.
+- The drift demotion of `ModelDrift` has no state-writing counterpart. The
+  library never edits one host file, so one stale artifact keeps its
+  recorded `validated_for_scope` text while it cannot run. The implemented
+  barrier is the compatibility refusal, which fires in shadow and
+  evaluation as well as enforcement. The host sees one refusal, not one
+  rewritten profile.
 
 Refusal reasons map to the stable registry. Evaluation and shadow
 refuse with `definition_mismatch` or `model_resolution_changed`.
@@ -241,5 +274,8 @@ out:
 
 Update the module or this record when the implementation changes a
 modelled transition. Do not weaken an invariant to obtain a passing
-result. Task T078 rechecks the models against the implemented boundary
-and updates this applicability record.
+result. Task T078 rechecked the models against the implemented boundary,
+reran the configuration on 25 September 2026 with the recorded state
+counts, and updated this applicability record. The next audit repeats the
+command of [models/README.md](../README.md) and compares the counts with
+section 5.
