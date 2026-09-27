@@ -115,6 +115,39 @@ const mixed = defineChecks({
   ],
 });
 
+test("a profile value runs without files and retains the enforcement gate", async () => {
+  const registry = registerEvaluators(createLabelOnlyEvaluator({ answers: { "notice-question": true } }));
+  const profile = createExplorationProfile(mixed, registry);
+  const supplied = { ...structuredClone(profile) };
+  const reviewer = await load(mixed, {
+    profile: supplied,
+    evaluators: registry,
+    files: { async read() { throw new Error("A profile value must need no file read."); } },
+  });
+  expect(reviewer.profile).toEqual(profile);
+  expect(reviewer.profile).not.toBe(supplied);
+  expect(Object.isFrozen(reviewer.profile)).toBe(true);
+  supplied.id = "caller-mutated";
+  const input = { id: "one-case", input: { notice: "Notice", summary: "Summary" } };
+  const report = await reviewer.run(input);
+  expect(report.aggregate.outcome).toBe("pass");
+  expect(report.profile.id).toBe(profile.id);
+  await expect(reviewer.run(input, {
+    mode: "enforcement", scope: profile.qualification.scope!, selectedProfileHash: profile.content_hash,
+  })).rejects.toMatchObject({ code: "qualification_insufficient" });
+});
+
+test("profile values retain hash, definition, and evaluator validation", async () => {
+  const registry = registerEvaluators(createLabelOnlyEvaluator({ answers: { "notice-question": true } }));
+  const profile = createExplorationProfile(mixed, registry);
+  await expect(load(mixed, { profile: { ...profile, id: "edited" }, evaluators: registry }))
+    .rejects.toMatchObject({ code: "hash_mismatch" });
+  await expect(load(fixtureDefinition(CATEGORICAL_PATH), { profile, evaluators: registry }))
+    .rejects.toMatchObject({ code: "definition_mismatch" });
+  await expect(load(mixed, { profile, evaluators: registerEvaluators() }))
+    .rejects.toMatchObject({ code: "evaluator_mismatch" });
+});
+
 /** The validated question of one check of one artifact, for expected translations. */
 function questionOf(definition: Definition, checkId: string) {
   const info = nativeValidateDefinition(JSON.stringify(definition));

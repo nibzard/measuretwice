@@ -1,12 +1,18 @@
 # measuretwice — MVP specification
 
 Status: v0 interfaces implemented; pilot validation and release pending
-Date: 23 September 2026 · status updated 25 September 2026
+Date: 23 September 2026 · status updated 27 September 2026
 Target: v0 · Rust core · TypeScript + TypeBox authoring · Jev first · Apache-2.0
 
 ## 1. Purpose
 
-**Write what good looks like. Let AI help build and calibrate the checks. Understand the results before relying on them.**
+**Mission: Reduce the effort needed to define, inspect, and revise an AI judgment.**
+
+Ergonomics and clarity guide the product.
+Start with one requirement, contrasting cases, and readable reports.
+Introduce calibration when the user asks whether they can rely on the judgment.
+Preserve measurement integrity, explicit resource limits, and application authorization boundaries.
+The [mission record](docs/product/mission.md) defines the experience criteria and their verification.
 
 measuretwice is a library and small CLI for introducing semantic checks into applications. Developers author readable checks in TypeScript. A shared Rust core validates data and applies decision rules. Evaluators assess cases. A separately evaluated profile determines when an assessment is reliable enough to use. Reports make the outcome and its basis inspectable.
 
@@ -26,6 +32,9 @@ Cassandra is the first production-like test environment. Its concrete problem is
 
 ## 2. Principles
 
+- The first run needs no dataset, calibration plan, or saved profile file.
+- Accept generated profile values and saved JSON profiles through the same validation boundary.
+- Explain review conditions from recorded facts. Do not attribute a policy abstention to missing source evidence.
 - Put intent in the check file and numerical tuning in an inspectable profile.
 - A person should understand a check without knowing a model API or statistical terminology.
 - TypeScript is the v0 authoring interface. Python is the next SDK delivery. Both use one portable JSON contract.
@@ -217,6 +226,11 @@ The main API is `defineChecks`, `load`, `run`, `calibrate`, `revise`, `evaluate`
 Inspection belongs to the profile and report interfaces, which also verify retained evidence. It does not require an orchestration framework.
 `load` may also read an explicitly exported JSON definition. It does not load YAML or execute TypeScript source files.
 
+`load` accepts a profile value or a JSON profile path.
+It serializes and validates either input through the same core operations and keeps a frozen snapshot.
+A caller mutation cannot change the bound profile.
+Direct profile loading changes no qualification, scope, or enforcement selection rule.
+
 ### Responsibilities across the language boundary
 
 | Component | Owns | Does not own |
@@ -389,6 +403,10 @@ Reports include stable case/check IDs, definition/profile/input hashes, raw asse
 
 Default explanations use check criteria and the executed policy. Jev does not produce a bespoke textual rationale. Future generated explanations are labeled as such and cannot replace the measurements. Supplied source references are not presented as evaluator-selected support unless the evaluator actually returns validated references.
 
+Review explanations distinguish a declared review answer, policy abstention, and skipped execution.
+The next action directs the reader to the recorded condition.
+An unknown cause remains unknown. The renderer must not invent missing evidence or evaluator reasoning.
+
 ## 10. Evaluation, shadow runs, and comparisons
 
 JSONL cases contain stable IDs, inputs, reference per-check answers or scale levels, expected policy outcomes where labeled, optional overall outcomes, slice/group tags, and label provenance. Keep policy labels consistent with the check's acceptance semantics; conflicts require review. Ambiguous reference cases may be labeled review. Dataset metadata records intended population, sampling method, revision, and label guidelines.
@@ -532,6 +550,8 @@ Calibration is required for the complete MVP, but the exploration path should be
 13. TypeScript authoring preserves useful input inference and rejects unknown input names. Unsupported executable definitions fail explicitly.
 14. Native packages install and run without a Rust toolchain on every declared supported target.
 15. Rust contains the shared decision and statistical implementation. Wrapper tests verify the runtime behavior that Rust does not own.
+16. The README first-run command produces contrasting reports without profile storage or calibration artifacts.
+    Reports identify recorded review conditions and direct the reader to the relevant evidence, policy, or execution record.
 
 The usability test is to hand someone the check file and a report without an architecture lecture. They should understand the requirement, supplied evidence, outcome, and next step. The advanced view must let a developer trace that same outcome to exact measurements and an evaluated policy.
 

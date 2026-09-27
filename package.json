@@ -12,6 +12,7 @@
     "crates/measuretwice-node"
   ],
   "scripts": {
+    "example": "npm run build && node examples/first-check/run.mjs",
     "build": "npm run build:native && npm run build:ts",
     "build:native": "napi build --platform -p measuretwice-node --package-json-path crates/measuretwice-node/package.json && node scripts/copy-binding.mjs",
     "build:ts": "tsc -p packages/measuretwice",

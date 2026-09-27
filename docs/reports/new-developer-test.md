@@ -36,7 +36,7 @@ one human participant remains open, and no claim below states otherwise.
 The comprehension materials were the committed files of the public
 examples, plus one summary render and one detail render of one stored
 report through `renderRunReport`. The first-run section of
-[README.md](../../README.md#first-run-one-exploration-shadow-report) now
+[README.md](../../README.md#try-one-check) now
 prints both views of the same report, so the material reproduces with the
 documented commands.
 

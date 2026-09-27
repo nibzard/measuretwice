@@ -389,7 +389,7 @@ reviewer.definitionHash; // the definition-domain content hash
 
 **Inputs:** one definition, and one options object. The definition is the
 value of `defineChecks` as one trusted import, one definition artifact, or
-one explicit `.json` path. The options state one optional profile path, the
+one explicit `.json` path. The options state an optional profile value or JSON path, the
 evaluator registry that one bound profile refers to, and the boundaries that
 tests inject: `files`, `now`, `nextRunId`, and `setTimer`.
 
@@ -399,7 +399,8 @@ derived structural exact profile of one exact-only definition. It holds
 check; `run` then refuses.
 
 **Side effects:** the wrapper reads the stated paths through the injected
-file access. It writes nothing.
+file access. Profile values require no file read.
+It writes nothing. Both forms create a validated, frozen snapshot independent of caller mutation.
 
 **Validation order:** the core validates the definition, then, for one stated
 profile, verifies its stored self-hash, validates the complete profile
@@ -407,6 +408,16 @@ contract, and checks its compatibility with the definition in shadow mode.
 One bound profile that names evaluators is compared against the live
 registry: one unregistered reference, one changed adapter version, and one
 changed translation fail before any execution.
+
+For a first run, pass the generated value directly:
+
+```ts
+const profile = createExplorationProfile(definition, evaluators);
+const reviewer = await load(definition, { profile, evaluators });
+```
+
+This fragment assumes a validated `definition` and registered `evaluators`.
+Saved JSON profiles remain supported. Neither form changes qualification or enforcement gates.
 
 **Modes:** none. `load` checks compatibility in shadow mode. `run` repeats
 the check in enforcement mode with the additional gates.
@@ -681,7 +692,7 @@ that resolved to two versions during the measurements refuses with
 The retention rule: the profile records the evaluation-report references,
 and the host owns that storage. Keep one reviewed copy of the fitting and
 qualification reports beside the selected profile. The
-[first-run guide](../../README.md#from-exploration-to-reliance) records the
+[first-run guide](../../README.md#improve-the-check-before-relying-on-it) records the
 path from exploration to reliance.
 
 ## `revise`

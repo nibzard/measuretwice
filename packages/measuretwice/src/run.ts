@@ -316,8 +316,8 @@ export interface FileAccess {
 
 /** The options of `load`. */
 export interface LoadOptions {
-  /** One explicit path to a JSON profile file. Optional. */
-  readonly profile?: string;
+  /** A profile value or an explicit JSON profile path. Both receive the same validation. */
+  readonly profile?: Profile | string;
   /** The registered evaluators that one bound profile may refer to. Optional. */
   readonly evaluators?: EvaluatorRegistry;
   /** The file access that reads the stated paths. The default uses Node APIs. */
@@ -783,10 +783,10 @@ export function liveEvaluatorBindings(
  * Loads one definition and returns the reviewer that runs its cases.
  *
  * Pass the result of `defineChecks` as one trusted import, or one explicit
- * path to a JSON definition file. An optional `profile` path binds one JSON
- * profile file. Without one, an exact-only definition receives its derived
- * structural exact profile, which `reviewer.profile` exposes for host
- * persistence.
+ * path to a JSON definition file. Pass a profile value or its JSON file
+ * path. Both use the same validation and a frozen snapshot.
+ * Without a supplied profile, an exact-only definition receives its derived
+ * structural exact profile. `reviewer.profile` exposes it for host persistence.
  *
  * @throws {ValidationError} when one path names no JSON file, when one
  * artifact fails the core validation or its self-hash, or when one supplied
@@ -831,8 +831,13 @@ export async function load(
   let profile: Profile | undefined;
   let profileText: string | undefined;
   if (options.profile !== undefined) {
-    requireJsonPath(options.profile, "/profile");
-    const text = await readText(files, options.profile);
+    let text: string;
+    if (typeof options.profile === "string") {
+      requireJsonPath(options.profile, "/profile");
+      text = await readText(files, options.profile);
+    } else {
+      text = jsonText(options.profile, "/profile");
+    }
     // The core is the one validation authority: the stored self-hash first,
     // then the complete profile contract, then the compatibility of the
     // binding. Every failure crosses before any execution.

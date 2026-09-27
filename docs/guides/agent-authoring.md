@@ -75,6 +75,10 @@ Then apply three rules:
 - Name the evidence. The `using` list of each check names the inputs it may
   read, and one evaluator request carries nothing more.
 
+Before proposing labels, follow [the evidence preparation guide](evidence.md).
+Keep candidate statements complete and supply evidence for every material claim.
+The [first-check example](../../examples/first-check/README.md) runs without dataset files or profile storage.
+
 The definition states meaning alone. It names no evaluator, no model, and
 no numerical cutoff. One generated profile owns those, and the owner
 inspects it separately.
@@ -276,7 +280,7 @@ reviews it.
 Run the checks over your cases before you hand them over. One exploration
 profile with one offline test evaluator shows the complete report path with
 no credential and no spend. Read
-[the first run](../../README.md#first-run-one-exploration-shadow-report)
+[the first run](../../README.md#try-one-check)
 for that pattern, and the
 [test evaluators](../reference/api.md#test-evaluators) reference for the
 control shape that one scripted step takes. Then list every disagreement

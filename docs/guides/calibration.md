@@ -56,7 +56,7 @@ qualification needs fresh independent evidence.
 You start from an exploration profile. It works for evaluation and shadow
 runs, and it refuses enforcement. Its starter thresholds carry no
 qualification evidence. Read
-[From exploration to reliance](../../README.md#from-exploration-to-reliance)
+[From exploration to reliance](../../README.md#improve-the-check-before-relying-on-it)
 for the entry path.
 
 Calibration replaces the starter thresholds with measured ones. The

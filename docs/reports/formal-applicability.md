@@ -78,6 +78,13 @@ Changes since the record was last updated by task T034, reviewed one by one:
 Status: applicable. The module is unchanged since the record was last
 updated, and every transition still has one implementation owner.
 
+The ergonomics update lets `load` accept a profile value as well as a JSON path.
+Both forms use the same core hash, contract, and binding checks before execution.
+The wrapper retains a frozen copy; caller mutation changes no run binding.
+Tests cover edited hashes, incompatible definitions, missing evaluators, and unvalidated enforcement refusal for profile values.
+This stateless input change adds no model transition or authorization state.
+The model's scope and limits remain unchanged; this record claims no new model-check result.
+
 | Transition | Implementation today | Result |
 | --- | --- | --- |
 | `PublishStarter` | `createExplorationProfile` in `packages/measuretwice/src/exploration.ts` records one `unvalidated` artifact with reason `starter_policy`. | Matches. |
