@@ -1,0 +1,11 @@
+The guide still imposed artifact preparation before exploration after
+the README had removed it. Align the guide with the implemented library
+workflow and retain the separate recorded-data calibration requirements.
+
+Source inspection also showed that revision rows follow declared split
+groups, then file positions within each group. The example's observed
+file order is conditional, not a general contract. Correct the prose and
+public comments without changing execution.
+
+Checks: documentation links, reference snippets, project naming, Rust
+formatting, and diff whitespace pass. No behavioral implementation changed.
