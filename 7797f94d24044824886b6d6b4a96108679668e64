@@ -1,0 +1,31 @@
+# Context
+
+## Background
+This commit answers review findings on the v0 qualification rules.
+The findings: a grouped interval cannot justify a case-level goal,
+unreviewed references cannot support a claim, the plan translation
+hash was checked too late and per binding only, and revisions lost
+the stored runs a later revision needs.
+
+## Why This Way
+- The grouped Wilson interval bounds the share of groups with an
+  event. With unequal groups, a tiny group-level upper bound can
+  hide a large case-level error rate, so the comparison itself is
+  unsound. The new incompatible_unit evidence refuses it instead
+  of tightening limits.
+- Human review is the acceptance gate for references, so it gates
+  qualification, not exploration. Provisional labels still measure
+  and report why they cannot qualify.
+- The translation hash now covers every question check of the plan
+  and is checked before any evaluator call, because one changed
+  question invalidates all stored assessments.
+- replayRuns rides on the revision result so a later revision can
+  replay after JSON storage and reload.
+
+## Verification
+npm run check: 319 Rust unit tests, 37 contract tests, 568
+TypeScript tests. npm run verify:install passed on Linux.
+
+## Related
+- Follow-up work: NEXT_STEPS.md (real-evidence pilot, partial
+  calibration retention, macOS CI check).
