@@ -1,0 +1,15 @@
+The fixture replay test exposed a clarity failure under the default two
+attempts: retries_exhausted lost the supplied next action. Existing API
+and operations prose promised the last reason, while the historical
+conformance record documented the earlier message loss.
+
+Preserve only the last sanitized cause, after the existing retry summary
+and code. Apply the report-owned message bound and mark truncation with
+an ellipsis. No raw inputs or new fields enter the record. Message text
+is outside the execution model; transitions and reason codes do not change.
+The historical record remains intact with a dated current-behavior link.
+
+Tests failed before implementation for cause retention and Unicode bounds.
+The full check passes: 320 Rust unit tests, 37 contracts, and 581 TypeScript
+and repository tests. The documentation link check also passes after the
+verification record update. Human usability remains unmeasured.
