@@ -48,6 +48,19 @@ test("unknown fixture inputs fail explicitly without exposing source text", asyn
   expect(JSON.stringify(report)).not.toContain("Private");
 });
 
+test("exhausted retries retain the fixture failure and next action", async () => {
+  const evaluators = registerEvaluators(createFixtureEvaluator({ fixtures: [] }));
+  const profile = createExplorationProfile(checks, evaluators, {
+    execution: { max_attempts: 2, backoff_ms: 0 },
+  });
+  const reviewer = await load(checks, { profile, evaluators });
+  const report = await reviewer.run({ id: "unknown", input: { text: "Private candidate", context: "Private source" } });
+  expect(report.checks[0]).toMatchObject({ outcome: "error", attempts: 2, reason: { code: "retries_exhausted" } });
+  expect(report.checks[0]?.reason?.message).toContain("No fixture matches check supported");
+  expect(report.checks[0]?.reason?.message).toContain("Add a fixture or correct the case.");
+  expect(JSON.stringify(report)).not.toContain("Private");
+});
+
 test("fixture entries are snapshots and repeated answers do not share mutable data", async () => {
   const fixture = { check: "supported", inputs: { text: "Good", context: "Source" }, answer: answer("supported") };
   const evaluator = createFixtureEvaluator({ fixtures: [fixture] });

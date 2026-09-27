@@ -121,8 +121,9 @@ Bound your inputs in the definition schema, because that refusal names the
 field and costs no attempt. One adapter rejection inside one run is one
 execution failure: with one attempt configured, the record states
 `evaluator_error` and the message that names `oversized_input`; with retries
-configured, the final record states `retries_exhausted` and names the last
-code. Set `max_attempts` to 1 when you prefer the direct code.
+configured, the final record states `retries_exhausted` and keeps the last code and sanitized cause.
+The combined message stays within 500 Unicode characters. A final ellipsis marks truncation.
+Set `max_attempts` to 1 when you prefer the direct code.
 
 ## 2. Retries, backoff, and cancellation
 

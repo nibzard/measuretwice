@@ -87,6 +87,19 @@ Formatting, lint, builds, type checks, and documentation checks passed in that r
 The last example simplification also passed its 13 tests separately.
 The formal applicability record explains why fixed lookup changes no critical state transition.
 
+## Retry message follow-up
+
+Exhausted retries previously kept the last failure code but discarded its sanitized cause.
+Reports now retain that cause and any supplied next action within the existing 500-character message limit.
+Truncated messages end with an ellipsis. Unicode characters remain intact.
+Stable reason codes, attempt counts, and state transitions remain unchanged.
+
+The Rust cause and truncation tests failed before the fix.
+Public run tests now verify the last timeout cause and the missing-fixture action after two attempts.
+The full check passed with 320 Rust unit tests, 37 contract tests, and 581 TypeScript and repository tests.
+Formatting, lint, builds, type checks, privacy checks, and documentation checks passed in that run.
+The historical conformance record keeps its original observation and links to the updated behavior.
+
 ## What remains unverified
 
 No new human usability study has run.

@@ -124,6 +124,11 @@ content hash.
 
 ## Observations
 
+The retry-message observation below describes the implementation verified on this report's original date.
+The 27 September 2026 follow-up now retains the last sanitized cause after exhausted retries.
+The code remains `retries_exhausted`; the combined message marks truncation within its 500-character limit.
+See [the operations guide](../guides/operations.md#1-the-bounds-of-one-run) for current behavior.
+
 - After more than one failed attempt, the run record states
   `retries_exhausted` and one summary message, so the operational code of
   the last failure stays named in the message but its own message text

@@ -35,6 +35,7 @@ Cassandra is the first production-like test environment. Its concrete problem is
 - The first run needs no dataset, calibration plan, or saved profile file.
 - Accept generated profile values and saved JSON profiles through the same validation boundary.
 - Explain review conditions from recorded facts. Do not attribute a policy abstention to missing source evidence.
+- Keep the last sanitized cause when retries are exhausted. Mark truncation within the report's message limit.
 - Put intent in the check file and numerical tuning in an inspectable profile.
 - A person should understand a check without knowing a model API or statistical terminology.
 - TypeScript is the v0 authoring interface. Python is the next SDK delivery. Both use one portable JSON contract.

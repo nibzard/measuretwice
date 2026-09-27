@@ -241,3 +241,15 @@ The adapter creates no timer or detached work. Its `calls` array records observa
 This stateless lookup needs tests rather than a new state model.
 `packages/measuretwice/test/fixture-evaluator.test.ts` covers repetition, concurrent requests, missing inputs, snapshots, and entry cancellation.
 No new model-check result is claimed.
+
+## Exhausted retry message applicability
+
+The retry follow-up changes the recorded message after the attempt budget is spent.
+The transition still records an error with `retries_exhausted` and the same attempt count.
+It changes no queue, binding, cancellation, terminal state, or authorization rule.
+
+`Execution.tla` represents reason codes. It does not represent message text.
+Its `AttemptFail` transition therefore needs no change for this formatting update.
+Rust regression tests check the retained cause and the 500-character bound, including non-ASCII text.
+TypeScript tests check the cause and next action through the public run interface.
+No new model-check result is claimed.

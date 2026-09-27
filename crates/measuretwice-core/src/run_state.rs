@@ -59,6 +59,7 @@ use crate::error::{ReasonCode, ValidationError};
 use crate::report::{
     ArtifactReference, Baseline, CaseReference, CheckRecord, Completion, CompletionStatus, Outcome,
     ProfileReference, RecordKind, ReportBuilder, RunMode, RunReport, SanitizedReason,
+    MAX_REASON_MESSAGE_CHARACTERS,
 };
 use crate::rule::AppliedRule;
 
@@ -505,10 +506,16 @@ impl RunState {
             return Ok(AttemptResolution::RetryQueued { attempts });
         }
         let (final_code, final_message) = if attempts > 1 {
-            (
-                ReasonCode::RetriesExhausted,
-                format!("All {attempts} attempts failed. The last failure reported {code}."),
-            )
+            let mut summary =
+                format!("All {attempts} attempts failed. Last failure: {code}. {message}");
+            if summary.chars().count() > MAX_REASON_MESSAGE_CHARACTERS {
+                summary = summary
+                    .chars()
+                    .take(MAX_REASON_MESSAGE_CHARACTERS - 1)
+                    .chain(std::iter::once('…'))
+                    .collect();
+            }
+            (ReasonCode::RetriesExhausted, summary)
         } else {
             (code, message.to_owned())
         };
@@ -1285,8 +1292,44 @@ mod tests {
         assert_eq!(reason.code, ReasonCode::RetriesExhausted);
         assert_eq!(
             reason.message,
-            "All 2 attempts failed. The last failure reported evaluator_error."
+            "All 2 attempts failed. Last failure: evaluator_error. The adapter reported a network failure."
         );
+    }
+
+    #[test]
+    fn exhausted_retry_messages_keep_the_bound_without_splitting_unicode() {
+        let (case, profile) = binding();
+        for message in ["x".repeat(500), "🚦".repeat(500)] {
+            let mut run = state(2);
+            run.start_attempt("notice-question", &case, &profile)
+                .expect("the first attempt starts");
+            run.fail_attempt(
+                "notice-question",
+                ReasonCode::EvaluatorError,
+                "First failure.",
+            )
+            .expect("the first failure queues a retry");
+            run.start_attempt("notice-question", &case, &profile)
+                .expect("the retry starts");
+            run.fail_attempt("notice-question", ReasonCode::EvaluatorError, &message)
+                .expect("the last failure resolves within the reason bound");
+            run.start_attempt("summary-length", &case, &profile)
+                .expect("the rule starts");
+            run.accept_result("summary-length", rule_record(Outcome::Pass))
+                .expect("the rule result is accepted");
+            run.complete(None).expect("the run completes");
+            let report = run.report().expect("the terminal report exists");
+            let reason = report.checks()[1]
+                .reason
+                .as_ref()
+                .expect("the error has a reason");
+            assert_eq!(reason.code, ReasonCode::RetriesExhausted);
+            assert_eq!(reason.message.chars().count(), 500);
+            assert!(reason
+                .message
+                .starts_with("All 2 attempts failed. Last failure: evaluator_error. "));
+            assert!(reason.message.ends_with('…'));
+        }
     }
 
     #[test]

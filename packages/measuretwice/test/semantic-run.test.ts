@@ -550,6 +550,8 @@ test("exhausted attempts record retries_exhausted with the last cause", async ()
     reason: { code: "retries_exhausted" },
   });
   expect(report.checks[0]?.reason?.message).toContain("evaluator_timeout");
+  expect(report.checks[0]?.reason?.message).toContain("The second attempt timed out.");
+  expect(report.checks[0]?.reason?.message).not.toContain("The first attempt timed out.");
   // The siblings still assessed, and the aggregate keeps the error visible
   // beside their passes.
   expect(report.checks[1]?.outcome).toBe("pass");

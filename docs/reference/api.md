@@ -51,7 +51,7 @@ artifact is plain JSON data.
 | Active check executions | `profile.execution.max_active` | Work waits in the queue. |
 | Pending check executions | `profile.execution.max_pending` | New work records one `skipped` outcome with `queue_full`. |
 | Total deadline per case | `profile.execution.deadline_ms` | `deadline_exceeded`. Completed components are kept. |
-| Attempts per check | `profile.execution.max_attempts` | `retries_exhausted` with the last reason. |
+| Attempts per check | `profile.execution.max_attempts` | `retries_exhausted` with the last code and sanitized cause, within 500 characters. |
 | Backoff between attempts | `profile.execution.backoff_ms`, doubling | Bounded delay inside the total deadline. |
 | Jev evidence budget | 32,000 UTF-8 bytes of state plus question | `oversized_input` before the provider call. Nothing is truncated. |
 | Dataset record line | 8,388,608 bytes | `oversized_input`. The line is refused. |

@@ -369,6 +369,9 @@ pub fn aggregate(outcomes: &[Outcome]) -> Result<AggregateOutcome, ValidationErr
     }
 }
 
+/// The message bound of a sanitized reason, counted in Unicode scalar values.
+pub(crate) const MAX_REASON_MESSAGE_CHARACTERS: usize = 500;
+
 /// One sanitized reason, as `common.schema.json` defines it.
 ///
 /// The code comes from the stable registry. The message is a short cause
@@ -394,7 +397,7 @@ impl SanitizedReason {
     /// message holds no character or more than 500 characters.
     pub fn new(code: ReasonCode, message: impl Into<String>) -> Result<Self, ValidationError> {
         let message = message.into();
-        if message.is_empty() || message.chars().count() > 500 {
+        if message.is_empty() || message.chars().count() > MAX_REASON_MESSAGE_CHARACTERS {
             return Err(ValidationError::invalid_field_type(
                 "/reason/message",
                 "The reason message must hold 1 to 500 characters.",
@@ -426,7 +429,7 @@ impl SanitizedReason {
     /// Returns a [`ValidationError`] with `invalid_field_type` when the
     /// message or the pointer breaks its length bound.
     pub fn validate(&self, base: &str) -> Result<(), ValidationError> {
-        if self.message.is_empty() || self.message.chars().count() > 500 {
+        if self.message.is_empty() || self.message.chars().count() > MAX_REASON_MESSAGE_CHARACTERS {
             return Err(ValidationError::invalid_field_type(
                 format!("{base}/message"),
                 "The reason message must hold 1 to 500 characters.",
@@ -1814,7 +1817,7 @@ pub(crate) fn parse_reason(value: &Value, base: &str) -> Result<SanitizedReason,
     let message = parse_bounded_string(
         map.get("message"),
         &format!("{base}/message"),
-        500,
+        MAX_REASON_MESSAGE_CHARACTERS,
         "The reason message",
     )?
     .ok_or_else(|| ValidationError::missing(format!("{base}/message")))?;
