@@ -166,7 +166,7 @@ function record(id: string, group: string, reference: string): string {
     },
     expected: {
       checks: {
-        "message-supported": { answer: reference },
+        "message-supported": { answer: reference, outcome: reference === "supported" ? "pass" : "fail" },
         "message-length": { outcome: "pass" },
       },
       outcome: reference === "supported" ? "pass" : "fail",
@@ -495,6 +495,20 @@ test("one revision over one fresh split reuses the fitting assessments", async (
   expect(qualification?.split).toBe("holdout");
   expect(qualification?.case_count).toBe(3);
   expect(revision.runs.map((run) => run.case.id)).toEqual(["fresh-1", "fresh-2", "fresh-3"]);
+});
+
+test("a revision remains usable after another revision and JSON reload", async () => {
+  const setup = await bound({ revision: "2026-09-24.2", validationGroup: "conversation-c" });
+  const first = await setup.options();
+  for (const prior of [first, JSON.parse(JSON.stringify(first)) as Revision]) {
+    const second = await revise(notes, {
+      ...setup.base,
+      prior,
+      evaluators: registerEvaluators(createScriptedEvaluator({ steps: [] })),
+    });
+    expect(second.reuse.stored_fitting_cases).toBe(4);
+    expect(second.qualification?.status).toBe("insufficient_evidence");
+  }
 });
 
 // ---------------------------------------------------------------------------

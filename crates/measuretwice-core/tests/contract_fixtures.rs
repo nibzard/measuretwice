@@ -3930,6 +3930,9 @@ fn qualification_rows_pin_status_reasons_and_goal_rows() {
                 qualification::GoalEvidence::UnsupportedSampling => {
                     assert_eq!(stated["evidence"], json!("unsupported_sampling"), "{id}");
                 }
+                qualification::GoalEvidence::IncompatibleUnit => {
+                    assert_eq!(stated["evidence"], json!("incompatible_unit"), "{id}");
+                }
                 qualification::GoalEvidence::BelowMinimum {
                     stated: floor,
                     measured,
@@ -3989,14 +3992,12 @@ fn qualification_rows_pin_status_reasons_and_goal_rows() {
             .map(|set| serde_json::to_value(set.counts).expect("serializes"));
         assert_eq!(counts, Some(facts["counts"].clone()), "{id}");
     }
-    // The group covers the three statuses one frozen validation computes.
-    for status in [
-        "validated_for_scope",
-        "criteria_not_met",
-        "insufficient_evidence",
-    ] {
-        assert!(covered.contains(status), "the group covers no {status} row");
-    }
+    // Every reference in this fixture is an unreviewed model proposal.
+    // No plan in this fixture can establish a qualification claim.
+    assert_eq!(
+        covered,
+        BTreeSet::from(["insufficient_evidence".to_owned()])
+    );
 }
 
 /// Every invalid row of the qualification group refuses with its stated

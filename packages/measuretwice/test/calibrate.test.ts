@@ -20,6 +20,7 @@ import { test, expect } from "vitest";
 import Type from "typebox";
 import {
   calibrate,
+  createExplorationProfile,
   defineChecks,
   load,
   registerEvaluators,
@@ -177,7 +178,7 @@ function record(id: string, group: string, reference: string): string {
     },
     expected: {
       checks: {
-        "message-supported": { answer: reference },
+        "message-supported": { answer: reference, outcome: reference === "supported" ? "pass" : "fail" },
         "message-length": { outcome: "pass" },
       },
       outcome: reference === "supported" ? "pass" : "fail",
@@ -449,6 +450,14 @@ test("one calibration qualifies the frozen candidate and returns the artifact", 
     (metric) => metric.scope === "all_checks" && metric.metric === "error_among_accepted",
   );
   expect(errorMetric).toEqual({ scope: "all_checks", metric: "error_among_accepted", numerator: 1, denominator: 2, value: 0.5 });
+  const errorInterval = profile.performance?.intervals?.find(
+    (interval) => interval.scope === "all_checks" && interval.metric === "error_among_accepted",
+  );
+  expect(errorInterval).toMatchObject({
+    sampling: "grouped_cases",
+    draws: 1,
+    event_draws: 1,
+  });
   expect(profile.performance?.sample_counts).toEqual({ accepted_cases: 2 });
   // The stated plan minimums cross beside the measured counts, so one
   // reviewer reads the limit with the number.
@@ -830,6 +839,41 @@ test("the binding checks of the plan cross before one case is measured", async (
   expect(absentFailure.code).toBe("invalid_field_type");
   expect(absentFailure.fieldPath).toBe("/plan/datasets/validation/split");
   expect(absent.calls.length).toBe(0);
+});
+
+test("a wrong translation bundle hash refuses before any evaluator call", async () => {
+  const bound = await bind({
+    planOverrides: {
+      evaluator: {
+        evaluator: "scripted-test",
+        adapter_version: "0.1.0",
+        translation_hash: "a".repeat(64),
+      },
+    },
+  });
+  const failure = await failureOf(() => bound.options());
+  expect(failure.fieldPath).toBe("/evaluator/translation_hash");
+  expect(failure.code).toBe("translation_mismatch");
+  expect(bound.calls).toHaveLength(0);
+});
+
+test("one matching translation hash permits the measured calibration", async () => {
+  const expected = createExplorationProfile(
+    notes,
+    registerEvaluators(createScriptedEvaluator({ steps: [] })),
+  ).bindings[0]!.translation.content_hash;
+  const bound = await bind({
+    planOverrides: {
+      evaluator: {
+        evaluator: "scripted-test",
+        adapter_version: "0.1.0",
+        translation_hash: expected,
+      },
+    },
+  });
+  const result = await bound.options();
+  expect(result.qualification?.evaluator.translation_hash).toBe(expected);
+  expect(bound.calls.length).toBeGreaterThan(0);
 });
 
 test("one calibration states its complete procedure", async () => {

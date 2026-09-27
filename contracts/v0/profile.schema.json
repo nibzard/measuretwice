@@ -290,6 +290,9 @@
               "confidence_level": {
                 "enum": [0.9, 0.95, 0.99]
               },
+              "sampling": {"enum": ["independent_cases", "grouped_cases"]},
+              "draws": {"type": "integer", "minimum": 0},
+              "event_draws": {"type": "integer", "minimum": 0},
               "lower": {"type": "number", "minimum": 0, "maximum": 1},
               "upper": {"type": "number", "minimum": 0, "maximum": 1}
             }

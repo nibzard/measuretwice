@@ -1064,7 +1064,7 @@ test("shadow runs, evaluations, and calibrations change no host action and no se
   const reference = (answer: string, outcome: string): string =>
     JSON.stringify({
       checks: {
-        "message-supported": { answer },
+        "message-supported": { answer, outcome },
         "message-length": { outcome: "pass" },
       },
       outcome,

@@ -148,7 +148,7 @@ function record(spec: CaseSpec): string {
   if (spec.reference !== undefined) {
     value.expected = {
       checks: {
-        "message-supported": { answer: spec.reference },
+        "message-supported": { answer: spec.reference, outcome: spec.reference === "supported" ? "pass" : "fail" },
         "message-length": { outcome: "pass" },
       },
       outcome: spec.reference === "supported" ? "pass" : "fail",
@@ -674,6 +674,7 @@ test("zero observed errors on one small validation bound no zero risk", async ()
   }));
   const bound = await bind({
     world: { fitting, validation },
+    sampling: "independent_cases",
     fittingSteps: fitting.map(() => execution(0.95, 0.03, 0.02)),
     validationSteps: validation.map(() => execution(0.95, 0.03, 0.02)),
     plan: {

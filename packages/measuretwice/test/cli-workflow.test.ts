@@ -36,6 +36,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -83,7 +84,7 @@ function projectFile(relative: string, text: string): string {
 
 /** Creates the empty convention tree of the isolated project. */
 function createProject(): void {
-  project = mkdtempSync(path.join(tmpdir(), "measuretwice-workflow-"));
+  project = realpathSync(mkdtempSync(path.join(tmpdir(), "measuretwice-workflow-")));
   convention = path.join(project, ".measuretwice");
   definitionsDir = path.join(convention, "definitions");
   casesDir = path.join(convention, "cases");

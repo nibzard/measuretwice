@@ -163,13 +163,13 @@ One complete plan of the intervention example:
       "metric": "error_among_accepted",
       "comparison": "at_most",
       "limit": 0.05,
-      "basis": "upper_confidence_bound"
+      "basis": "observed_value"
     },
     {
       "metric": "false_rejection_rate",
       "comparison": "at_most",
       "limit": 0.1,
-      "basis": "upper_confidence_bound"
+      "basis": "observed_value"
     }
   ],
   "objective": {
@@ -214,10 +214,9 @@ One complete plan of the intervention example:
 
 Read the plan fields this way:
 
-- The two constraints are the goals that one candidate must satisfy. The
-  `upper_confidence_bound` basis compares the upper bound of the interval
-  with the limit, not the observed rate alone. Zero observed errors are not
-  proof of zero risk.
+- The two constraints compare observed case rates with the limits. The
+  grouped interval describes groups, so it cannot establish an upper bound
+  for these case rates. Observed zero errors do not establish zero risk.
 - The objective states what fitting optimizes after every constraint
   holds. One plan minimizes `review_rate` or maximizes
   `automatic_coverage`. The opposite direction refuses, because it works
@@ -356,13 +355,12 @@ The qualification states what the evidence established. It selects nothing.
 | Status | Meaning | Your next step |
 | --- | --- | --- |
 | `unvalidated` | Starter thresholds. No qualification evidence. | Explore and shadow only. |
-| `insufficient_evidence` | One denominator or one stated minimum was not met. | Collect reviewed cases for the weak denominator or slice. |
+| `insufficient_evidence` | A minimum, label rule, or interval basis was not met. | Read the reason and correct the stated evidence. |
 | `criteria_not_met` | No feasible candidate existed, or one goal failed on its basis. | Change the checks, the evaluator, or the goals through one new plan. |
 | `validated_for_scope` | Every goal held on its declared basis, for the declared scope alone. | Review the evidence and decide whether to select the profile. |
 
-`insufficient_evidence` is one result, not one failure of the procedure. One
-small denominator states no bound worth citing, so the procedure states the
-counts instead.
+`insufficient_evidence` is one result, not one failure of the procedure.
+The report states the counts and the reason for each unmet requirement.
 
 Read the numbers beside their denominators:
 
@@ -401,6 +399,16 @@ Three rules keep the arithmetic honest:
   computed from its own cases. One empty required slice states no interval
   that implies observed cases. One slice below its stated minimum yields
   insufficient evidence.
+
+An important slice meets its requirement when its sample counts meet the
+declared floors. It does not satisfy a separate quality goal. Inspect the
+slice error rates before you select a profile.
+
+The fitting and validation references must record human review and have no
+unresolved conflicts before qualification. Provisional labels remain useful
+for exploration. A grouped upper bound cannot satisfy one case-level goal:
+the goal states `incompatible_unit`, and qualification states
+`insufficient_evidence`.
 
 Two limits deserve their own words. Zero observed errors is not proof of
 zero risk, because the upper bound stays above zero at every denominator.
@@ -633,6 +641,8 @@ One changed question, criterion, schema, projection, preprocessing,
 evaluator, adapter, translation, model, or input refuses before one
 assessment is replayed. The revision records one new profile with its own
 content hash. The prior artifact stays unchanged, and nothing is promoted.
+Store `revision.replayRuns` with the revision. Pass the stored revision as
+`prior` for another revision. `revision.runs` contains only new measurements.
 
 ## 8. Select one profile hash for enforcement
 

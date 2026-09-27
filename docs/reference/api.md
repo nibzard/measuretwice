@@ -722,7 +722,9 @@ The optional fields match `calibrate`.
 content hash; the prior artifact stays unchanged. `fitting` replays the
 stored fitting assessments under the revised plan. `qualification` is the
 frozen validation, or `undefined` when no feasible candidate exists. `runs`
-holds one run report per freshly measured case. `reuse` states the verified
+holds one run report per freshly measured case. `replayRuns` holds the fitting
+runs and the validation runs for the next revision, including after JSON
+storage and reload. `reuse` states the verified
 identity of everything the revision replayed. `comparison` states the
 concrete cases that the revised policy changes against the prior policy.
 

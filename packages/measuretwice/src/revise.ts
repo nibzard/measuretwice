@@ -95,6 +95,7 @@ import {
   MEASUREMENT_PROFILE_PATH,
   RETENTION_STATEMENT,
   candidateProfile,
+  checkPlanTranslation,
   measureSplit,
   noCandidateLimitations,
   noCandidateMethod,
@@ -271,8 +272,8 @@ export interface RevisionComparison {
  * reports.
  */
 export interface ReviseOptions {
-  /** The stored calibration this revision revises. */
-  readonly prior: Calibration;
+  /** The stored calibration or revision this revision revises. */
+  readonly prior: Calibration | Revision;
   /** One explicit path to the JSON revision plan. */
   readonly plan: string;
   /** One explicit path to the JSON dataset metadata file. */
@@ -342,6 +343,8 @@ export interface Revision {
   readonly qualification: QualificationReport | undefined;
   /** One run report per freshly measured case, in measurement order. Empty when the revision measured nothing. */
   readonly runs: readonly RunReport[];
+  /** The prior fitting runs and all retained validation runs for another revision. */
+  readonly replayRuns: readonly RunReport[];
   /** The verified reuse of the stored assessments. */
   readonly reuse: RevisionReuse;
   /** The comparison of the prior policy and the revised policy. */
@@ -454,12 +457,13 @@ export async function revise(
   // the core verifies every identity before one assessment is replayed.
   // The stored assessments cross back as data, so the wrapper hand-builds
   // no replay input.
+  const priorRuns = "replayRuns" in options.prior ? options.prior.replayRuns : options.prior.runs;
   const reuseDocument = parseReuseDocument(
     throughCore(() =>
       nativeCheckRevision(
         jsonText(options.prior.profile, "/prior/profile"),
         jsonText(options.prior.fitting, "/prior/fitting"),
-        options.prior.runs.map((run) => jsonText(run, "/prior/runs")),
+        priorRuns.map((run) => jsonText(run, "/prior/runs")),
         planText,
         definitionText,
         JSON.stringify(registered),
@@ -544,6 +548,7 @@ export async function revise(
         bindings,
         ...(options.execution === undefined ? {} : { execution: options.execution }),
       });
+      checkPlanTranslation(plan, measurement);
       const reviewer = await load(artifact, {
         profile: MEASUREMENT_PROFILE_PATH,
         evaluators: options.evaluators,
@@ -621,6 +626,14 @@ export async function revise(
     files,
     options: naming,
   };
+  const fittingIds = new Set(Object.keys(reuseDocument.fitting_assessments as Record<string, unknown>));
+  const validationIds = new Set(Object.keys((reuseDocument.validation_assessments ?? {}) as Record<string, unknown>));
+  const replayRuns = Object.freeze([
+    ...priorRuns.filter((run) => fittingIds.has(run.case.id)),
+    ...(runs.length > 0
+      ? runs
+      : priorRuns.filter((run) => validationIds.has(run.case.id))),
+  ]);
   const standing: string[] = [fitting.statement, reuse.statement, comparison.statement];
   if (fitting.selected === null) {
     const value: Revision = {
@@ -634,6 +647,7 @@ export async function revise(
       fitting,
       qualification: undefined,
       runs: Object.freeze([...runs]),
+      replayRuns,
       reuse,
       comparison,
       // The no-candidate list opens with the fitting statement, which the
@@ -676,6 +690,7 @@ export async function revise(
     fitting,
     qualification: qualificationReport,
     runs: Object.freeze([...runs]),
+    replayRuns,
     reuse,
     comparison,
     limitations: Object.freeze(standing),

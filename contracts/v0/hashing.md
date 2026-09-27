@@ -130,7 +130,7 @@ is undefined and never published.
 | --- | --- | --- | --- |
 | Definition | `definition` | The complete validated definition artifact, one JSON value. | `profile.definition`, `plan.definition`, run and evaluation report `definition` |
 | Input | `input` | The case `input` object alone. Not the case identifier, tags, labels, or expected outcomes. | Run report `case.input_hash`, evaluation report per-case `input_hash` |
-| Translation | `translation` | One complete translated question value for one check, as the adapter contract defines it. For a whole definition, the array of translated question values ordered by check identifier. | Profile `bindings[].translation.content_hash`, `plan.evaluator.translation_hash` |
+| Translation | `translation` | One complete translated question value for one check. A plan with one question check hashes that value. A plan with several question checks hashes the array of translated question values ordered by check identifier. | Profile `bindings[].translation.content_hash`, `plan.evaluator.translation_hash` |
 | Profile | `profile` | The complete profile artifact with its own `content_hash` field removed. | `profile.content_hash` |
 | Plan | `plan` | The complete calibration plan with its own `content_hash` field removed. | `plan.content_hash`, profile `evidence.plan.content_hash` |
 | Dataset | `dataset` | The complete validated case records as one array, ordered by case identifier. Not the metadata file. | `dataset.content_hash`, profile `evidence.datasets[].content_hash` |

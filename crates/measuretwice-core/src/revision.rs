@@ -474,27 +474,11 @@ pub fn check_revision(
     let mut validation_assessments: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
     let mut earlier_validation: usize = 0;
     let mut resolved_models: Vec<String> = Vec::new();
-    let mut measurement: Option<(String, String)> = None;
+    let mut fitting_measurement: Option<(String, String)> = None;
+    let mut validation_measurement: Option<(String, String)> = None;
     for (index, text) in prior_runs.iter().enumerate() {
         let run = report::parse_run_report_str(text).map_err(|error| at_run(error, index))?;
         let base = format!("/prior/runs/{index}");
-        let bound = (run.profile().id.clone(), run.profile().content_hash.clone());
-        match &measurement {
-            None => measurement = Some(bound),
-            Some(stated) if *stated != bound => {
-                return Err(ValidationError::new(
-                    ReasonCode::HashMismatch,
-                    format!("{base}/profile/content_hash"),
-                    format!(
-                        "The stored run {} binds the measurement profile {}, but the stated runs measured under {}. One calibration measures through one measurement profile, so the stated runs mix two calibrations.",
-                        fragment(run.run_id()),
-                        fragment(&bound.0),
-                        fragment(&stated.0)
-                    ),
-                ));
-            }
-            _ => {}
-        }
         if run.definition().content_hash != definition_hash {
             return Err(ValidationError::new(
                 ReasonCode::DefinitionMismatch,
@@ -508,6 +492,28 @@ pub fn check_revision(
         let validation_record = validation_records
             .iter()
             .find(|record| record.id == *run.case().id);
+        let measurement = if fitting_record.is_some() {
+            &mut fitting_measurement
+        } else {
+            &mut validation_measurement
+        };
+        let bound = (run.profile().id.clone(), run.profile().content_hash.clone());
+        match measurement {
+            None => *measurement = Some(bound),
+            Some(stated) if *stated != bound => {
+                return Err(ValidationError::new(
+                    ReasonCode::HashMismatch,
+                    format!("{base}/profile/content_hash"),
+                    format!(
+                        "The stored run {} binds the measurement profile {}, but its split used {}. Runs of one split must share one measurement profile.",
+                        fragment(run.run_id()),
+                        fragment(&bound.0),
+                        fragment(&stated.0)
+                    ),
+                ));
+            }
+            _ => {}
+        }
         let record = match (fitting_record, validation_record) {
             (Some(record), _) | (_, Some(record)) => *record,
             (None, None) => {
@@ -1064,6 +1070,42 @@ fn check_plan_matches_bindings(
     prior: &ValidatedProfile,
 ) -> Result<(), ValidationError> {
     let configuration = plan.evaluator();
+    if let Some(plan_hash) = &configuration.translation_hash {
+        let actual = if prior.bindings().len() == 1 {
+            prior.bindings()[0].translation_hash.clone()
+        } else {
+            let mut translated: Vec<_> = prior.as_artifact()["bindings"]
+                .as_array()
+                .expect("the validated profile holds bindings")
+                .iter()
+                .map(|entry| {
+                    (
+                        entry["check"]
+                            .as_str()
+                            .expect("the validated binding names a check"),
+                        entry["translation"]["question"].clone(),
+                    )
+                })
+                .collect();
+            translated.sort_by(|left, right| left.0.cmp(right.0));
+            hashing::content_hash(
+                hashing::Domain::Translation,
+                &Value::Array(
+                    translated
+                        .into_iter()
+                        .map(|(_, question)| question)
+                        .collect(),
+                ),
+            )
+        };
+        if *plan_hash != actual {
+            return Err(ValidationError::new(
+                ReasonCode::TranslationMismatch,
+                "/plan/evaluator/translation_hash",
+                "The revision plan names a translation hash that differs from the stored translated questions. One changed translation needs new measurements.",
+            ));
+        }
+    }
     for binding in prior.bindings() {
         let base = format!("/plan/evaluator (the check {})", binding.check);
         if configuration.evaluator != binding.evaluator
@@ -1080,19 +1122,6 @@ fn check_plan_matches_bindings(
                     fragment(&binding.adapter_version)
                 ),
             ));
-        }
-        if let Some(plan_hash) = &configuration.translation_hash {
-            if *plan_hash != binding.translation_hash {
-                return Err(ValidationError::new(
-                    ReasonCode::TranslationMismatch,
-                    format!("{base}/translation"),
-                    format!(
-                        "The revision plan freezes the translated question {}, but the stored assessments measured the translated question {}. One changed translation needs new measurements.",
-                        fragment(plan_hash),
-                        fragment(&binding.translation_hash)
-                    ),
-                ));
-            }
         }
         let requested = binding.model.as_ref().map(|model| model.requested.as_str());
         if configuration.model_requested.as_deref() != requested {

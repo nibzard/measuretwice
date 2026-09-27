@@ -86,7 +86,7 @@ use crate::report::{self, AppliedPolicy, CompletionStatus, Outcome};
 use crate::splits::{self, SplitIdentity};
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// The named qualification method: the frozen validation of one selected
 /// candidate on independent cases.
@@ -122,6 +122,8 @@ pub enum GoalEvidence {
     /// The declared sampling model does not hold for the denominator, so
     /// the interval method states no bound for the goal.
     UnsupportedSampling,
+    /// The interval bounds groups, but the plan limits a rate of cases.
+    IncompatibleUnit,
 }
 
 /// One declared goal as the frozen validation measured it.
@@ -610,8 +612,47 @@ pub fn qualify_candidate(
         .map(|slice| measure_slice(slice, &slice_confusions, &slice_intervals))
         .collect();
 
-    let (status, reasons) =
-        decide_status(&evidence, &goals, &sample_requirements, &slices, &confusion);
+    let selected_records: Vec<_> = fitting_split
+        .records()
+        .iter()
+        .chain(validation_split.records())
+        .collect();
+    let unreviewed = selected_records
+        .iter()
+        .filter(|record| record.expected.is_some() && !record.label.reviewed)
+        .count();
+    let selected_ids: BTreeSet<_> = selected_records.iter().map(|record| &record.id).collect();
+    let conflicts = dataset
+        .label_review()
+        .findings()
+        .iter()
+        .filter(|finding| selected_ids.contains(&finding.case_id))
+        .count();
+    let mut reference_reasons = Vec::new();
+    if unreviewed > 0 {
+        reference_reasons.push(QualificationReason {
+            code: ReasonCode::InsufficientEvidence,
+            statement: format!(
+                "The fitting and validation splits contain {unreviewed} unreviewed reference labels. Human review is required before these labels can support qualification."
+            ),
+        });
+    }
+    if conflicts > 0 {
+        reference_reasons.push(QualificationReason {
+            code: ReasonCode::InsufficientEvidence,
+            statement: format!(
+                "The fitting and validation splits contain {conflicts} unresolved reference conflicts. Resolve them before qualification."
+            ),
+        });
+    }
+    let (status, reasons) = decide_status(
+        &evidence,
+        &goals,
+        &sample_requirements,
+        &slices,
+        &confusion,
+        &reference_reasons,
+    );
 
     let identity = validation_split.identity();
     Ok(QualificationReport {
@@ -816,6 +857,10 @@ fn measure_goal(
         }
     } else if interval.is_some_and(|row| row.is_unsupported_sampling()) {
         GoalEvidence::UnsupportedSampling
+    } else if constraint.basis == LimitBasis::UpperConfidenceBound
+        && interval.is_some_and(|row| row.sampling == SamplingModel::GroupedCases.as_str())
+    {
+        GoalEvidence::IncompatibleUnit
     } else {
         GoalEvidence::Measured
     };
@@ -942,8 +987,9 @@ fn decide_status(
     requirements: &[SampleRequirement],
     slices: &[SliceResult],
     confusion: &ConfusionMatrix,
+    reference_reasons: &[QualificationReason],
 ) -> (Qualification, Vec<QualificationReason>) {
-    let mut reasons = Vec::new();
+    let mut reasons = reference_reasons.to_vec();
     if !evidence.is_independent() {
         reasons.push(QualificationReason {
             code: ReasonCode::InsufficientEvidence,
@@ -973,6 +1019,13 @@ fn decide_status(
                 code: ReasonCode::UnsupportedSampling,
                 statement: format!(
                     "The declared sampling model holds not for {} on the validation split: the groups correlate cases of its denominator, so no bound computes.",
+                    fragment(goal.metric.as_str())
+                ),
+            }),
+            GoalEvidence::IncompatibleUnit => reasons.push(QualificationReason {
+                code: ReasonCode::UnsupportedSampling,
+                statement: format!(
+                    "The grouped interval for {} bounds the share of groups with an event, but the plan limits the share of cases. No case-level bound supports this goal.",
                     fragment(goal.metric.as_str())
                 ),
             }),
@@ -1147,7 +1200,7 @@ mod tests {
                 "conversation": "The new export worker stays in the EU region.",
                 "proposed_message": "The export worker serves EU customers."
             },
-            "label": {"author_type": "model", "origin": "synthetic", "reviewed": false}
+            "label": {"author_type": "human", "reviewed": true, "reviewer": "reviewer-1"}
         });
         if let Some(label) = label {
             value["expected"] = json!({
@@ -1539,6 +1592,71 @@ mod tests {
     }
 
     #[test]
+    fn provisional_or_conflicting_references_cannot_qualify() {
+        let plan = plan_artifact(
+            "reference-eligibility-plan",
+            error_goal(0.5, "observed_value"),
+            json!({"accepted_cases": 2}),
+            json!([]),
+        );
+        let metadata = metadata(
+            "representative_sample",
+            &[
+                "conversation-b",
+                "conversation-c",
+                "conversation-d",
+                "conversation-e",
+            ],
+        );
+        let mut validation = clean_validation();
+        validation[0]["label"] = json!({
+            "author_type": "model", "origin": "synthetic", "reviewed": false
+        });
+        let report = calibrated(
+            &plan,
+            &metadata,
+            &shared_records(&validation),
+            &independent(),
+            &clean_assessments(),
+        )
+        .expect("provisional labels remain useful for measurement");
+        assert_eq!(report.status, Qualification::InsufficientEvidence);
+        assert!(report
+            .reasons
+            .iter()
+            .any(|reason| reason.statement.contains("unreviewed")));
+
+        validation[0]["label"] = json!({
+            "author_type": "model", "origin": "synthetic",
+            "reviewed": true, "reviewer": "reviewer-1"
+        });
+        let reviewed = calibrated(
+            &plan,
+            &metadata,
+            &shared_records(&validation),
+            &independent(),
+            &clean_assessments(),
+        )
+        .expect("human review makes the reference eligible");
+        assert_eq!(reviewed.status, Qualification::ValidatedForScope);
+
+        validation[0]["expected"]["checks"]["message-supported"]["outcome"] = json!("fail");
+        let conflicting = calibrated(
+            &plan,
+            &metadata,
+            &shared_records(&validation),
+            &independent(),
+            &clean_assessments(),
+        )
+        .expect("the conflict remains visible for exploration");
+        assert_eq!(conflicting.status, Qualification::InsufficientEvidence);
+        assert!(conflicting
+            .reasons
+            .iter()
+            .any(|reason| reason.statement.contains("conflict")));
+    }
+
+    #[test]
     fn the_upper_bound_basis_qualifies_zero_observed_errors() {
         // Two constraints of one goal set: the observed value meets a tight
         // limit easily, and the upper bound of the same counts decides.
@@ -1847,13 +1965,57 @@ mod tests {
         };
         let report = calibrated(&plan, &metadata, &records, &grouped, &assessments)
             .unwrap_or_else(|error| panic!("{error}"));
-        assert_eq!(report.status, Qualification::ValidatedForScope);
+        assert_eq!(report.status, Qualification::InsufficientEvidence);
         let goal = &report.goals[0];
-        assert_eq!(goal.evidence, GoalEvidence::Measured);
+        assert_eq!(goal.evidence, GoalEvidence::IncompatibleUnit);
         assert_eq!(goal.draws, 2);
-        assert!(goal.upper_bound.is_some());
-        assert!(goal.met);
+        assert_eq!(goal.upper_bound, None);
+        assert!(!goal.met);
         assert_eq!(report.sampling, "grouped_cases");
+    }
+
+    #[test]
+    fn unequal_groups_cannot_make_a_case_error_goal_pass() {
+        let mut confusion = ConfusionMatrix::default();
+        for _ in 0..99 {
+            confusion.record(Some(Outcome::Pass), Outcome::Pass);
+        }
+        for _ in 0..1000 {
+            confusion.record(Some(Outcome::Fail), Outcome::Pass);
+        }
+        let (lower, upper) =
+            intervals::wilson_interval(1, 100, intervals::ConfidenceLevel::NinetyFive)
+                .expect("one hundred groups");
+        assert!(upper < 0.06);
+        let interval = Interval {
+            scope: metrics::ALL_CHECKS.to_owned(),
+            metric: MetricName::ErrorAmongAccepted,
+            method: intervals::METHOD,
+            confidence_level: 0.95,
+            sampling: SamplingModel::GroupedCases.as_str(),
+            numerator: 1000,
+            denominator: 1099,
+            draws: 100,
+            event_draws: 1,
+            lower: Some(lower),
+            upper: Some(upper),
+            reason: None,
+        };
+        let goal = measure_goal(
+            &PlanConstraint {
+                metric: MetricName::ErrorAmongAccepted,
+                comparison: Comparison::AtMost,
+                limit: 0.06,
+                basis: LimitBasis::UpperConfidenceBound,
+            },
+            &confusion,
+            Some(&interval),
+            None,
+        );
+        assert!(goal.observed.expect("the rate exists") > 0.9);
+        assert_eq!(goal.evidence, GoalEvidence::IncompatibleUnit);
+        assert_eq!(goal.upper_bound, None);
+        assert!(!goal.met);
     }
 
     #[test]

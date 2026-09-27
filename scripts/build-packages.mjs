@@ -39,7 +39,6 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { copyBindingIntoPackage } from "./copy-binding.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const crateDir = path.join(repoRoot, "crates", "measuretwice-node");
@@ -195,7 +194,6 @@ async function main() {
     copyFileSync(path.join(repoRoot, "LICENSE"), path.join(targetDir, "LICENSE"));
   }
 
-  copyBindingIntoPackage();
   const schemaCount = copySchemas();
   stagePublicPackage(targets, publicManifest.version);
 

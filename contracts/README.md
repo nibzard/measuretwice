@@ -95,6 +95,10 @@ holds exactly one case record. An empty line is invalid.
 - `label` records who produced the reference and whether a human reviewed it.
   A coding agent counts as a model author. Unreviewed model suggestions are not
   human judgments.
+- Fitting and validation references need recorded human review before they can
+  support `validated_for_scope`. Unresolved reference conflicts also prevent
+  qualification. Exploration still measures these references and reports why
+  they cannot support qualification.
 - `label.history` keeps earlier label records when a correction replaces a
   reference. Corrections keep the original provenance.
 - A record without `group` forms its own group. One group appears in one split
@@ -231,6 +235,11 @@ proof of zero risk: the upper bound stays above zero at every denominator.
   least one counted event, and the row keeps the case counts beside it. One
   sampling word outside the two models rejects with `unsupported_sampling` at
   `/sampling`.
+- Plan metrics count cases. A grouped interval counts groups. Qualification
+  never compares that grouped upper bound with a case-level limit. The goal
+  states `incompatible_unit`, and the profile states `insufficient_evidence`.
+  Generated profile intervals keep `sampling`, `draws`, and `event_draws` so
+  you can see the unit behind each bound.
 - Evidence comes before arithmetic. One metric without one denominator, and one
   denominator below the declared minimum of draws, states
   `insufficient_evidence` with its counts, because a small sample states no

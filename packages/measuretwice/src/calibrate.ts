@@ -80,6 +80,7 @@ import {
   nativeCheckCalibrationBinding,
   nativeCheckCalibrationDatasets,
   nativeComputeSelfHash,
+  nativeContentHash,
   nativeFitPolicy,
   nativeQualifyCandidate,
   nativeValidateDefinition,
@@ -232,7 +233,8 @@ export type GoalEvidence =
   | { readonly evidence: "measured" }
   | { readonly evidence: "zero_denominator" }
   | { readonly evidence: "below_minimum"; readonly stated: number; readonly measured: number }
-  | { readonly evidence: "unsupported_sampling" };
+  | { readonly evidence: "unsupported_sampling" }
+  | { readonly evidence: "incompatible_unit" };
 
 /** One declared goal of the plan, as one procedure measured it. */
 export interface CalibrationGoal {
@@ -650,6 +652,7 @@ export async function calibrate(
     bindings,
     ...(options.execution === undefined ? {} : { execution: options.execution }),
   });
+  checkPlanTranslation(plan, measurement);
   const reviewer = await load(artifact, {
     profile: MEASUREMENT_PROFILE_PATH,
     evaluators: options.evaluators,
@@ -1190,15 +1193,33 @@ export function labelProvenance(labels: LabelReview, datasetId: string): string 
   );
 }
 
-/**
- * Reads the recorded performance of one qualification report.
- *
- * Every rate of every scope, the bounds of the complete check set, the
- * measured sample counts with the stated minimums of the plan, and the
- * statement of every important slice cross unchanged, so one profile states
- * what the validation measured and the limits that the plan declared, and
- * nothing else.
- */
+/** Checks the plan's translation identity before one evaluator call. */
+export function checkPlanTranslation(plan: NativePlanInfo, measurement: Profile): void {
+  if (plan.translationHash === undefined || plan.translationHash === null) {
+    return;
+  }
+  const bindings = [...measurement.bindings].sort((left, right) =>
+    left.check < right.check ? -1 : left.check > right.check ? 1 : 0,
+  );
+  const actual =
+    bindings.length === 1
+      ? bindings[0]!.translation.content_hash
+      : throughCore(() =>
+          nativeContentHash(
+            "translation",
+            JSON.stringify(bindings.map((binding) => binding.translation.question)),
+          ),
+        );
+  if (actual !== plan.translationHash) {
+    throw new ValidationError(
+      "translation_mismatch",
+      "The calibration plan names a translation hash that differs from the registered evaluator's translated questions. Update the plan or restore the stated translation before measurement.",
+      "/evaluator/translation_hash",
+    );
+  }
+}
+
+/** Reads the recorded performance of one qualification report. */
 export function performanceOf(report: QualificationReport): ProfilePerformance {
   const metrics = report.scopes.flatMap((set) =>
     set.rates.map((rate) => ({
@@ -1216,6 +1237,9 @@ export function performanceOf(report: QualificationReport): ProfilePerformance {
       metric: interval.metric,
       method: interval.method,
       confidence_level: interval.confidence_level,
+      sampling: interval.sampling as "independent_cases" | "grouped_cases",
+      draws: interval.draws,
+      event_draws: interval.event_draws,
       lower: interval.lower as number,
       upper: interval.upper as number,
     }));

@@ -926,6 +926,9 @@ fn validate_performance(root: &Map<String, Value>) -> Result<(), ValidationError
                     "metric",
                     "method",
                     "confidence_level",
+                    "sampling",
+                    "draws",
+                    "event_draws",
                     "lower",
                     "upper",
                 ],
@@ -942,6 +945,28 @@ fn validate_performance(root: &Map<String, Value>) -> Result<(), ValidationError
                 }
             }
             required_bounded_string(interval, "method", &format!("{base}/method"), 128)?;
+            if let Some(value) = interval.get("sampling") {
+                if !matches!(value.as_str(), Some("independent_cases" | "grouped_cases")) {
+                    return Err(ValidationError::invalid_field_type(
+                        format!("{base}/sampling"),
+                        "The interval sampling must name independent_cases or grouped_cases.",
+                    ));
+                }
+            }
+            let draws = if interval.contains_key("draws") {
+                Some(required_whole(interval, "draws", &base, 0, None)?)
+            } else {
+                None
+            };
+            if interval.contains_key("event_draws") {
+                let events = required_whole(interval, "event_draws", &base, 0, None)?;
+                if draws.is_some_and(|count| events > count) {
+                    return Err(ValidationError::invalid_field_type(
+                        format!("{base}/event_draws"),
+                        "The event draws cannot exceed the interval draws.",
+                    ));
+                }
+            }
             match interval.get("confidence_level") {
                 Some(value) => {
                     let level = as_finite(value).ok_or_else(|| {

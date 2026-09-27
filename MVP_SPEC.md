@@ -1,7 +1,7 @@
 # measuretwice — MVP specification
 
-Status: Implemented for v0 in this repository; deferred items state their own status  
-Date: 23 September 2026 · status updated 25 September 2026  
+Status: v0 interfaces implemented; pilot validation and release pending
+Date: 23 September 2026 · status updated 25 September 2026
 Target: v0 · Rust core · TypeScript + TypeBox authoring · Jev first · Apache-2.0
 
 ## 1. Purpose
@@ -308,6 +308,8 @@ Use tested Rust statistical routines for uncertainty intervals. Validate them ag
 
 Split related examples by conversation/source group to avoid leakage. Distinguish targeted synthetic challenge sets from representative samples. Active selection of hard cases helps improve checks but changes sampling; it cannot silently become an estimate of production prevalence. Treat correlated cases through an explicit grouping/sampling strategy or report that the uncertainty assumptions are unsupported.
 
+The published goals limit rates of cases. A grouped Wilson interval bounds the share of groups with an event. It cannot satisfy a case-level upper-bound goal. Qualification reports `insufficient_evidence` until a suitable case-level method is available. The fitting and validation references must record human review and have no unresolved conflicts before they can support qualification. Provisional references remain useful for exploration.
+
 Keep policy fitting and final validation separate. Repeated tuning after inspecting a holdout turns it into development data; use fresh validation evidence for a new claim. Report practical error bounds and review burden first. Statistical significance is an optional analysis with a declared method, not a marketing label or an automatic release gate.
 
 Numerical policy tuning is not synonymous with probability calibration. v0 measures decision performance and selects an abstention policy. It must not claim that a provider's 0.9 output means 90% correctness without a separately evaluated probability-calibration procedure.
@@ -336,6 +338,8 @@ The retained-evidence check verifies the artifacts behind one selected profile. 
 Changing question wording, criteria, schema, input projection, preprocessing, model, prompt translation, evaluator code, or relevant tool behavior invalidates the prior qualification. A model alias resolving to a different model is detected and cannot silently reuse an enforcement profile. Policy-only changes can reuse compatible stored assessments for fitting, but still require independent validation before promotion. Scope changes require new evidence; hashes alone cannot detect population drift.
 
 `revise` implements the policy-only path. It refuses one changed definition, evaluator, adapter, translation, model, preprocessing, or input before any replay. It replays the stored assessments under one revised candidate from one revision plan, records one new profile, and edits no stored one. The validation split that the prior claim consumed is development data, so one new qualification claim needs fresh independent evidence.
+
+Each revision returns `replayRuns` with the fitting runs and the validation runs behind that revision. A later revision uses these runs after storage and reload. `runs` contains only the new measurements of the current revision.
 
 Inspection has two levels:
 

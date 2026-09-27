@@ -138,7 +138,8 @@ through the library in your application.
 measuretwice calibrate <definition> --plan <path> [--out <path>] [--format text|json]
 ```
 
-Checks one calibration plan and states the evaluator boundary.
+Validates one calibration plan and states the evaluator boundary. This CLI
+command does not run calibration. Use the SDK for measurement and fitting.
 
 The command reads the definition and the plan through the bounded readers,
 then crosses the same core boundary that one calibration crosses first: the

@@ -393,6 +393,12 @@ export interface ProfileInterval {
   readonly method: string;
   /** Confidence level of the interval. */
   readonly confidence_level: number;
+  /** The unit used for interval draws. */
+  readonly sampling?: "independent_cases" | "grouped_cases";
+  /** The number of draws: cases or groups. */
+  readonly draws?: number;
+  /** Draws that contain an event. */
+  readonly event_draws?: number;
   /** Lower bound. */
   readonly lower: number;
   /** Upper bound. */

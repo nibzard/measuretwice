@@ -162,6 +162,13 @@ test("the public manifest ships the built package without private content", () =
   expect(existsSync(path.join(publicDir, "README.md"))).toBe(true);
 });
 
+test("package assembly preserves the loaded native binding", () => {
+  const binary = path.join(publicDir, `index.${hostAbi()}.node`);
+  const before = statSync(binary, { bigint: true }).mtimeNs;
+  assemblePackages();
+  expect(statSync(binary, { bigint: true }).mtimeNs).toBe(before);
+});
+
 test("the assembled platform packages carry the matrix and the license", () => {
   assemblePackages();
   const crateManifest = readJson(path.join(crateDir, "package.json"));

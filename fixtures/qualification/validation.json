@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Frozen validation fixtures of task T049. The document holds one shared definition file name, one dataset whose fitting split carries seven designed cases and whose validation split carries four labeled cases in four groups, one second dataset whose validation split holds four accepted cases in two groups, the stored assessment of every fitting case, the stored assessment of every validation case, one default validation request of independent cases, per-plan request and assessment overrides, and nine valid calibration plans. The facts object states the computed result of every plan through the Rust qualification boundary: the status word, the reason codes in decision order, the evidence class of the validation split, the frozen candidate, the goal rows with their counts and bounds, the sample requirements, the important slices, and the predicted outcome counts of the complete check set. The designed cases pin one validated scope on the observed value, one validated scope on the upper confidence bound, one unmet goal with the frozen candidate unchanged, one plan minimum above the validation counts, one important slice below its floor, one reused holdout, one correlated-group validation under independent cases, the same validation under grouped cases, and one plan whose fitting search finds no feasible candidate. The invalid array holds rows that the qualification boundary must refuse with the stated reason code and field path: validation selections of the wrong purpose, of an absent split, and of another dataset, fitting results of another plan or with one patched identity or one candidate outside the grid, and stored assessments that break the assessment contract.",
+  "description": "Frozen validation fixtures of task T049. The document holds one shared definition file name, one dataset whose fitting split carries seven designed cases and whose validation split carries four labeled cases in four groups, one second dataset whose validation split holds four accepted cases in two groups, the stored assessment of every fitting case, the stored assessment of every validation case, one default validation request of independent cases, per-plan request and assessment overrides, and nine valid calibration plans. The facts object states the computed result of every plan through the Rust qualification boundary: the status word, the reason codes in decision order, the evidence class of the validation split, the frozen candidate, the goal rows with their counts and bounds, the sample requirements, the important slices, and the predicted outcome counts of the complete check set. The designed cases pin one numerically met observed-value goal and one numerically met upper-bound goal that provisional labels cannot qualify, one unmet goal with the frozen candidate unchanged, one plan minimum above the validation counts, one important slice below its floor, one reused holdout, one correlated-group validation under independent cases, the same validation under grouped cases, whose group bound cannot qualify one case-level goal, and one plan whose fitting search finds no feasible candidate. The invalid array holds rows that the qualification boundary must refuse with the stated reason code and field path: validation selections of the wrong purpose, of an absent split, and of another dataset, fitting results of another plan or with one patched identity or one candidate outside the grid, and stored assessments that break the assessment contract.",
   "definition": "categorical-question.json",
   "definition_hash": "df72d2ffd134917d75707f481138c28074636e61ac00cc7132aef7fde499d1e7",
   "dataset": {
@@ -947,7 +947,7 @@
         }
       ],
       "reasons": [
-        "measured_evidence"
+        "insufficient_evidence"
       ],
       "sample_requirements": [
         {
@@ -958,7 +958,7 @@
         }
       ],
       "slices": [],
-      "status": "validated_for_scope"
+      "status": "insufficient_evidence"
     },
     "grouped-plan": {
       "applied": {
@@ -984,16 +984,17 @@
         {
           "denominator": 4,
           "draws": 2,
-          "evidence": "measured",
-          "met": true,
+          "evidence": "incompatible_unit",
+          "met": false,
           "metric": "error_among_accepted",
           "numerator": 0,
           "observed": 0.0,
-          "upper_bound": 0.657619772493347
+          "upper_bound": null
         }
       ],
       "reasons": [
-        "measured_evidence"
+        "insufficient_evidence",
+        "unsupported_sampling"
       ],
       "sample_requirements": [
         {
@@ -1004,7 +1005,7 @@
         }
       ],
       "slices": [],
-      "status": "validated_for_scope"
+      "status": "insufficient_evidence"
     },
     "reused-plan": {
       "applied": {
@@ -1039,6 +1040,7 @@
         }
       ],
       "reasons": [
+        "insufficient_evidence",
         "insufficient_evidence"
       ],
       "sample_requirements": [
@@ -1085,6 +1087,7 @@
         }
       ],
       "reasons": [
+        "insufficient_evidence",
         "insufficient_evidence"
       ],
       "sample_requirements": [
@@ -1147,6 +1150,7 @@
       ],
       "reasons": [
         "insufficient_evidence",
+        "insufficient_evidence",
         "insufficient_evidence"
       ],
       "sample_requirements": [
@@ -1193,7 +1197,7 @@
         }
       ],
       "reasons": [
-        "criteria_not_met"
+        "insufficient_evidence"
       ],
       "sample_requirements": [
         {
@@ -1204,7 +1208,7 @@
         }
       ],
       "slices": [],
-      "status": "criteria_not_met"
+      "status": "insufficient_evidence"
     },
     "unsupported-plan": {
       "applied": {
@@ -1239,6 +1243,7 @@
         }
       ],
       "reasons": [
+        "insufficient_evidence",
         "unsupported_sampling"
       ],
       "sample_requirements": [
@@ -1285,7 +1290,7 @@
         }
       ],
       "reasons": [
-        "measured_evidence"
+        "insufficient_evidence"
       ],
       "sample_requirements": [
         {
@@ -1296,7 +1301,7 @@
         }
       ],
       "slices": [],
-      "status": "validated_for_scope"
+      "status": "insufficient_evidence"
     }
   },
   "invalid": [
