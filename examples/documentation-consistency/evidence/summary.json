@@ -1,0 +1,36 @@
+[
+  {
+    "revision": 1,
+    "cases": 6,
+    "matches": 3,
+    "policy_outcomes": {
+      "pass": 0,
+      "fail": 2,
+      "review": 4
+    },
+    "execution_ms_sum": 1798,
+    "input_tokens": 3662,
+    "output_tokens": 294,
+    "resolved_models": [
+      "jev-1.13.0"
+    ],
+    "operational_errors": 0
+  },
+  {
+    "revision": 2,
+    "cases": 6,
+    "matches": 4,
+    "policy_outcomes": {
+      "pass": 1,
+      "fail": 2,
+      "review": 3
+    },
+    "execution_ms_sum": 1926,
+    "input_tokens": 3533,
+    "output_tokens": 288,
+    "resolved_models": [
+      "jev-1.13.0"
+    ],
+    "operational_errors": 0
+  }
+]

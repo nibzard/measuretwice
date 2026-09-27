@@ -1,0 +1,404 @@
+[
+  {
+    "schema_version": 1,
+    "run_id": "run-3738baff-f5ef-41c2-a639-74e7a53a8f04",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-consistency",
+      "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+    },
+    "profile": {
+      "id": "documentation-consistency-exploration",
+      "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+    },
+    "case": {
+      "id": "unicode-original",
+      "input_hash": "0080bccacd937b5108093f8a409644e916330e91beb77f0972771fc73c635385"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {
+          "confidence": 0.5,
+          "distribution": [
+            {
+              "mass": 0.03,
+              "name": "supported"
+            },
+            {
+              "mass": 0.31,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.66,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "insufficient"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.1.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 1,
+          "execution_ms": 395
+        },
+        "usage": {
+          "input_tokens": 914,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "review"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-27T09:10:41.883Z"
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-6324cd69-3a25-4bdd-a9c5-ee3db6738ab1",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-consistency",
+      "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+    },
+    "profile": {
+      "id": "documentation-consistency-exploration",
+      "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+    },
+    "case": {
+      "id": "cutoffs-original",
+      "input_hash": "578613d6b22f68b36aa6f2896e1c7506ce7dc890c60be02397987d593db77f1c"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {
+          "confidence": 0.67,
+          "distribution": [
+            {
+              "mass": 0.08,
+              "name": "supported"
+            },
+            {
+              "mass": 0.15,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.77,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "insufficient"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.1.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 1,
+          "execution_ms": 251
+        },
+        "usage": {
+          "input_tokens": 522,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "review"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-27T09:10:42.137Z"
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-22bac65f-740e-48c2-887c-60e153c91f61",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-consistency",
+      "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+    },
+    "profile": {
+      "id": "documentation-consistency-exploration",
+      "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+    },
+    "case": {
+      "id": "shadow-original",
+      "input_hash": "7c74328d4556720d5a5ed10dc3357ff47f504353c60d4237f4bffb443804b165"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {
+          "confidence": 0.49,
+          "distribution": [
+            {
+              "mass": 0.26,
+              "name": "supported"
+            },
+            {
+              "mass": 0.08,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.66,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "insufficient"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.1.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 280
+        },
+        "usage": {
+          "input_tokens": 473,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "review"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-27T09:10:42.419Z"
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-fe602a75-3af8-4920-ac18-62ba29be2eed",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-consistency",
+      "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+    },
+    "profile": {
+      "id": "documentation-consistency-exploration",
+      "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+    },
+    "case": {
+      "id": "unicode-mutated",
+      "input_hash": "c3d0ab9ce7ca055220dcb20348946708832858567aca22d3561c1db5869b0bf5"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "fail",
+        "assessment": {
+          "confidence": 0.96,
+          "distribution": [
+            {
+              "mass": 0,
+              "name": "supported"
+            },
+            {
+              "mass": 0.97,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.03,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "contradicted"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.1.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 246
+        },
+        "usage": {
+          "input_tokens": 784,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "fail"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-27T09:10:42.666Z"
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-0582cfca-436a-461a-a29c-22d51858f04c",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-consistency",
+      "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+    },
+    "profile": {
+      "id": "documentation-consistency-exploration",
+      "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+    },
+    "case": {
+      "id": "cutoffs-mutated",
+      "input_hash": "8ef7755392ab812afaeccd23e27a7c1bd7814cb474a2a26d020edef00466d14a"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "fail",
+        "assessment": {
+          "confidence": 1,
+          "distribution": [
+            {
+              "mass": 0,
+              "name": "supported"
+            },
+            {
+              "mass": 1,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "contradicted"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.1.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 300
+        },
+        "usage": {
+          "input_tokens": 495,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "fail"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-27T09:10:42.968Z"
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-3d71a4a6-1e0d-45a5-b461-903340d4e15a",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-consistency",
+      "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+    },
+    "profile": {
+      "id": "documentation-consistency-exploration",
+      "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+    },
+    "case": {
+      "id": "default-evidence-omitted",
+      "input_hash": "b40366cbf7b80fb94b9602e14212c975feae01dece87dbc339bca9c70b139502"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {
+          "confidence": 0.87,
+          "distribution": [
+            {
+              "mass": 0,
+              "name": "supported"
+            },
+            {
+              "mass": 0.08,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.92,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "insufficient"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.1.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 326
+        },
+        "usage": {
+          "input_tokens": 474,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "review"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-27T09:10:43.296Z"
+    }
+  }
+]

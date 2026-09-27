@@ -1,0 +1,124 @@
+{
+  "name": "documentation-consistency",
+  "revision": "repository-exploration-2",
+  "question": "Does the candidate documentation accurately describe the supplied contract or implementation excerpt, without contradicting it or adding unsupported claims?",
+  "languages": [
+    "en"
+  ],
+  "cases": [
+    {
+      "id": "unicode-original",
+      "group": "unicode-length",
+      "evidence": "### Length counting\n\nThe length of a string is its number of Unicode code points. Not UTF-8 bytes.\nNot UTF-16 code units. Not grapheme clusters.\n\n- An astral-plane character, such as an emoji, counts once. JavaScript\n  `String.length` counts two for the same character. A wrapper must not use\n  `String.length`.\n- A combining mark counts as its own code point. A base character plus a\n  combining accent has length two. No normalization merges them.\n- The null character U+0000 counts. A wrapper must not treat it as a string\n  terminator.\n- The empty string has length zero.\n\n| Input (JSON text) | Length | Note |\n| --- | --- | --- |\n| `\"\"` | 0 | Empty string. |\n| `\"export worker\"` | 13 | Plain ASCII. |\n| `\"caf\\u00e9\"` | 4 | Precomposed accent is one code point. Shown as an escape, because the next row shows the same visible text. |\n| `\"cafe\\u0301\"` | 5 | Combining accent adds one code point. |\n| `\"caf\\u00e9!\"` | 5 | Mixed. |\n| `\"\ud83d\ude00\"` | 1 | Emoji is one code point. UTF-16 would count two. |\n| `\"a\ud83d\ude00b\"` | 3 | Mixing planes changes nothing. |\n| `\"a\\u0000b\"` | 3 | The null character counts. |",
+      "candidate": "The length of one string is\nits number of Unicode code points: not UTF-8 bytes, not UTF-16 code units,\nnot grapheme clusters. One emoji counts once. One combining mark counts as\nits own code point.",
+      "answer": "supported",
+      "reason": "The complete excerpt describes code point length, emoji, and combining marks, all covered by the supplied contract.",
+      "label": {
+        "author_type": "model",
+        "origin": "collected",
+        "reviewed": false,
+        "reason": "The complete excerpt describes code point length, emoji, and combining marks, all covered by the supplied contract."
+      },
+      "selection_kind": "unchanged",
+      "sources": [
+        "contracts/v0/hashing.md",
+        "docs/reference/artifacts.md"
+      ]
+    },
+    {
+      "id": "cutoffs-original",
+      "group": "starter-policy",
+      "evidence": "const STARTER_POLICY: ExplorationStarterPolicy = Object.freeze({\n  accept_cutoff: 0.8,\n  rejection_cutoff: 0.6,\n});",
+      "candidate": "**Default starter policy:** `accept_cutoff` 0.8 and `rejection_cutoff` 0.6,\nwith no confidence floor.",
+      "answer": "supported",
+      "reason": "The complete excerpt states the cutoffs and absent confidence floor shown by the source constant.",
+      "label": {
+        "author_type": "model",
+        "origin": "collected",
+        "reviewed": false,
+        "reason": "The complete excerpt states the cutoffs and absent confidence floor shown by the source constant."
+      },
+      "selection_kind": "unchanged",
+      "sources": [
+        "packages/measuretwice/src/exploration.ts",
+        "docs/reference/api.md"
+      ]
+    },
+    {
+      "id": "shadow-original",
+      "group": "run-mode",
+      "evidence": "--mode <shadow|enforcement>\n                            Select the run mode. Default: shadow.",
+      "candidate": "**Modes:** `shadow` is the default.",
+      "answer": "supported",
+      "reason": "Both supplied statements name shadow as the default run mode.",
+      "label": {
+        "author_type": "model",
+        "origin": "collected",
+        "reviewed": false,
+        "reason": "Both supplied statements name shadow as the default run mode."
+      },
+      "selection_kind": "unchanged",
+      "sources": [
+        "packages/measuretwice/src/cli.ts",
+        "docs/reference/api.md"
+      ]
+    },
+    {
+      "id": "unicode-mutated",
+      "group": "unicode-length",
+      "evidence": "### Length counting\n\nThe length of a string is its number of Unicode code points. Not UTF-8 bytes.\nNot UTF-16 code units. Not grapheme clusters.\n\n- An astral-plane character, such as an emoji, counts once. JavaScript\n  `String.length` counts two for the same character. A wrapper must not use\n  `String.length`.\n- A combining mark counts as its own code point. A base character plus a\n  combining accent has length two. No normalization merges them.\n- The null character U+0000 counts. A wrapper must not treat it as a string\n  terminator.\n- The empty string has length zero.\n\n| Input (JSON text) | Length | Note |\n| --- | --- | --- |\n| `\"\"` | 0 | Empty string. |\n| `\"export worker\"` | 13 | Plain ASCII. |\n| `\"caf\\u00e9\"` | 4 | Precomposed accent is one code point. Shown as an escape, because the next row shows the same visible text. |\n| `\"cafe\\u0301\"` | 5 | Combining accent adds one code point. |\n| `\"caf\\u00e9!\"` | 5 | Mixed. |\n| `\"\ud83d\ude00\"` | 1 | Emoji is one code point. UTF-16 would count two. |\n| `\"a\ud83d\ude00b\"` | 3 | Mixing planes changes nothing. |\n| `\"a\\u0000b\"` | 3 | The null character counts. |",
+      "candidate": "The maxLength rule counts UTF-16 code units. One emoji counts twice.",
+      "answer": "contradicted",
+      "reason": "The mutation contradicts the authoritative code point semantics.",
+      "label": {
+        "author_type": "model",
+        "origin": "synthetic",
+        "reviewed": false,
+        "reason": "The mutation contradicts the authoritative code point semantics."
+      },
+      "selection_kind": "inserted_defect",
+      "sources": [
+        "contracts/v0/hashing.md"
+      ]
+    },
+    {
+      "id": "cutoffs-mutated",
+      "group": "starter-policy",
+      "evidence": "const STARTER_POLICY: ExplorationStarterPolicy = Object.freeze({\n  accept_cutoff: 0.8,\n  rejection_cutoff: 0.6,\n});",
+      "candidate": "The default starter policy uses accept_cutoff 0.6 and rejection_cutoff 0.8.",
+      "answer": "contradicted",
+      "reason": "The mutation reverses the acceptance and rejection cutoffs.",
+      "label": {
+        "author_type": "model",
+        "origin": "synthetic",
+        "reviewed": false,
+        "reason": "The mutation reverses the acceptance and rejection cutoffs."
+      },
+      "selection_kind": "inserted_defect",
+      "sources": [
+        "packages/measuretwice/src/exploration.ts"
+      ]
+    },
+    {
+      "id": "default-evidence-omitted",
+      "group": "run-mode",
+      "evidence": "The command accepts --mode <shadow|enforcement>. The evidence excerpt omits its default.",
+      "candidate": "**Modes:** `shadow` is the default.",
+      "answer": "insufficient",
+      "reason": "The shortened evidence does not establish which run mode is the default.",
+      "label": {
+        "author_type": "model",
+        "origin": "synthetic",
+        "reviewed": false,
+        "reason": "The shortened evidence does not establish which run mode is the default."
+      },
+      "selection_kind": "missing_evidence",
+      "sources": [
+        "packages/measuretwice/src/cli.ts",
+        "docs/reference/api.md"
+      ]
+    }
+  ],
+  "intended_population": "Selected documentation statements from one measuretwice revision, plus two deliberate mutations and one omitted-evidence case.",
+  "sampling_method": "Purposive selection: three unchanged statements, two inserted defects, and one missing-evidence control. No representative sampling."
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "case": "unicode-original",
+    "reference": "pass",
+    "raw_label": "supported",
+    "raw_label_outcome": "pass",
+    "policy_outcome": "pass"
+  },
+  {
+    "case": "cutoffs-original",
+    "reference": "pass",
+    "raw_label": "insufficient",
+    "raw_label_outcome": "review",
+    "policy_outcome": "review"
+  },
+  {
+    "case": "shadow-original",
+    "reference": "pass",
+    "raw_label": "supported",
+    "raw_label_outcome": "pass",
+    "policy_outcome": "review"
+  },
+  {
+    "case": "unicode-mutated",
+    "reference": "fail",
+    "raw_label": "contradicted",
+    "raw_label_outcome": "fail",
+    "policy_outcome": "fail"
+  },
+  {
+    "case": "cutoffs-mutated",
+    "reference": "fail",
+    "raw_label": "contradicted",
+    "raw_label_outcome": "fail",
+    "policy_outcome": "fail"
+  },
+  {
+    "case": "default-evidence-omitted",
+    "reference": "review",
+    "raw_label": "insufficient",
+    "raw_label_outcome": "review",
+    "policy_outcome": "review"
+  }
+]

@@ -1,0 +1,221 @@
+documentation-consistency · run run-1c196c4b-7455-4ca9-b146-91b6c65502e4 · shadow mode
+
+PASS    documentation-consistency
+        The answer "supported": The supplied evidence establishes that the candidate meets the requirement. Acceptable mass 0.92 meets the accept cutoff 0.8.
+        check: requirement · question
+        answer: supported (categorical)
+        distribution: supported 0.92 · contradicted 0.01 · insufficient 0.07
+        confidence: 0.88
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: jev · adapter 0.1.0 · model jev-1.13.0
+        counts: queued 1 ms · executed 357 ms
+        usage: input_tokens 815 · output_tokens 46
+
+Overall: PASS
+Every check passed under the selected profile.
+Completion: completed at 2026-09-27T09:11:32.123Z
+Next: Your application can consider this candidate. Its own permissions and delivery rules still apply.
+A report authorizes no application action.
+
+Details
+  definition: documentation-consistency · content hash 0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f
+  profile: documentation-consistency-exploration · content hash effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2
+  case: unicode-original · input hash 4a18eeccd667c9341ef95defaca9f2bfd092390125b3b1bd0cdbedad7235a08c
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.
+
+documentation-consistency · run run-26ec20b5-a16f-4fe5-b3cd-29a663313532 · shadow mode
+
+REVIEW  documentation-consistency
+        The answer "insufficient": No specific violation is established, and evidence needed for a decision is missing or ambiguous. It is a review answer of this check.
+        check: requirement · question
+        answer: insufficient (categorical)
+        distribution: supported 0.22 · contradicted 0.07 · insufficient 0.71
+        confidence: 0.57
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: jev · adapter 0.1.0 · model jev-1.13.0
+        counts: queued 0 ms · executed 258 ms
+        usage: input_tokens 506 · output_tokens 49
+
+Overall: REVIEW
+The check "documentation-consistency" needs review. The evidence did not support an automatic decision.
+Completion: completed at 2026-09-27T09:11:32.383Z
+Next: Review the supplied evidence before you decide on this candidate.
+A report authorizes no application action.
+
+Details
+  definition: documentation-consistency · content hash 0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f
+  profile: documentation-consistency-exploration · content hash effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2
+  case: cutoffs-original · input hash 74a35b3f6d73d5eb66a0d0ad44831c81e87d7232166d7d26f7367f6ba80c6dc9
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.
+
+documentation-consistency · run run-9aa774a3-2b25-4490-95f3-d7b68fbb16fb · shadow mode
+
+REVIEW  documentation-consistency
+        The answer "supported": The supplied evidence establishes that the candidate meets the requirement. Neither cutoff was met: acceptable mass 0.76, unacceptable mass 0.06.
+        check: requirement · question
+        answer: supported (categorical)
+        distribution: supported 0.76 · contradicted 0.06 · insufficient 0.18
+        confidence: 0.64
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: jev · adapter 0.1.0 · model jev-1.13.0
+        counts: queued 1 ms · executed 433 ms
+        usage: input_tokens 466 · output_tokens 46
+
+Overall: REVIEW
+The check "documentation-consistency" needs review. The evidence did not support an automatic decision.
+Completion: completed at 2026-09-27T09:11:32.818Z
+Next: Review the supplied evidence before you decide on this candidate.
+A report authorizes no application action.
+
+Details
+  definition: documentation-consistency · content hash 0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f
+  profile: documentation-consistency-exploration · content hash effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2
+  case: shadow-original · input hash 7754c2ba48b3016dde29486f6225c88825af5589168e032f08a69383f09d67ec
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.
+
+documentation-consistency · run run-7391d51d-990a-4d39-959d-3a4b31cd3076 · shadow mode
+
+FAIL    documentation-consistency
+        The answer "contradicted": The supplied evidence establishes a specific violation of the requirement. Unacceptable mass 0.97 meets the rejection cutoff 0.6.
+        check: requirement · question
+        answer: contradicted (categorical)
+        distribution: supported 0 · contradicted 0.97 · insufficient 0.03
+        confidence: 0.96
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: jev · adapter 0.1.0 · model jev-1.13.0
+        counts: queued 0 ms · executed 276 ms
+        usage: input_tokens 784 · output_tokens 49
+
+Overall: FAIL
+The check "documentation-consistency" failed. A pass on another check cannot compensate.
+Completion: completed at 2026-09-27T09:11:33.096Z
+Next: Inspect the failed check before you use this candidate.
+A report authorizes no application action.
+
+Details
+  definition: documentation-consistency · content hash 0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f
+  profile: documentation-consistency-exploration · content hash effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2
+  case: unicode-mutated · input hash c3d0ab9ce7ca055220dcb20348946708832858567aca22d3561c1db5869b0bf5
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.
+
+documentation-consistency · run run-4838ab06-d8f9-4224-9ba7-7705d5bd252c · shadow mode
+
+FAIL    documentation-consistency
+        The answer "contradicted": The supplied evidence establishes a specific violation of the requirement. Unacceptable mass 1 meets the rejection cutoff 0.6.
+        check: requirement · question
+        answer: contradicted (categorical)
+        distribution: supported 0 · contradicted 1 · insufficient 0
+        confidence: 1
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: jev · adapter 0.1.0 · model jev-1.13.0
+        counts: queued 0 ms · executed 286 ms
+        usage: input_tokens 495 · output_tokens 49
+
+Overall: FAIL
+The check "documentation-consistency" failed. A pass on another check cannot compensate.
+Completion: completed at 2026-09-27T09:11:33.382Z
+Next: Inspect the failed check before you use this candidate.
+A report authorizes no application action.
+
+Details
+  definition: documentation-consistency · content hash 0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f
+  profile: documentation-consistency-exploration · content hash effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2
+  case: cutoffs-mutated · input hash 8ef7755392ab812afaeccd23e27a7c1bd7814cb474a2a26d020edef00466d14a
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.
+
+documentation-consistency · run run-506bff4a-ff3a-4480-8872-1e5bfea905eb · shadow mode
+
+REVIEW  documentation-consistency
+        The answer "insufficient": No specific violation is established, and evidence needed for a decision is missing or ambiguous. It is a review answer of this check.
+        check: requirement · question
+        answer: insufficient (categorical)
+        distribution: supported 0 · contradicted 0.03 · insufficient 0.97
+        confidence: 0.95
+        policy: accept >= 0.8 · reject >= 0.6
+        evaluator: jev · adapter 0.1.0 · model jev-1.13.0
+        counts: queued 0 ms · executed 316 ms
+        usage: input_tokens 467 · output_tokens 49
+
+Overall: REVIEW
+The check "documentation-consistency" needs review. The evidence did not support an automatic decision.
+Completion: completed at 2026-09-27T09:11:33.699Z
+Next: Review the supplied evidence before you decide on this candidate.
+A report authorizes no application action.
+
+Details
+  definition: documentation-consistency · content hash 0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f
+  profile: documentation-consistency-exploration · content hash effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2
+  case: default-evidence-omitted · input hash fc3d19683aa3921bad1722d6ec7b1fab7305cc3380ee733f9c029577bdf29fc3
+
+Key
+  Acceptable mass: the assessed mass on the accepted answers of the check.
+  Unacceptable mass: the assessed mass on every other declared answer.
+  The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.
+  The selected profile holds the cutoffs and the evaluator binding. The host application stores it.
+  Shadow mode records this assessment beside the decision of the host application. It changes no application action.
+
+Limitations
+  Explanations are generated from the check criteria and the executed policy. No evaluator rationale exists.
+  Evidence references were selected by the evaluator. An absent reference means the evaluator returned none.
+  A content hash identifies content, not a replay of stochastic behavior.
+  A report authorizes no application action.

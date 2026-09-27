@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "definition": {
+    "name": "documentation-consistency",
+    "content_hash": "0f63eafd9b718960c7169166cbc9551588f31a28ddb6a65b62e2626ec9d0380f"
+  },
+  "profile": {
+    "id": "documentation-consistency-exploration",
+    "content_hash": "effe914d221fb374518cfddcf30f6f6076464d561d2e91a8dff6c4538d6153b2"
+  },
+  "dataset": {
+    "id": "documentation-consistency-cases",
+    "revision": "repository-exploration-2",
+    "content_hash": "bd619f162548788d77c1b70deda90c57abc254a59d3a2b8ab87844a8940cb551"
+  },
+  "purpose": "exploration",
+  "cases": [
+    {
+      "id": "unicode-original",
+      "input_hash": "4a18eeccd667c9341ef95defaca9f2bfd092390125b3b1bd0cdbedad7235a08c",
+      "outcomes": {
+        "requirement": "pass"
+      },
+      "aggregate": "pass",
+      "completion": "completed",
+      "reference_match": {
+        "requirement": true
+      }
+    },
+    {
+      "id": "cutoffs-original",
+      "input_hash": "74a35b3f6d73d5eb66a0d0ad44831c81e87d7232166d7d26f7367f6ba80c6dc9",
+      "outcomes": {
+        "requirement": "review"
+      },
+      "aggregate": "review",
+      "completion": "completed",
+      "reference_match": {
+        "requirement": false
+      }
+    },
+    {
+      "id": "shadow-original",
+      "input_hash": "7754c2ba48b3016dde29486f6225c88825af5589168e032f08a69383f09d67ec",
+      "outcomes": {
+        "requirement": "review"
+      },
+      "aggregate": "review",
+      "completion": "completed",
+      "reference_match": {
+        "requirement": false
+      }
+    },
+    {
+      "id": "unicode-mutated",
+      "input_hash": "c3d0ab9ce7ca055220dcb20348946708832858567aca22d3561c1db5869b0bf5",
+      "outcomes": {
+        "requirement": "fail"
+      },
+      "aggregate": "fail",
+      "completion": "completed",
+      "reference_match": {
+        "requirement": true
+      }
+    },
+    {
+      "id": "cutoffs-mutated",
+      "input_hash": "8ef7755392ab812afaeccd23e27a7c1bd7814cb474a2a26d020edef00466d14a",
+      "outcomes": {
+        "requirement": "fail"
+      },
+      "aggregate": "fail",
+      "completion": "completed",
+      "reference_match": {
+        "requirement": true
+      }
+    },
+    {
+      "id": "default-evidence-omitted",
+      "input_hash": "fc3d19683aa3921bad1722d6ec7b1fab7305cc3380ee733f9c029577bdf29fc3",
+      "outcomes": {
+        "requirement": "review"
+      },
+      "aggregate": "review",
+      "completion": "completed",
+      "reference_match": {
+        "requirement": true
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "scope": "requirement",
+      "counts": {
+        "pass": 1,
+        "fail": 2,
+        "review": 3,
+        "error": 0,
+        "skipped": 0
+      },
+      "rates": [
+        {
+          "metric": "false_acceptance_rate",
+          "numerator": 0,
+          "denominator": 3,
+          "value": 0
+        },
+        {
+          "metric": "error_among_accepted",
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0
+        },
+        {
+          "metric": "false_rejection_rate",
+          "numerator": 0,
+          "denominator": 3,
+          "value": 0
+        },
+        {
+          "metric": "review_rate",
+          "numerator": 3,
+          "denominator": 6,
+          "value": 0.5
+        },
+        {
+          "metric": "automatic_coverage",
+          "numerator": 3,
+          "denominator": 6,
+          "value": 0.5
+        },
+        {
+          "metric": "label_coverage",
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1
+        }
+      ]
+    },
+    {
+      "scope": "all_checks",
+      "counts": {
+        "pass": 1,
+        "fail": 2,
+        "review": 3,
+        "error": 0,
+        "skipped": 0
+      },
+      "rates": [
+        {
+          "metric": "false_acceptance_rate",
+          "numerator": 0,
+          "denominator": 3,
+          "value": 0
+        },
+        {
+          "metric": "error_among_accepted",
+          "numerator": 0,
+          "denominator": 1,
+          "value": 0
+        },
+        {
+          "metric": "false_rejection_rate",
+          "numerator": 0,
+          "denominator": 3,
+          "value": 0
+        },
+        {
+          "metric": "review_rate",
+          "numerator": 3,
+          "denominator": 6,
+          "value": 0.5
+        },
+        {
+          "metric": "automatic_coverage",
+          "numerator": 3,
+          "denominator": 6,
+          "value": 0.5
+        },
+        {
+          "metric": "label_coverage",
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "slices": [
+    {
+      "tag": "starter",
+      "metrics": [
+        {
+          "scope": "requirement",
+          "counts": {
+            "pass": 1,
+            "fail": 2,
+            "review": 3,
+            "error": 0,
+            "skipped": 0
+          },
+          "rates": [
+            {
+              "metric": "false_acceptance_rate",
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0
+            },
+            {
+              "metric": "error_among_accepted",
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0
+            },
+            {
+              "metric": "false_rejection_rate",
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0
+            },
+            {
+              "metric": "review_rate",
+              "numerator": 3,
+              "denominator": 6,
+              "value": 0.5
+            },
+            {
+              "metric": "automatic_coverage",
+              "numerator": 3,
+              "denominator": 6,
+              "value": 0.5
+            },
+            {
+              "metric": "label_coverage",
+              "numerator": 6,
+              "denominator": 6,
+              "value": 1
+            }
+          ]
+        },
+        {
+          "scope": "all_checks",
+          "counts": {
+            "pass": 1,
+            "fail": 2,
+            "review": 3,
+            "error": 0,
+            "skipped": 0
+          },
+          "rates": [
+            {
+              "metric": "false_acceptance_rate",
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0
+            },
+            {
+              "metric": "error_among_accepted",
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0
+            },
+            {
+              "metric": "false_rejection_rate",
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0
+            },
+            {
+              "metric": "review_rate",
+              "numerator": 3,
+              "denominator": 6,
+              "value": 0.5
+            },
+            {
+              "metric": "automatic_coverage",
+              "numerator": 3,
+              "denominator": 6,
+              "value": 0.5
+            },
+            {
+              "metric": "label_coverage",
+              "numerator": 6,
+              "denominator": 6,
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "operational": {
+    "errors": [],
+    "attempts": 0,
+    "usage": {
+      "input_tokens": 3533,
+      "output_tokens": 288
+    }
+  }
+}

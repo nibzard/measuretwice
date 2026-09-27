@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "documentation-consistency-cases",
+  "name": "documentation-consistency",
+  "revision": "repository-exploration-2",
+  "kind": "development_fixture",
+  "intended_population": "Selected documentation statements from one measuretwice revision, plus two deliberate mutations and one omitted-evidence case.",
+  "sampling_method": "Purposive selection: three unchanged statements, two inserted defects, and one missing-evidence control. No representative sampling.",
+  "label_guidelines": "Does the candidate documentation accurately describe the supplied contract or implementation excerpt, without contradicting it or adding unsupported claims?",
+  "languages": [
+    "en"
+  ],
+  "splits": [
+    {
+      "id": "explore",
+      "purpose": "fitting",
+      "groups": [
+        "unicode-length",
+        "starter-policy",
+        "run-mode"
+      ]
+    }
+  ]
+}

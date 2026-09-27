@@ -1,0 +1,7 @@
+{
+  "contracts/v0/hashing.md": "cccd6fdf4c298b882ec68d9756117bd221ec712ec7217abd59fb479e72192ace",
+  "docs/reference/api.md": "48817cc28706d318e2eaaf4c371e9d9261535b7426b20fbbaeeba57024edbf74",
+  "docs/reference/artifacts.md": "ec287da7ee1efa543b041d3b20e1e2c1fa99295e7f9965e5b51c0fd3399d258c",
+  "packages/measuretwice/src/cli.ts": "fa267d80952748ef04bfdc9da793cf4a2ece4c54b841b763bc49a7d9d263e201",
+  "packages/measuretwice/src/exploration.ts": "a3e668e0649bf96b9b24d904590d3f0c6c664541ecac918e53005375de5d04a4"
+}

@@ -1,0 +1,15 @@
+{
+  "population": {
+    "kind": "development_fixture",
+    "statement": "development_fixture",
+    "supports_qualification": false,
+    "states_prevalence": false,
+    "intended_population": "Selected documentation statements from one measuretwice revision, plus two deliberate mutations and one omitted-evidence case.",
+    "sampling_method": "Purposive selection: three unchanged statements, two inserted defects, and one missing-evidence control. No representative sampling."
+  },
+  "limitations": [
+    "Every metric set of this evaluation covers the same cases. The complete check set is one measurement, not independent evidence, and multiple apparently good checks do not establish aggregate reliability. No check of this evaluation is independent of another.",
+    "The dataset kind development_fixture states no production prevalence. No rate of this evaluation estimates production prevalence.",
+    "The population statement development_fixture supports no qualification claim."
+  ]
+}
