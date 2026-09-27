@@ -1,0 +1,19 @@
+Repeated fixture replay is a demonstrated need in plan review and
+intervention review. The adapter matches check identifiers and exact
+projected inputs through Rust canonicalization. It does not extend the
+evaluator request with case identifiers, labels, or unrelated fields.
+
+Fixture outputs remain synthetic execution controls. Changing examples
+to the fixture-test binding generates new profiles; this does not transfer
+qualification from a different adapter. Entry validation, snapshot copies,
+and missing-match failures prevent silent replacement of test meaning.
+
+The adapter owns no timer or run transition. Existing dispatch, scheduling,
+and terminal-state validation remain authoritative. Tests cover reordered,
+concurrent, repeated, missing, aborted, and nonportable requests. The full
+check passes: 319 Rust unit tests, 37 contracts, 580 TypeScript/repository
+checks. Later example and snapshot simplifications pass targeted checks.
+
+Follow-up observed while testing: exhausted retries discard the sanitized
+last failure message. Inspect run_state.rs fail_attempt before changing it.
+Human usability and comparative effort remain unmeasured.
