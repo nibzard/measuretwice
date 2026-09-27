@@ -1,0 +1,12 @@
+Completion remains unproven. The clean local clone at 8204af0 starts with
+no node_modules, target, or package dist directories. Dependency install,
+README example, requirement revision, and npm run check complete. The
+outputs contain one pass, fail, and review in each example; revision
+rejects its old profile before assessment. Counts: 320 Rust units,
+37 contracts, 581 TypeScript/repository tests across 50 files.
+
+The audit maps all seven mission tasks to concrete evidence. Automated
+checks prove software behavior. They do not establish human comprehension,
+revision effort, or an advantage over direct evaluator integration. No
+participant response or session record is present. Keep the goal open
+rather than replacing the requested experience result with passing tests.
