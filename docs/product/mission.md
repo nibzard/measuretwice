@@ -56,6 +56,7 @@ The first-check example and direct profile loading address first-run setup.
 The [requirement revision example](../../examples/first-check/README.md#revise-the-requirement) demonstrates profile invalidation and reassessment without saved files.
 The report view explains recorded review conditions.
 The [verification record](../reports/ergonomics-update.md) records the clean-checkout checks.
+The [acceptance audit](../reports/mission-audit.md) maps each mission task to its evidence and remaining verification.
 Use [the human study procedure](../guides/usability.md) to test the experience with a new developer.
 Human usability, direct-integration effort, and representative qualification evidence remain unmeasured.
 These require participants and data; implementation alone cannot establish them.
