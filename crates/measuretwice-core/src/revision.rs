@@ -273,8 +273,8 @@ pub struct RevisionComparison {
     pub split: String,
     /// The matching of the two policies.
     pub matching: RevisionMatching,
-    /// Every matched case with one changed component outcome, in fitting
-    /// order.
+    /// Changed cases in fitting group declaration order, then dataset record
+    /// order within each group.
     pub changed: Vec<ChangedCase>,
     /// The metric tradeoffs over the same cases.
     pub tradeoffs: RevisionTradeoffs,

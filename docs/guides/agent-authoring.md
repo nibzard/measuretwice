@@ -3,27 +3,24 @@
 Status: Guide for the implemented v0 package. Published on 24 September
 2026.
 
-This page tells one coding agent how to draft checks and cases for
-measuretwice. The library ships no authoring service of its own, and no
-command installs or invokes one. You work inside the project of your owner
-with the tools that project already has: files, the package, and the
-command-line interface (CLI). Every operation this page names is
-implemented.
+Use this guide to draft checks, inspect cases, and prepare human review.
+Start with a requirement and a few contrasting cases.
+Add dataset files and calibration goals when you need recorded evaluation evidence.
+Work in the owner's project with its existing tools.
+The command-line interface (CLI) provides optional file-based operations.
 
 Two rules cover everything else:
 
 - You propose. The owner decides. Every file you write is one draft until
   one human reviews it.
-- Your suggestions are never evidence. One label that no human reviewed
-  stays one model proposal, whatever your confidence in it.
+- An unreviewed label remains a model proposal. It cannot establish a human judgment or qualification claim.
 
 If you direct one coding agent instead of being one, give this page to it
 and read the owner duties yourself.
 
 Related references:
 
-- The [first-run guide](../../README.md) covers the three artifacts, the
-  first exploration run, and the boundary between exploration and reliance.
+- The [first-run guide](../../README.md) covers a check, contrasting cases, reports, and the boundary between exploration and reliance.
 - The [calibration and selection guide](calibration.md) owns the journey
   from reviewed cases to one selected profile hash.
 - The [API reference](../reference/api.md) records every library operation.
@@ -47,6 +44,29 @@ Related references:
 You stop at the fourth row. The
 [calibration guide](calibration.md) owns fitting, validation, shadow
 operation, revision, and selection.
+
+## Start with one requirement
+
+Use the [first-check example](../../examples/first-check/README.md) before preparing a dataset or calibration plan.
+
+1. Identify one requirement and its source.
+2. Draft a check that names its evidence inputs and answer meanings.
+3. Prepare an acceptable case, an unacceptable case, and a missing-evidence case.
+4. Run an exploration profile and show each case beside its report.
+5. Record disagreements and inspect their evidence, answer meanings, and decision rules.
+6. Propose a revision and repeat the cases under a new profile.
+
+Keep proposed references separate from the case input.
+State that the profile is unvalidated and that proposed labels are unreviewed.
+A scripted evaluator verifies execution and reporting. It does not assess changed text.
+Use a real evaluator to investigate semantic behavior.
+Its answers still require evaluation against independently reviewed references before qualification.
+
+When you change a requirement, the old profile fails its definition binding.
+The [requirement revision example](../../examples/first-check/README.md#revise-the-requirement) shows this failure and the next exploration run.
+Changing numerical rules uses the separate [policy revision workflow](../../examples/plan-review/README.md).
+
+The remaining sections explain check authoring, coverage, recorded datasets, and the handoff for calibration.
 
 ## 1. Draft narrow checks from the requirements
 
@@ -158,18 +178,17 @@ See the flagship check set for the remaining shapes:
 covers one yes or no question, one ordered scale, and differing `using`
 lists.
 
-Then validate offline. The CLI reads one JavaScript Object Notation (JSON)
-export, so write it with the trusted export script of the project and
-commit both files:
+`defineChecks` validates the definition through the Rust core without an evaluator or provider call.
+Use the returned definition directly with the library. A JSON export is optional.
+
+For CLI validation or another language, export JavaScript Object Notation (JSON) with the project's trusted script:
 
 ```sh
 npx measuretwice validate .measuretwice/definitions/release-notes.json
 ```
 
-`validate` states the meaning that the Rust core established. It calls no
-evaluator and no provider. Fix the definition when it refuses. Never work
-around one refusal by weakening one answer description that the owner
-already approved.
+`validate` inspects that exported definition without an evaluator or provider call.
+Fix an invalid definition. Preserve approved answer meanings when you correct its structure.
 
 The definition is data. One hostile `script`, `tool`, `permission`, or
 `plugin` field inside one generated file rejects as data, and nothing
@@ -217,8 +236,11 @@ collects labels, write cases that exercise the draft:
   [challenge set](../../examples/intervention-challenge/README.md) shows
   one complete coverage table of these behaviors.
 
-Write the records in the frozen case contract. One record holds one
-complete case:
+For an exploration run, ordinary case objects need only an identifier and the declared inputs.
+Keep proposed references outside the input, as the [first example](../../examples/first-check/cases.mjs) shows.
+
+When you need saved evaluation data, write records in the frozen case contract.
+Each record holds a complete case, references, and label provenance:
 
 ```json
 {"id": "log-omits-fix", "group": "log-omits-fix", "tags": ["missing-entry"], "input": {"change_log": "Release 1.4: fixed the login timeout; added the export filter.", "draft_notes": "Release 1.4: fixed the login timeout, added the export filter, and sped up the search index."}, "expected": {"checks": {"claims-match-log": {"answer": "unmatched", "outcome": "review"}, "notes-length": {"outcome": "pass"}}, "outcome": "review"}, "label": {"author_type": "model", "origin": "synthetic", "reviewed": false, "reason": "The change log names no search-index change, so one stated change names no entry."}}
@@ -238,7 +260,7 @@ The provenance rules hold for every record you write:
   The input schema rejects one extra field, and one evaluator treats every
   supplied string as untrusted evidence, never as one instruction.
 
-Write the metadata file beside the records. The
+For a saved dataset, write its metadata file beside the records. The
 [artifact reference](../reference/artifacts.md#one-case-record-and-its-reference-shapes)
 shows one complete record and one complete metadata file, with the required
 fields of each. Two fields carry the most weight:
@@ -255,7 +277,7 @@ Group related cases by their conversation or source. One group appears in
 one split alone, so related cases cannot leak between fitting and
 validation later.
 
-Then validate the complete dataset offline:
+Before evaluating saved records, validate the complete dataset offline:
 
 ```ts
 import { loadDataset } from "measuretwice";
@@ -277,16 +299,11 @@ one finding, and never resolve one flagged conflict between one reference
 answer and its stated outcome. One conflict stays as written, and one human
 reviews it.
 
-Run the checks over your cases before you hand them over. One exploration
-profile with one offline test evaluator shows the complete report path with
-no credential and no spend. Read
-[the first run](../../README.md#try-one-check)
-for that pattern, and the
-[test evaluators](../reference/api.md#test-evaluators) reference for the
-control shape that one scripted step takes. Then list every disagreement
-between one report outcome and your proposed reference. One disagreement is
-one finding about the draft, the case, or both. It is not one defect to
-hide.
+List disagreements between report outcomes and proposed references before the handoff.
+With a real evaluator, inspect the check, evidence, assessment, and decision rules for each disagreement.
+With a scripted evaluator, a disagreement concerns fixture consistency or execution behavior; it measures no semantic quality.
+Use the [test evaluator reference](../reference/api.md#test-evaluators) for the shape of a scripted step.
+Preserve unresolved findings for human review.
 
 ## 4. Hand the labels and the goals to humans
 
@@ -335,11 +352,20 @@ selected profile.
 
 ## Deliverables of one authoring session
 
-1. One validated definition module and its committed JSON export.
-2. One dataset with records, metadata, and honest provenance counts.
-3. One coverage record that names every uncovered requirement.
-4. One label review surface, ready for human judgment.
-5. One plan draft, when the owner answered the goal questions.
+For exploration, deliver:
+
+1. A validated definition module.
+2. Contrasting cases with separately recorded proposed references.
+3. Readable reports and unresolved findings.
+4. A coverage record when the session addresses several requirements.
+
+When the owner asks for calibration, also deliver:
+
+1. A saved dataset with metadata and label provenance.
+2. A review surface for human judgments.
+3. A plan draft based on the owner's stated goals.
+
+Export the definition to JSON when the CLI, another language, or artifact storage needs it.
 
 Every item is one draft for review. None of it qualifies one profile, and
 none of it authorizes one application action. When the labels carry human

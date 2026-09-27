@@ -251,13 +251,10 @@ actual workaround of this example.
    path stays untested here. Demonstrating one selected profile needs
    representative data and one human review, which no synthetic example
    supplies.
-8. The `changed` rows of one revision comparison arrive in the record order
-   of the dataset file, while the stored fitting runs of the same
-   calibration arrive in the identifier order of the split. Both orders are
-   stable, and one host that prints the rows needs no assumption about
-   either. The type comment of `changed` names one fitting order that the
-   rows of this example do not follow, so one reader checks the artifact
-   and not the comment alone.
+8. Revision comparison rows follow the fitting split's declared group order, then dataset record order within each group.
+   In this example, that order matches the dataset file order.
+   Stored fitting runs use case identifier order instead.
+   Match rows by case identifier rather than array position.
 
 ## Run it with Jev, opt-in
 

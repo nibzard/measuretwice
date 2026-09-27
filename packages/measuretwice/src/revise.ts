@@ -254,7 +254,7 @@ export interface RevisionComparison {
   readonly split: string;
   /** The matching of the two policies. */
   readonly matching: RevisionMatching;
-  /** Every matched case with one changed component outcome, in fitting order. */
+  /** Changed cases in fitting group declaration order, then dataset record order within each group. */
   readonly changed: readonly ChangedCase[];
   /** One row per scope and metric with the counts and the denominators of both sides. */
   readonly metrics: readonly ComparisonMetric[];

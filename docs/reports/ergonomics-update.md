@@ -65,6 +65,13 @@ The suite now contains 49 test files.
 No Rust implementation or critical state transition changed in this follow-up.
 The clean-checkout results above describe the earlier implementation; this follow-up used the existing development checkout.
 
+## Authoring guide follow-up
+
+The authoring guide now starts with exploration and makes JSON exports and saved datasets optional at that stage.
+Calibration still requires recorded data, label provenance, and owner-defined goals.
+Revision comments now specify group declaration order and record order within each group.
+The documentation, reference examples, naming checks, and Rust formatting checks passed for these documentation changes.
+
 ## What remains unverified
 
 No new human usability study has run.
