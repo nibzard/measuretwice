@@ -54,6 +54,9 @@ governs.
 - A number with a zero fractional part and a magnitude below 2^53 serializes
   as a plain integer. For example, parsed `1.0` and parsed `1` both
   canonicalize as `1`.
+- Case validation rejects stored integers that are not exactly representable in binary64.
+  This prevents distinct evaluator inputs from sharing one hash through numerical rounding.
+  Direct canonicalization retains the RFC 8785 numerical format.
 - Negative zero canonicalizes as `0`. The sign of zero never reaches a hash.
 - Large and small magnitudes use exponent notation, for example `1e+21` and
   `1e-7`. RFC 8785 fixes the exact format.

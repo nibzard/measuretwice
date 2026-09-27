@@ -570,6 +570,20 @@ one `invalid_assessment` error that keeps the cause. Saturation records one
 `skipped` outcome with `queue_full`. A pass never authorizes an application
 action. The host consumes the report and decides.
 
+### Numerical inputs and malformed answers
+
+Case numbers use the binary64 format defined in the [hashing contract](../../contracts/v0/hashing.md).
+The core rejects stored integers that this format cannot represent exactly.
+For example, `9007199254740992` is accepted, but `9007199254740993` is rejected with `invalid_field_type`.
+The error points to the input value. Validation fails before an evaluator runs.
+TypeScript `bigint` values fail with `nonportable_value` before serialization.
+Declare a string input when an identifier needs arbitrary integer precision.
+Previously accepted JSON integers that need rounding now fail validation.
+Existing hashes remain unchanged. A schema change requires new profile qualification.
+
+Malformed evaluator answers retain valid reported usage, resolved model, and latency on their error records.
+Run totals include this reported usage. An absent measurement stays absent.
+
 ## `loadDataset` and the split helpers
 
 ```ts

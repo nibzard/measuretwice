@@ -461,10 +461,10 @@ test("the serialization boundary keeps hostile keys visible and refuses silent c
   expect(holeFailure.code).toBe("nonportable_value");
   expect(holeFailure.fieldPath).toBe("/input/tags/1");
 
-  // One big integer crosses as its exact digits, and the exact parser
-  // returns the same value, so one record of the core stays replayable.
-  expect(jsonText(9007199254740993n, "/input/count")).toBe("9007199254740993");
-  expect(parseExactJson("9007199254740993")).toBe(9007199254740993n);
+  // BigInt values are outside the portable JSON contract.
+  expect(() => jsonText(9007199254740993n, "/input/count")).toThrow(
+    expect.objectContaining({ code: "nonportable_value", fieldPath: "/input/count" }),
+  );
   expect(parseExactJson(jsonText({ count: -42 }, "/input"))).toEqual({ count: -42 });
   // The emitted key states itself: one parsed `__proto__` key stays one
   // named field of the text, in object key order.

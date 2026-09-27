@@ -187,6 +187,10 @@ Portable definitions cannot contain callbacks, closures, custom executable valid
 Do not silently drop an unsupported constraint. TypeBox authoring metadata may be removed only by a documented, tested conversion.
 Application preprocessing remains outside the definition; profiles record its version when it affects assessments.
 
+Case validation rejects stored integers that binary64 hashing cannot preserve exactly.
+TypeScript rejects `bigint` values before serialization. Use string inputs for arbitrary integer precision.
+Malformed evaluator answers keep valid usage, model, and latency measurements on their error records.
+
 Validate definitions, schemas, cases, profiles, and assessments in Rust. Keep mutation, type coercion, and implicit input defaults disabled.
 Use one canonicalization procedure in Rust for hashes. Define numeric limits, string handling, omitted values, and ordered arrays explicitly.
 Use shared fixtures to prevent differences in serialization, validation, and hashing across languages.

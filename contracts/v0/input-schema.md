@@ -84,6 +84,11 @@ is counted. This document fixes only the range of the bounds.
 - Every bound is a finite number. A parsed bound that is not finite is
   rejected with `invalid_field_type`.
 - For `type: "integer"`, every bound is an integer.
+- An integer stored by the JSON parser must be exactly representable in binary64.
+  Otherwise validation rejects it with `invalid_field_type` at the input path.
+  For example, `9007199254740992` is accepted, but `9007199254740993` is rejected.
+  This rule applies to both `number` and `integer` schemas.
+  Use a string schema for identifiers that need arbitrary integer precision.
 - An `integer` schema accepts a number with a zero fractional part. This
   follows JSON Schema 2020-12.
 

@@ -2493,22 +2493,12 @@ test("numbers and strings keep their behavior across the boundary", () => {
   // The rule counts code points, not UTF-16 units: 3 pass maxLength 5.
   expect(nativeAssessRuleChecks(definitionText, caseText)[0]?.outcome).toBe("pass");
 
-  // The input hash covers the original text, so case identity never depends
-  // on JavaScript number handling.
+  // Reject integers whose evaluator value would differ from their hash value.
   const exactText =
     '{"id":"values","input":{"text":"ab","weight":0.5,"count":9007199254740993,"flag":true}}';
-  const exact = nativeValidateCase(definitionText, exactText);
-  expect(exact.inputHash).toBe(
-    nativeContentHash(
-      "input",
-      '{"text":"ab","weight":0.5,"count":9007199254740993,"flag":true}',
-    ),
+  expect(() => nativeValidateCase(definitionText, exactText)).toThrow(
+    expect.objectContaining({ code: "invalid_field_type", fieldPath: "/input/count" }),
   );
-  // An integer above the safe range crosses as one exact BigInt value, so
-  // the wrapper receives the value the core read, not a rounded double.
-  const exactProjected = parseExactJson(exact.projectedInputs[1]!.inputs) as Record<string, unknown>;
-  expect(exactProjected.count).toBe(9007199254740993n);
-  expect(String(exactProjected.count)).toBe("9007199254740993");
 
   // Numbers in canonical forms follow the hashing contract, not the
   // JavaScript spelling that arrived.

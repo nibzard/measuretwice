@@ -16,11 +16,9 @@
  * text itself. The walk mirrors the authoring boundary of
  * `define-checks.ts`, so both crossings state the same contract: one value
  * that JSON cannot preserve refuses before serialization, and no coercion
- * happens silently. Two values cross exactly, because the emitter writes
- * them itself: every object key is defined as one own data property, so one
- * key such as `__proto__` stays visible to the core instead of following
- * the prototype accessor, and one big integer crosses as its exact digits,
- * because the core parses integers of the full 64-bit range.
+ * happens silently. The emitter writes object keys directly. A key such
+ * as `__proto__` stays visible to the core instead of following the
+ * prototype accessor. Big integers are outside the portable JSON contract.
  */
 import { ValidationError } from "./error.js";
 
@@ -56,8 +54,8 @@ function nonportable(path: string, what: string): ValidationError {
  * Walks one value, rejects what JSON serialization would lose, and emits
  * the strict JSON text.
  *
- * The walk accepts `null`, strings, booleans, finite numbers, and big
- * integers, and walks arrays and plain objects. It rejects `undefined`,
+ * The walk accepts `null`, strings, booleans, finite numbers,
+ * and walks arrays and plain objects. It rejects `undefined`,
  * functions, symbols, non-finite numbers, symbol-keyed properties, array
  * holes, and objects outside the JSON data model, such as one `Date`, one
  * `Map`, or one class instance. One cycle refuses as one nesting failure,
@@ -74,8 +72,6 @@ function emit(value: unknown, path: string, ancestors: Set<object>, depth: numbe
         throw nonportable(path, "a number that is not finite");
       }
       return JSON.stringify(value);
-    case "bigint":
-      return value.toString();
     case "object":
       break;
     default:

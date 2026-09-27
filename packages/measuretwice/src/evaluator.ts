@@ -580,10 +580,13 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
   if ("message" in measured) {
     return failure("evaluator_error", measured.message);
   }
+  // A malformed answer still represents an execution with known usage.
+  const measuredFailure = (code: EvaluatorFailureCode, message: string): EvaluatorExecution =>
+    Object.freeze({ ...failure(code, message), ...measured.measurements });
   const assessment = field(returned, "assessment");
   const failureRecord = field(returned, "failure");
   if (assessment !== undefined && failureRecord !== undefined) {
-    return failure(
+    return measuredFailure(
       "evaluator_error",
       "The evaluator resolved with one assessment and one failure together. Return exactly one of the two.",
     );
@@ -602,19 +605,19 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
         ...measured.measurements,
       });
     }
-    return failure(
+    return measuredFailure(
       "evaluator_error",
       "The evaluator reported one failure outside the failure contract. Report code evaluator_error, evaluator_timeout, or invalid_assessment with one nonempty message.",
     );
   }
   if (assessment === undefined) {
-    return failure(
+    return measuredFailure(
       "evaluator_error",
       "The evaluator resolved with neither one assessment nor one failure.",
     );
   }
   if (!isPlainObject(assessment)) {
-    return failure("evaluator_error", "The evaluator resolved with one assessment that is not one object.");
+    return measuredFailure("evaluator_error", "The evaluator resolved with one assessment that is not one object.");
   }
   // The core validates the assessment against the check that asked for it,
   // under the semantic rules of the assessment contract. The value that the
@@ -631,9 +634,9 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
     text = strictJsonText(assessment, "/assessment");
   } catch (cause) {
     if (cause instanceof ValidationError) {
-      return failure("invalid_assessment", cause.message);
+      return measuredFailure("invalid_assessment", cause.message);
     }
-    return failure(
+    return measuredFailure(
       "evaluator_error",
       "The assessment holds one value that JSON cannot express, so the core cannot validate it.",
     );

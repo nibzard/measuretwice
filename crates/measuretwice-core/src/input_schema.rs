@@ -776,6 +776,19 @@ fn validate_number(
     let parsed = number
         .as_f64()
         .expect("a serde_json number converts to one finite double");
+    // Hashing uses binary64. Reject stored integers that would hash as a
+    // different value from the value sent to an evaluator. Use i128 for
+    // the comparison to avoid saturation at the i64 and u64 endpoints.
+    let exact_integer = number
+        .as_i64()
+        .map(i128::from)
+        .or_else(|| number.as_u64().map(i128::from));
+    if exact_integer.is_some_and(|exact| parsed as i128 != exact) {
+        return Err(ValidationError::invalid_field_type(
+            path,
+            "The input integer cannot be represented exactly in binary64. Supply an exactly representable number or declare a string input.",
+        ));
+    }
     if integer && parsed.fract() != 0.0 {
         return Err(ValidationError::invalid_field_type(
             path,
