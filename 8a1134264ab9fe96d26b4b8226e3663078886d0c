@@ -1,0 +1,11 @@
+The mission includes requirement revision, but the first example covered
+only authoring and inspection. This follow-up adds explicit attribution
+and demonstrates the existing definition binding rejection through the
+public package. It changes no product contract or state transition.
+
+Fixed answers verify the integration sequence only. The new profile
+stays unvalidated. Human comprehension and direct integration effort
+still require participant evidence.
+
+Verification: regression test failed before implementation; example
+command and type checks pass; 573 TypeScript/repository tests pass.
