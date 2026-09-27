@@ -268,15 +268,65 @@ const decision =
     : "review";
 ```
 
-The package ships two offline adapters: `createScriptedEvaluator`, which
+The package ships three offline adapters: `createScriptedEvaluator`, which
 answers through one fixed control list with success, review, malformed,
 error, and delayed responses, and `createLabelOnlyEvaluator`, which answers
-from one fixed table. Both record every request they receive. Both prove
+from one fixed table. `createFixtureEvaluator` matches each check and its projected inputs.
+All three record every request they receive. They prove
 that the core depends on no Jev response shape. `labelRuleChecks` resolves
 the label rule of every question check of one definition, and
 `decideLabelOnly` applies the separately specified decision rule for
 label-only answers. These adapters are product code. Use them for offline
 hosts and tests.
+
+### Replay fixtures without an execution order
+
+```ts
+import { createFixtureEvaluator, registerEvaluators } from "measuretwice";
+
+const evaluator = createFixtureEvaluator({
+  fixtures: [{
+    check: "memory-supported",
+    inputs: { sources: "Dana confirms Friday.", candidate: "The date is Friday." },
+    answer: { assessment: {
+      kind: "categorical", label: "supported",
+      distribution: [
+        { name: "supported", mass: 0.9 },
+        { name: "contradicted", mass: 0.05 },
+        { name: "insufficient", mass: 0.05 },
+      ],
+    } },
+  }],
+});
+const registry = registerEvaluators(evaluator);
+```
+
+**Inputs:** each `EvaluatorFixture` names a check, its exact projected inputs, and a fixed execution.
+Include only fields in that check's `using` list.
+The default identifier is `fixture-test`; the default adapter version is `0.1.0`.
+`id` and `adapter_version` can override them.
+
+**Output:** a `FixtureEvaluator` with `calls`, which records requests in arrival order.
+Matching ignores object key order through Rust canonicalization. Array order and string content remain significant.
+Runs can repeat or change order without consuming entries.
+Fixtures are snapshots; each matched execution is a separate copy.
+
+**Side effects:** no provider call, file write, or credential access.
+The in-memory `calls` array retains raw projected inputs for test inspection.
+
+**Resource limits:** at most 10,000 entries and 64 JSON container levels.
+Fixture values must be finite, acyclic JSON data without accessors or custom serialization.
+
+**Failure behavior:** duplicate matches and invalid entry shapes throw `ValidationError` with `invalid_field_type` during creation.
+Nonportable values throw `nonportable_value`.
+A missing match returns `evaluator_error` without source text. An aborted request returns `evaluator_timeout` before lookup.
+Dispatch validates each execution against the requesting check; invalid assessments remain errors.
+Profile retry limits still apply to failed executions.
+
+These fixed answers measure no semantic quality. Refresh fixtures when requirements or cases change.
+Use [plan review](../../examples/plan-review/README.md) for replay through exploration, calibration, and policy revision.
+
+### Control execution order and failures
 
 One control states exactly one of `answer`, `raw`, and `error`, and the
 adapter validates the whole script when it is created. One call consumes one

@@ -363,7 +363,7 @@ test("each shadow run records the host baseline beside the new outcome", () => {
     for (const record of report.checks.slice(0, 4)) {
       expect(record).toMatchObject({
         kind: "question",
-        evaluator: { id: "scripted-test", adapter_version: "0.1.0" },
+        evaluator: { id: "fixture-test", adapter_version: "0.1.0" },
         applied_policy: { accept_cutoff: 0.8, rejection_cutoff: 0.6 },
       });
     }
@@ -539,6 +539,7 @@ test("enforcement refuses every profile of this synthetic example", async () => 
     profile: storedRevised,
     evaluators: registerEvaluators(
       createScriptedEvaluator({
+        id: "fixture-test",
         steps: [
           {
             answer: {

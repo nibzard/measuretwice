@@ -12,8 +12,8 @@ same profile artifacts, and the same report semantics carry one unrelated
 workflow. [MVP_SPEC.md](../../MVP_SPEC.md) section 13 asks for this test
 before any new abstraction.
 
-Everything runs offline. The test evaluator answers from one scripted
-table, so the workflow needs no credential and spends no API budget.
+Everything runs offline. The fixture evaluator matches checks and their projected inputs.
+The workflow needs no credential and spends no API budget.
 
 ## Files
 
@@ -210,16 +210,11 @@ actual workaround of this example.
    the hash through `load` and writes its two plans beside its reports on
    every run. A host that commits its plans needs one regeneration script,
    exactly as the committed definition export of this example does.
-2. The scripted test evaluator answers from one flat, ordered step list.
-   One workflow that revisits the same cases through several operations
-   must state the exact visit order of every case, or must build one
-   evaluator per operation with the same identifier and the same adapter
-   version. This host does the second. The flagship example hand-rolls the
-   same table. That is one repeated need across two applications: one
-   scripted table keyed by case identifier would remove the fragility.
-   [MVP_SPEC.md](../../MVP_SPEC.md) section 13 asks for this test before
-   any new abstraction, so the table stays one recorded candidate and not
-   one shipped API.
+2. The original host rebuilt an ordered answer list for each operation.
+   This host now uses `createFixtureEvaluator`, which matches check identifiers and projected inputs.
+   The same fixtures support repeated or reordered requests without case identifiers in the evaluator contract.
+   Fixed outputs remain test data; they establish no evaluator quality.
+   See [the fixture API](../../docs/reference/api.md#replay-fixtures-without-an-execution-order) for matching and failure behavior.
 3. One revision needs one later dataset revision whose fitting records
    stay byte-identical. The host maintains two record files whose first
    five lines must not drift. Nothing checks that drift until `revise`
@@ -258,7 +253,7 @@ actual workaround of this example.
 
 ## Run it with Jev, opt-in
 
-The example ships with the scripted test evaluator. To run the same checks
+The example ships with the fixture test evaluator. To run the same checks
 against Jev, install the pinned SDK in your application and register the
 Jev adapter. The host owns the client, the credential, and the endpoint.
 See the Jev section of the

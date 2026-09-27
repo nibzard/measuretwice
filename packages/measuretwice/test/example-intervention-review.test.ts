@@ -30,7 +30,7 @@ import {
   type Profile,
   type RunOptions,
   type RunReport,
-  type ScriptedEvaluator,
+  type FixtureEvaluator,
   type ValidationError,
 } from "../src/index.js";
 
@@ -55,7 +55,7 @@ interface ExampleResult {
   readonly dataset: Dataset;
   readonly profile: Profile;
   readonly reviewer: { run(caseInput: unknown, options?: RunOptions): Promise<RunReport> };
-  readonly evaluator: ScriptedEvaluator;
+  readonly evaluator: FixtureEvaluator;
   readonly reports: readonly RunReport[];
   readonly storedProfile: string;
   readonly storedReports: readonly string[];
@@ -299,7 +299,7 @@ test("each shadow run records the host baseline beside the new outcome", () => {
     for (const record of report.checks.slice(0, 4)) {
       expect(record).toMatchObject({
         kind: "question",
-        evaluator: { id: "scripted-test", adapter_version: "0.1.0" },
+        evaluator: { id: "fixture-test", adapter_version: "0.1.0" },
         applied_policy: { accept_cutoff: 0.8, rejection_cutoff: 0.6 },
       });
     }

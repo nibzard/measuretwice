@@ -27,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   createExplorationProfile,
-  createScriptedEvaluator,
+  createFixtureEvaluator,
   load,
   loadDataset,
   registerEvaluators,
@@ -39,9 +39,9 @@ import {
   type Profile,
   type Reviewer,
   type RunReport,
-  type ScriptedEvaluator,
+  type FixtureEvaluator,
   type ShadowBaseline,
-  type TestEvaluatorControl,
+  type EvaluatorExecution,
 } from "measuretwice";
 import { intervention } from "./checks/intervention.js";
 
@@ -312,7 +312,7 @@ const SCENARIO_ANSWERS: Readonly<Record<string, ScenarioAnswers>> = {
 };
 
 /** Builds one categorical answer control. */
-function choice(answer: ChoiceAnswer, latencyMs: number): TestEvaluatorControl {
+function choice(answer: ChoiceAnswer, latencyMs: number): { readonly answer: EvaluatorExecution } {
   return {
     answer: {
       assessment: {
@@ -326,12 +326,12 @@ function choice(answer: ChoiceAnswer, latencyMs: number): TestEvaluatorControl {
 }
 
 /** Builds one binary answer control. */
-function noul(value: boolean, latencyMs: number): TestEvaluatorControl {
+function noul(value: boolean, latencyMs: number): { readonly answer: EvaluatorExecution } {
   return { answer: { assessment: { kind: "binary", value }, latency_ms: latencyMs } };
 }
 
 /** Builds one ordered answer control. */
-function score(answer: ScoreAnswer, latencyMs: number): TestEvaluatorControl {
+function score(answer: ScoreAnswer, latencyMs: number): { readonly answer: EvaluatorExecution } {
   return {
     answer: {
       assessment: {
@@ -344,18 +344,14 @@ function score(answer: ScoreAnswer, latencyMs: number): TestEvaluatorControl {
   };
 }
 
-/**
- * Builds the scripted controls of one case, in the definition order of the
- * question checks: `decision-conflict`, `message-supported`,
- * `adds-information`, `consequence`.
- */
-function controlsOf(answers: ScenarioAnswers): readonly TestEvaluatorControl[] {
-  return [
-    choice(answers.conflict, 240),
-    choice(answers.support, 260),
-    noul(answers.novelty, 110),
-    score(answers.consequence, 200),
-  ];
+/** Build fixed executions by check identifier. */
+function controlsOf(answers: ScenarioAnswers): Readonly<Record<string, { readonly answer: EvaluatorExecution }>> {
+  return {
+    "decision-conflict": choice(answers.conflict, 240),
+    "message-supported": choice(answers.support, 260),
+    "adds-information": noul(answers.novelty, 110),
+    consequence: score(answers.consequence, 200),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -383,7 +379,7 @@ export interface ExampleResult {
   /** The reviewer that the host keeps for later runs. */
   readonly reviewer: Reviewer<CaseInput<typeof intervention>>;
   /** The offline test evaluator, with every request it received. */
-  readonly evaluator: ScriptedEvaluator;
+  readonly evaluator: FixtureEvaluator;
   /** One frozen report per case, in dataset order. */
   readonly reports: readonly RunReport[];
   /** The path of the stored profile artifact. */
@@ -440,14 +436,19 @@ export async function runExample(options: ExampleOptions = {}): Promise<ExampleR
   //    profile. The generator reads no clock, draws no identifier, and
   //    calls no provider. The qualification stays unvalidated with the
   //    reason `starter_policy`.
-  const steps = dataset.cases.flatMap((record) => {
+  const fixtures = dataset.cases.flatMap((record) => {
     const answers = SCENARIO_ANSWERS[record.id];
     if (answers === undefined) {
       throw new Error(`the example holds no scripted answers for the case ${record.id}`);
     }
-    return controlsOf(answers);
+    const controls = controlsOf(answers);
+    return intervention.checks.filter(check => check.question !== undefined).map(check => ({
+      check: check.id,
+      inputs: Object.fromEntries(check.using.map(name => [name, record.input[name]!])),
+      answer: controls[check.id]!.answer,
+    }));
   });
-  const evaluator = createScriptedEvaluator({ steps });
+  const evaluator = createFixtureEvaluator({ fixtures });
   const registry = registerEvaluators(evaluator);
   const profile = createExplorationProfile(intervention, registry);
 

@@ -72,6 +72,21 @@ Calibration still requires recorded data, label provenance, and owner-defined go
 Revision comments now specify group declaration order and record order within each group.
 The documentation, reference examples, naming checks, and Rust formatting checks passed for these documentation changes.
 
+## Fixture replay follow-up
+
+Two examples previously rebuilt ordered answer lists when an operation revisited cases.
+`createFixtureEvaluator` now matches check identifiers and exact projected inputs through Rust canonicalization.
+Plan review and intervention review use it without changing their expected outcomes.
+Plan review reuses one registry for exploration, evaluation, and calibration.
+Fixtures contain fixed synthetic outputs. They establish no model-quality improvement.
+
+New tests first failed before the adapter existed.
+They cover reordered and concurrent requests, repetition, snapshots, missing matches, cancellation, and nonportable data.
+The full check passed: 319 Rust unit tests, 37 Rust contract tests, and 580 TypeScript and repository tests across 50 files.
+Formatting, lint, builds, type checks, and documentation checks passed in that run.
+The last example simplification also passed its 13 tests separately.
+The formal applicability record explains why fixed lookup changes no critical state transition.
+
 ## What remains unverified
 
 No new human usability study has run.

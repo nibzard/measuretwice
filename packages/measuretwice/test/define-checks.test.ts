@@ -620,6 +620,7 @@ test("the package entry point exposes the authoring and run API without native t
     "compare",
     "contractVersion",
     "createExplorationProfile",
+    "createFixtureEvaluator",
     "createJevEvaluator",
     "createLabelOnlyEvaluator",
     "createScriptedEvaluator",

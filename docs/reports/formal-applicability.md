@@ -229,3 +229,15 @@ Decided by this task, as [models/README.md](../../models/README.md) and
 - The correspondence review is manual. No tool checks that a Rust method
   still implements one named transition. The regression tests named in each
   record are the executable part of that mapping.
+
+## Fixture evaluator applicability
+
+The fixture evaluator adds a fixed lookup from check identifiers and projected inputs to executions.
+It changes no run transition, retry rule, queue admission, cancellation rule, profile qualification, or authorization boundary.
+The existing dispatcher and Rust core still validate returned assessments and reject late terminal results.
+An aborted request returns a timeout before lookup.
+
+The adapter creates no timer or detached work. Its `calls` array records observations for offline tests.
+This stateless lookup needs tests rather than a new state model.
+`packages/measuretwice/test/fixture-evaluator.test.ts` covers repetition, concurrent requests, missing inputs, snapshots, and entry cancellation.
+No new model-check result is claimed.

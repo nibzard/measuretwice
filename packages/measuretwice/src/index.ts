@@ -135,6 +135,8 @@ export {
   decideLabelOnly,
   labelRuleChecks,
 } from "./test-evaluator.js";
+export { createFixtureEvaluator } from "./fixture-evaluator.js";
+export type { EvaluatorFixture, FixtureEvaluator, FixtureEvaluatorOptions } from "./fixture-evaluator.js";
 export type {
   LabelOnlyAnswer,
   LabelOnlyEvaluator,

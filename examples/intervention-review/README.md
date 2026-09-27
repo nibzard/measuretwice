@@ -10,8 +10,8 @@ the draft is ready for the host to consider:
 4. The concern warrants an interruption.
 5. The message fits the delivery limit.
 
-Everything runs offline. The test evaluator answers from one scripted
-table, so the workflow needs no credential and spends no API budget.
+Everything runs offline. The fixture evaluator matches checks and their projected inputs.
+The workflow needs no credential and spends no API budget.
 
 ## Files
 
@@ -168,7 +168,7 @@ responsibility of one intervention system:
 
 ## Run it with Jev, opt-in
 
-The example ships with the scripted test evaluator. To run the same checks
+The example ships with the fixture test evaluator. To run the same checks
 against Jev, install the pinned SDK in your application and register the
 Jev adapter. The host owns the client, the credential, and the endpoint:
 

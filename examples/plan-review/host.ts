@@ -46,7 +46,7 @@ import {
   calibrate,
   checkEvidence,
   createExplorationProfile,
-  createScriptedEvaluator,
+  createFixtureEvaluator,
   evaluate,
   load,
   loadDataset,
@@ -66,9 +66,8 @@ import {
   type Revision,
   type Reviewer,
   type RunReport,
-  type ScriptedEvaluator,
+  type FixtureEvaluator,
   type ShadowBaseline,
-  type TestEvaluatorControl,
 } from "measuretwice";
 import { planReview } from "./checks/plan.js";
 
@@ -413,14 +412,10 @@ function score(level: string, mass: readonly (readonly [string, number])[]): Sco
   return { level, distribution: mass.map(([name, value]) => ({ name, mass: value })) };
 }
 
-/**
- * Builds the scripted controls of one case, in the definition order of the
- * question checks: `requirement-coverage`, `capability-fit`,
- * `unrequested-work`, `delivery-readiness`.
- */
-function controlsOf(answers: ScenarioAnswers): readonly TestEvaluatorControl[] {
-  return [
-    {
+/** Build fixed executions by check identifier. */
+function controlsOf(answers: ScenarioAnswers): Readonly<Record<string, { readonly answer: EvaluatorExecution }>> {
+  return {
+    "requirement-coverage": {
       answer: {
         assessment: {
           kind: "categorical",
@@ -430,7 +425,7 @@ function controlsOf(answers: ScenarioAnswers): readonly TestEvaluatorControl[] {
         latency_ms: 210,
       },
     },
-    {
+    "capability-fit": {
       answer: {
         assessment: {
           kind: "categorical",
@@ -440,13 +435,13 @@ function controlsOf(answers: ScenarioAnswers): readonly TestEvaluatorControl[] {
         latency_ms: 230,
       },
     },
-    {
+    "unrequested-work": {
       answer: {
         assessment: { kind: "binary", value: answers.unrequested },
         latency_ms: 90,
       },
     },
-    {
+    "delivery-readiness": {
       answer: {
         assessment: {
           kind: "ordered",
@@ -456,33 +451,29 @@ function controlsOf(answers: ScenarioAnswers): readonly TestEvaluatorControl[] {
         latency_ms: 190,
       },
     },
-  ];
+  };
 }
 
-/**
- * Builds one scripted evaluator that answers one stated case order.
- *
- * The scripted adapter consumes one step per request, so one host that runs
- * several operations must state the visit order of every case. The registry
- * of each operation below builds its own evaluator with the same identifier
- * and the same adapter version, so one stored profile stays compatible with
- * the registry that serves the next operation. See [README.md](README.md)
- * for the recorded friction of this boundary.
- */
-function evaluatorFor(caseIds: readonly string[], calls: EvaluatorRequest[]): ScriptedEvaluator {
-  const steps = caseIds.flatMap((id) => {
-    const answers = SCENARIO_ANSWERS[id];
+/** Build repeatable answers from case inputs, independent of execution order. */
+function evaluatorFor(records: readonly DatasetCase[], calls: EvaluatorRequest[]): FixtureEvaluator {
+  const fixtures = records.flatMap(record => {
+    const answers = SCENARIO_ANSWERS[record.id];
     if (answers === undefined) {
-      throw new Error(`the example holds no scripted answers for the case ${id}`);
+      throw new Error(`the example holds no scripted answers for the case ${record.id}`);
     }
-    return controlsOf(answers);
+    const controls = controlsOf(answers);
+    return planReview.checks.filter(check => check.question !== undefined).map(check => ({
+      check: check.id,
+      inputs: Object.fromEntries(check.using.map(name => [name, record.input[name]!])),
+      answer: controls[check.id]!.answer,
+    }));
   });
-  const scripted = createScriptedEvaluator({ steps });
+  const evaluator = createFixtureEvaluator({ fixtures });
   return {
-    ...scripted,
+    ...evaluator,
     assess(request: EvaluatorRequest): Promise<EvaluatorExecution> {
       calls.push(request);
-      return scripted.assess(request);
+      return evaluator.assess(request);
     },
   };
 }
@@ -535,7 +526,7 @@ function calibrationPlan(definitionHash: string): Record<string, unknown> {
     objective: { metric: "review_rate", direction: "minimize" },
     minimum_samples: { accepted_cases: 2 },
     candidate_grid: GRID,
-    evaluator: { evaluator: "scripted-test", adapter_version: "0.1.0" },
+    evaluator: { evaluator: "fixture-test", adapter_version: "0.1.0" },
     datasets: {
       fitting: { dataset: DATASET_ID, revision: "2026-09-25.1", split: "fit" },
       validation: { dataset: DATASET_ID, revision: "2026-09-25.1", split: "holdout" },
@@ -572,7 +563,7 @@ function revisionPlan(definitionHash: string): Record<string, unknown> {
     objective: { metric: "review_rate", direction: "minimize" },
     minimum_samples: { accepted_cases: 1 },
     candidate_grid: GRID,
-    evaluator: { evaluator: "scripted-test", adapter_version: "0.1.0" },
+    evaluator: { evaluator: "fixture-test", adapter_version: "0.1.0" },
     datasets: {
       fitting: { dataset: DATASET_ID, revision: "2026-09-25.2", split: "fit" },
       validation: { dataset: DATASET_ID, revision: "2026-09-25.2", split: "holdout" },
@@ -705,11 +696,10 @@ export async function runExample(options: ExampleOptions = {}): Promise<ExampleR
   // 2. Bind the offline test evaluator, generate one exploration profile,
   //    store it, and load the definition with it. The qualification stays
   //    unvalidated with the reason `starter_policy`.
-  const shadowIds = dataset.cases.map((record) => record.id);
   // The host records every evaluator request of every phase, so one review
   // can audit the projected inputs of the complete workflow.
   const evaluatorCalls: EvaluatorRequest[] = [];
-  const shadowEvaluator = evaluatorFor(shadowIds, evaluatorCalls);
+  const shadowEvaluator = evaluatorFor(dataset.cases, evaluatorCalls);
   const registry = registerEvaluators(shadowEvaluator);
   const profile = createExplorationProfile(planReview, registry);
   await mkdir(out, { recursive: true });
@@ -736,12 +726,7 @@ export async function runExample(options: ExampleOptions = {}): Promise<ExampleR
 
   // 4. Evaluate the same dataset under the exploration profile. The purpose
   //    states exploration, so the report carries no validation claim.
-  const evaluationRegistry = registerEvaluators(evaluatorFor(shadowIds, evaluatorCalls));
-  const evaluationReviewer = await load(planReview, {
-    profile: storedProfile,
-    evaluators: evaluationRegistry,
-  });
-  const evaluation = await evaluate(evaluationReviewer, {
+  const evaluation = await evaluate(reviewer, {
     metadata,
     records,
     purpose: "exploration",
@@ -768,9 +753,7 @@ export async function runExample(options: ExampleOptions = {}): Promise<ExampleR
     plan: calibrationPlanPath,
     metadata,
     records,
-    evaluators: registerEvaluators(
-      evaluatorFor([...fittingSplit.case_ids, ...holdoutSplit.case_ids], evaluatorCalls),
-    ),
+    evaluators: registry,
     sampling: "grouped_cases",
     evaluationReports: [path.join(out, "plan-review-calibration-fitting.json")],
   });
@@ -803,7 +786,7 @@ export async function runExample(options: ExampleOptions = {}): Promise<ExampleR
     plan: revisionPlanPath,
     metadata: revisedMetadata,
     records: revisedRecords,
-    evaluators: registerEvaluators(evaluatorFor(freshSplit.case_ids, evaluatorCalls)),
+    evaluators: registerEvaluators(evaluatorFor(revisedDataset.cases, evaluatorCalls)),
     sampling: "grouped_cases",
     evaluationReports: [path.join(out, "plan-review-revision-fitting.json")],
   });

@@ -231,6 +231,12 @@ It serializes and validates either input through the same core operations and ke
 A caller mutation cannot change the bound profile.
 Direct profile loading changes no qualification, scope, or enforcement selection rule.
 
+Offline tests can use fixed fixtures matched by check identifier and exact projected inputs.
+`createFixtureEvaluator` supports repeated, reordered, and concurrent requests without an ordered answer list.
+It receives no case identifier or reference label. Matching uses Rust canonicalization.
+Unknown inputs produce an explicit failure. Fixtures measure no semantic quality or qualification.
+The [API reference](docs/reference/api.md#replay-fixtures-without-an-execution-order) states the limits and failure behavior.
+
 ### Responsibilities across the language boundary
 
 | Component | Owns | Does not own |
