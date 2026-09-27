@@ -273,7 +273,7 @@ test("the terminal summary leads with meaning, outcomes, aggregate, and next act
     "The answer \"yes\": One participant recognizes the concern. Unacceptable mass 1 meets the rejection cutoff 0.6.",
   );
   expect(text).toContain(
-    "The answer \"minor\": No identified consequence. Neither cutoff was met: acceptable mass 0.55, unacceptable mass 0.45.",
+    "The answer \"minor\": No identified consequence. Review source: decision policy. Acceptable mass 0.55 is below the accept cutoff 0.8. Unacceptable mass 0.45 is below the rejection cutoff 0.6.",
   );
 
   // The aggregate outcome, its explanation, the completion, and the action.
@@ -298,9 +298,9 @@ test("review answers, floors, and binary passes explain their criteria", async (
     "The answer \"incomplete\": Support for one claim is missing. It is a review answer of this check.",
   );
   expect(reviewText).toContain(
-    "The check \"Our message accurately describes the evidence\" needs review. The evidence did not support an automatic decision.",
+    "The check \"Our message accurately describes the evidence\" needs review. The recorded results do not support an automatic decision.",
   );
-  expect(reviewText).toContain("Next: Review the supplied evidence before you decide on this candidate.");
+  expect(reviewText).toContain("Next: Inspect the supplied evidence against the check criteria.");
 
   // One confidence floor below the reported confidence explains the floor.
   const floored = await runWith([SUPPORTED, NOTHING_NEW, MEANINGFUL], {
@@ -320,6 +320,49 @@ test("review answers, floors, and binary passes explain their criteria", async (
     "The answer \"no\": No message recognizes the concern. Acceptable mass 1 meets the accept cutoff 0.8.",
   );
   expect(passingText).toContain("The answer \"meaningful\": One coordination problem. Acceptable mass 0.9 meets the accept cutoff 0.8.");
+});
+
+test("review reports distinguish an evaluator review answer from policy abstention", async () => {
+  const belowCutoff = {
+    assessment: {
+      kind: "categorical", label: "supported",
+      distribution: [
+        { name: "supported", mass: 0.76 },
+        { name: "contradicted", mass: 0.06 },
+        { name: "incomplete", mass: 0.18 },
+      ],
+    },
+  };
+  const uncertain = await runWith([belowCutoff, NOTHING_NEW, MEANINGFUL]);
+  for (const text of [
+    renderRunReport(mixed, uncertain.report),
+    renderRunReportMarkdown(mixed, uncertain.report),
+  ]) {
+    expect(text).toContain("Review source: decision policy.");
+    expect(text).toContain("Acceptable mass 0.76 is below the accept cutoff 0.8.");
+    expect(text).toContain("Unacceptable mass 0.06 is below the rejection cutoff 0.6.");
+    expect(text).toContain("Inspect the measurements and decision policy before deciding.");
+    expect(text).not.toContain("The evaluator could not establish a supported answer.");
+  }
+  const incomplete = await runWith([INCOMPLETE, NOTHING_NEW, MEANINGFUL]);
+  for (const text of [
+    renderRunReport(mixed, incomplete.report),
+    renderRunReportMarkdown(mixed, incomplete.report),
+  ]) {
+    expect(text).toContain("Review source: evaluator answer.");
+    expect(text).toContain("Inspect the supplied evidence against the check criteria.");
+    expect(text).not.toContain("Review source: decision policy.");
+  }
+});
+
+test("a review caused by skipped work directs the reader to execution", async () => {
+  const { report } = await runWith([SUPPORTED, NOTHING_NEW, MEANINGFUL]);
+  const skipped: RunReport = {
+    ...report,
+    checks: report.checks.map(record => record.check === "adds-information" ? SKIP_RECORD : record),
+    aggregate: { outcome: "review" },
+  };
+  expect(renderRunReport(mixed, skipped)).toContain("Next: Inspect skipped checks and their execution limits before retrying.");
 });
 
 // ---------------------------------------------------------------------------
@@ -384,7 +427,7 @@ test("error and skip records keep their stable reasons and the run its status", 
   expect(reviewText).toContain(
     "The check \"Our message accurately describes the evidence\" needs review. " +
       "The check \"We are adding something new\" was not attempted. " +
-      "The evidence did not support an automatic decision.",
+      "The recorded results do not support an automatic decision.",
   );
 });
 
@@ -451,13 +494,13 @@ test("the detailed view keys the policy terms and the shadow fields it uses", as
   // One report that states one policy also states what its terms mean.
   expect(text).toContain("Key");
   expect(text).toContain("Acceptable mass: the assessed mass on the accepted answers of the check.");
-  expect(text).toContain("Unacceptable mass: the assessed mass on every other declared answer.");
+  expect(text).toContain("Unacceptable mass: the assessed mass on answers that are neither accepted nor declared for review.");
   expect(text).toContain(
     "The policy passes at acceptable mass at or above the accept cutoff. " +
       "It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.",
   );
   expect(text).toContain(
-    "The selected profile holds the cutoffs and the evaluator binding. The host application stores it.",
+    "The profile holds the cutoffs and the evaluator binding. Your application owns its storage.",
   );
 
   // The binary check of the definition carries no distribution, and the key
@@ -603,6 +646,7 @@ test("the exploration profile summary states its readiness without measured numb
   expect(lines).toContain("Intended use: Development exploration of the definition semantic-intervention. Not a measured population, and starter thresholds carry no qualification evidence.");
   expect(lines).toContain("Readiness: unvalidated (unvalidated)");
   expect(lines).toContain("Reasons: starter_policy");
+  expect(summary).toContain("Next: Use for exploration. Review representative cases before calibration.");
   expect(summary).toContain(`Definition: semantic-intervention (${profile.definition.content_hash.slice(0, 8)})`);
   expect(summary).not.toContain("0 of");
 
@@ -638,6 +682,7 @@ test("the insufficient-evidence profile renders its readiness, evidence, and cou
   const lines = summary.split("\n");
   expect(lines[0]).toBe("Profile message-supported-insufficient (calibration)");
   expect(lines).toContain("Readiness: insufficient evidence (insufficient_evidence)");
+  expect(summary).toContain("Next: Inspect missing evidence and sampling limits in the detailed view.");
   expect(lines).toContain("Reasons: measured_evidence, insufficient_evidence");
   expect(lines).toContain("Scope: The Cassandra pilot conversation population declared in the plan.");
   expect(summary).not.toContain("0 of 9");

@@ -386,7 +386,9 @@ test("the missing-evidence case reviews through its review labels and one absten
   expect(consequence.assessment).toMatchObject({ kind: "ordered", level: "minor" });
   const rendered = renderRunReport(definition, review);
   expect(rendered).toContain("It is a review answer of this check.");
-  expect(rendered).toContain("Neither cutoff was met");
+  expect(rendered).toContain("Review source: decision policy.");
+  expect(rendered).toContain("Acceptable mass 0.55 is below the accept cutoff 0.8.");
+  expect(rendered).toContain("Unacceptable mass 0.45 is below the rejection cutoff 0.6.");
   expect(rendered).toContain("Overall: REVIEW");
 });
 

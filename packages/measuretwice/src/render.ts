@@ -85,6 +85,13 @@ const READINESS: Record<QualificationStatus, string> = {
   validated_for_scope: "validated for scope",
 };
 
+const PROFILE_NEXT_ACTION: Record<QualificationStatus, string> = {
+  unvalidated: "Use for exploration. Review representative cases before calibration.",
+  insufficient_evidence: "Inspect missing evidence and sampling limits in the detailed view.",
+  criteria_not_met: "Inspect unmet goals and case outcomes before revising the check or policy.",
+  validated_for_scope: "Review the evidence before selecting this profile for its stated scope.",
+};
+
 /** The next useful action for each aggregate outcome. */
 const NEXT_ACTION: Record<AggregateOutcome, string> = {
   pass: "Your application can consider this candidate. Its own permissions and delivery rules still apply.",
@@ -293,6 +300,32 @@ function selectedAnswerOf(record: RunCheckRecord): string | undefined {
   return undefined;
 }
 
+/** Identifies a recorded review condition without attributing model reasoning. */
+function reviewSourceOf(
+  check: CheckDefinition,
+  record: RunCheckRecord,
+): "evaluator answer" | "decision policy" | undefined {
+  const selected = selectedAnswerOf(record);
+  if (selected !== undefined && reviewSetOf(check).includes(selected)) {
+    return "evaluator answer";
+  }
+  const policy = record.applied_policy;
+  if (policy === undefined) {
+    return undefined;
+  }
+  if (policy.confidence_floor !== undefined && record.assessment?.kind !== "binary") {
+    const confidence = record.assessment?.confidence;
+    if (typeof confidence !== "number" || confidence < policy.confidence_floor) {
+      return "decision policy";
+    }
+  }
+  const masses = massesOf(check, record);
+  return masses !== undefined &&
+    masses.acceptable < policy.accept_cutoff &&
+    masses.unacceptable < policy.rejection_cutoff
+    ? "decision policy" : undefined;
+}
+
 /** Reads the recorded distribution of one check record. */
 function distributionOf(
   record: RunCheckRecord,
@@ -392,7 +425,7 @@ function questionExplanation(check: CheckDefinition, record: RunCheckRecord): st
 
   if (record.outcome === "review") {
     if (selected !== undefined && reviewSetOf(check).includes(selected)) {
-      return join(criteria, "It is a review answer of this check.");
+      return join(criteria, "It is a review answer of this check. Review source: evaluator answer.");
     }
     if (
       policy?.confidence_floor !== undefined &&
@@ -401,7 +434,7 @@ function questionExplanation(check: CheckDefinition, record: RunCheckRecord): st
     ) {
       return join(
         criteria,
-        `The assessment reports no confidence, so the confidence floor ${num(policy.confidence_floor)} cannot be met.`,
+        `The assessment reports no confidence, so the confidence floor ${num(policy.confidence_floor)} cannot be met. Review source: decision policy.`,
       );
     }
     const confidence = record.assessment?.confidence;
@@ -413,13 +446,17 @@ function questionExplanation(check: CheckDefinition, record: RunCheckRecord): st
     ) {
       return join(
         criteria,
-        `Reported confidence ${num(confidence)} is below the confidence floor ${num(policy.confidence_floor)}.`,
+        `Reported confidence ${num(confidence)} is below the confidence floor ${num(policy.confidence_floor)}. Review source: decision policy.`,
       );
     }
-    if (masses !== undefined) {
+    if (
+      masses !== undefined && policy !== undefined &&
+      masses.acceptable < policy.accept_cutoff && masses.unacceptable < policy.rejection_cutoff
+    ) {
       return join(
         criteria,
-        `Neither cutoff was met: acceptable mass ${num(masses.acceptable)}, unacceptable mass ${num(masses.unacceptable)}.`,
+        `Review source: decision policy. Acceptable mass ${num(masses.acceptable)} is below the accept cutoff ${num(policy.accept_cutoff)}. ` +
+        `Unacceptable mass ${num(masses.unacceptable)} is below the rejection cutoff ${num(policy.rejection_cutoff)}.`,
       );
     }
     return join(criteria, "The answer did not support an automatic decision.");
@@ -440,6 +477,33 @@ function questionExplanation(check: CheckDefinition, record: RunCheckRecord): st
     );
   }
   return join(criteria, "The check failed under the executed policy.");
+}
+
+/** Directs review to recorded causes without inventing an evaluator rationale. */
+function nextAction(binding: ReportBinding, report: RunReport): string {
+  if (report.aggregate.outcome !== "review") {
+    return NEXT_ACTION[report.aggregate.outcome];
+  }
+  const actions = new Set<string>();
+  for (const record of report.checks) {
+    if (record.outcome === "skipped") {
+      actions.add("Inspect skipped checks and their execution limits before retrying.");
+    } else if (record.outcome === "review") {
+      const check = binding.byId.get(record.check);
+      if (check === undefined) {
+        continue;
+      }
+      const source = reviewSourceOf(check, record);
+      if (source === "evaluator answer") {
+        actions.add("Inspect the supplied evidence against the check criteria.");
+      } else if (source === "decision policy") {
+        actions.add("Inspect the measurements and decision policy before deciding.");
+      } else {
+        actions.add(NEXT_ACTION.review);
+      }
+    }
+  }
+  return actions.size === 0 ? NEXT_ACTION.review : [...actions].join(" ");
 }
 
 /** Builds the default explanation of one check record from its sanitized reason. */
@@ -508,7 +572,7 @@ function explainAggregate(
         const verb = skipped.length === 1 ? "was" : "were";
         sentences.push(`${namedGroup(skipped, nameOf)} ${verb} not attempted.`);
       }
-      sentences.push("The evidence did not support an automatic decision.");
+      sentences.push("The recorded results do not support an automatic decision.");
       return sentences.join(" ");
     }
     default:
@@ -729,9 +793,9 @@ function reportKeyLines(binding: ReportBinding, report: RunReport): string[] {
   if (hasPolicy) {
     lines.push(
       "Acceptable mass: the assessed mass on the accepted answers of the check.",
-      "Unacceptable mass: the assessed mass on every other declared answer.",
+      "Unacceptable mass: the assessed mass on answers that are neither accepted nor declared for review.",
       "The policy passes at acceptable mass at or above the accept cutoff. It fails at unacceptable mass at or above the reject cutoff. Every other assessment reviews.",
-      "The selected profile holds the cutoffs and the evaluator binding. The host application stores it.",
+      "The profile holds the cutoffs and the evaluator binding. Your application owns its storage.",
     );
   }
   const binary = [...binding.byId.values()].some(
@@ -797,7 +861,7 @@ function renderReportTerminal(
     `Overall: ${report.aggregate.outcome.toUpperCase()}`,
     explainAggregate(report, nameOf),
     `Completion: ${completionText(report)}`,
-    `Next: ${NEXT_ACTION[report.aggregate.outcome]}`,
+    `Next: ${nextAction(binding, report)}`,
     "A report authorizes no application action.",
   );
   if (detail === "detail") {
@@ -853,7 +917,7 @@ function renderReportMarkdown(
   blocks.push(
     `**Overall: ${report.aggregate.outcome.toUpperCase()}** — ${explainAggregate(report, nameOf)}`,
     `**Completion:** ${completionText(report)}`,
-    `**Next:** ${NEXT_ACTION[report.aggregate.outcome]}`,
+    `**Next:** ${nextAction(binding, report)}`,
     "A report authorizes no application action.",
   );
   if (detail === "detail") {
@@ -953,6 +1017,9 @@ function profileSummaryLines(profile: Profile): string[] {
   const reasons = profile.qualification.reasons.join(", ");
   lines.push(`Reasons: ${reasons === "" ? "(none recorded)" : reasons}`);
   lines.push(`Definition: ${profile.definition.name} (${profile.definition.content_hash.slice(0, 8)})`);
+  if (profile.origin !== "exact") {
+    lines.push(`Next: ${PROFILE_NEXT_ACTION[profile.qualification.status]}`);
+  }
   return lines;
 }
 

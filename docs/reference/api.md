@@ -412,6 +412,11 @@ changed translation fail before any execution.
 For a first run, pass the generated value directly:
 
 ```ts
+import { createExplorationProfile, load, type Definition, type EvaluatorRegistry } from "measuretwice";
+
+declare const definition: Definition;
+declare const evaluators: EvaluatorRegistry;
+
 const profile = createExplorationProfile(definition, evaluators);
 const reviewer = await load(definition, { profile, evaluators });
 ```
@@ -969,6 +974,17 @@ when the report holds the fact that the line explains.
 Every explanation comes from the check criteria and the executed policy. No
 renderer invents one evaluator rationale. Supplied case content never
 renders, because the report holds none. One absent measurement stays absent.
+
+Review reports name a declared review answer as `Review source: evaluator answer`.
+Policy abstention is `Review source: decision policy`, with the recorded cutoffs or confidence floor.
+Skipped checks retain their execution reason.
+The next action points to the relevant evidence, measurements, or execution limits.
+If several review conditions exist, the view keeps each next inspection visible.
+The aggregate explanation refers to recorded results, not an assumed absence of source evidence.
+Unacceptable mass excludes both accepted answers and answers declared for review.
+
+Semantic profile summaries include the next inspection for their qualification status.
+Exact profiles omit calibration advice because exact rules need no statistical calibration.
 
 A renderer verifies its inputs before it renders. The definition crosses the
 core validator, and its content hash must equal the hash that the report

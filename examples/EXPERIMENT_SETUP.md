@@ -175,7 +175,7 @@ const profile = createExplorationProfile(definition, registry, {
   execution: { max_active: 1, max_pending: 1, deadline_ms: 30000, max_attempts: 1, backoff_ms: 0 },
 });
 await save("profile.json", profile);
-const reviewer = await load(definition, { profile: `${out}/profile.json`, evaluators: registry });
+const reviewer = await load(definition, { profile, evaluators: registry });
 const result = await evaluate(reviewer, { ...source, purpose: "exploration" });
 await save("evaluation.json", result.report);
 await save("runs.json", result.runs);
