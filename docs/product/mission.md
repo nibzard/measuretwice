@@ -53,6 +53,7 @@ It also exposed incomplete case assembly, evaluator review, and policy abstentio
 Its labels remain unreviewed, and its cases do not establish deployment reliability.
 
 The first-check example and direct profile loading address first-run setup.
+The [requirement revision example](../../examples/first-check/README.md#revise-the-requirement) demonstrates profile invalidation and reassessment without saved files.
 The report view explains recorded review conditions.
 The [verification record](../reports/ergonomics-update.md) records the clean-checkout checks.
 Use [the human study procedure](../guides/usability.md) to test the experience with a new developer.

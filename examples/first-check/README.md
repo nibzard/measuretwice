@@ -42,3 +42,38 @@ For application-owned report storage and typed datasets, continue with [memory s
 
 Before expanding the check, use [the evidence guide](../../docs/guides/evidence.md).
 Qualification uses separately reviewed cases and [the calibration workflow](../../docs/guides/calibration.md).
+
+## Revise the requirement
+
+The original check accepts a supported memory without naming its speaker.
+The revised check also requires the candidate to name the speaker.
+Read [checks-attribution.mjs](checks-attribution.mjs) to inspect the changed question and answer meanings.
+
+After the package build exists, run:
+
+```sh
+node examples/first-check/revise.mjs
+```
+
+The script performs these steps:
+
+1. Generate an exploration profile for the original requirement.
+2. Try to load the revised requirement with that profile.
+3. Confirm `definition_mismatch` before any evaluator call.
+4. Generate a new exploration profile for the revised requirement.
+5. Run three cases in shadow mode and print their reports.
+
+| Candidate | Source speaker | Scripted outcome |
+| --- | --- | --- |
+| The launch is Friday. | Dana | fail |
+| Dana confirms the launch is Friday. | Dana | pass |
+| Dana confirms the launch is Friday. | Not identified | review |
+
+The first candidate passed the original requirement. It now omits required attribution.
+The last case lacks evidence for the speaker; absence alone establishes no contradiction.
+Fixed answers illustrate these distinctions. They do not assess the text.
+
+The new profile remains unvalidated. Earlier qualification does not transfer to a changed requirement.
+For a real evaluator, reassess representative cases and review their labels against the revised answer meanings.
+Use separate fitting and independent validation data before relying on the new profile.
+Changing a requirement differs from tuning numerical rules; use [policy revision](../plan-review/README.md) for that workflow.

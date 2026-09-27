@@ -43,6 +43,9 @@ These are synthetic cases with model-proposed labels. They establish no reliabil
 The example runs in shadow mode: it records judgments and changes no application action.
 Change a candidate and run again. Scripted answers stay fixed; connect a real evaluator to assess changed text.
 
+To try a requirement change, run `node examples/first-check/revise.mjs` after the build.
+The [revision example](examples/first-check/README.md#revise-the-requirement) adds attribution, rejects the old profile, and shows the new reports.
+
 ## Write the requirement
 
 A **check** states a requirement and the evidence it may read.

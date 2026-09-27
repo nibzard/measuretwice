@@ -52,6 +52,19 @@ The [formal applicability record](formal-applicability.md) explains why profile 
 No new formal model-check result is claimed.
 This run verifies the local Linux target. It does not establish installation on every declared release target.
 
+## Requirement revision follow-up
+
+The [revision example](../../examples/first-check/README.md#revise-the-requirement) adds a speaker attribution requirement.
+It rejects the original profile before any assessment, then generates an unvalidated profile for the revised requirement.
+Three synthetic cases produce scripted fail, pass, and review outcomes.
+This verifies the integration sequence. It measures no evaluator quality.
+
+The new regression test failed before the example existed.
+The example command, TypeScript type checks, and all 573 TypeScript and repository tests passed in the development checkout.
+The suite now contains 49 test files.
+No Rust implementation or critical state transition changed in this follow-up.
+The clean-checkout results above describe the earlier implementation; this follow-up used the existing development checkout.
+
 ## What remains unverified
 
 No new human usability study has run.
