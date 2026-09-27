@@ -37,7 +37,7 @@ test("the root manifest exposes the clean-installation gate", () => {
 
 test("the gate script accepts the workflow options and names the failure modes", () => {
   const source = read(path.join("scripts", "verify-install.mjs"));
-  for (const option of ["--packages", "--require-all", "--keep"]) {
+  for (const option of ["--packages", "--binaries", "--require-all", "--keep"]) {
     expect(source).toContain(`"${option}"`);
   }
   // The environment must lose its Rust tooling before anything installs.
@@ -65,8 +65,15 @@ test("the installation check resolves only installed packages", () => {
 
 test("the artifact workflow requires one clean installation per declared node version", () => {
   const workflow = read(path.join(".github", "workflows", "build-artifacts.yml"));
-  expect(workflow).toContain("node scripts/verify-install.mjs --packages packages --require-all");
+  expect(workflow).toContain(
+    "node scripts/verify-install.mjs --packages packages --binaries binaries --require-all",
+  );
   expect(workflow).toContain("needs: packages");
+  // The gate proves tarball-to-release-artifact provenance: the collected
+  // binaries join the install job, and the gate compares every packed
+  // platform binary against them.
+  expect(workflow).toContain("path: binaries");
+  expect(workflow).toContain("pattern: binary-*");
   for (const nodeVersion of ['"20"', '"22"', '"24"']) {
     expect(workflow).toContain(`node: ${nodeVersion}`);
   }

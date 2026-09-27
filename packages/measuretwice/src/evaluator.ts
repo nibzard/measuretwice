@@ -45,6 +45,7 @@ import type { CheckDefinition, Definition, JSONValue } from "./define-checks.js"
 import { NativeFailure, nativeValidateAssessment } from "./native.js";
 import type { DefinitionInfo, ValidatedAssessment } from "./native.js";
 import { ValidationError } from "./error.js";
+import { jsonText as strictJsonText } from "./json-boundary.js";
 
 /** One check kind of one validated definition, as the core reports it. */
 type CheckKindEntry = DefinitionInfo["checkKinds"][number];
@@ -248,6 +249,24 @@ export interface EvaluatorTranslation {
 }
 
 /**
+ * The model configuration of one adapter, stated as data.
+ *
+ * `requested` names the model the adapter asks its provider for: one
+ * versioned identifier or one alias. `resolved` names the version that the
+ * request resolves to today, when the adapter knows it. The live-binding
+ * comparison of `load` and every run compares the declaration with the
+ * model pin of one bound profile through the core compatibility gate, so
+ * one adapter that today requests another model refuses the binding before
+ * any work starts. One absent declaration compares nothing.
+ */
+export interface EvaluatorModelDeclaration {
+  /** The model this adapter requests: one versioned identifier or one alias. */
+  readonly requested: string;
+  /** The version the request resolves to today, when the adapter knows it. */
+  readonly resolved?: string;
+}
+
+/**
  * One evaluator adapter that the host registered.
  *
  * The adapter owns its provider. It holds the client, reads the host
@@ -271,6 +290,28 @@ export interface Evaluator {
    * the adapter translates nothing, and no comparison happens.
    */
   readonly translate?: (question: ValidatedQuestion) => EvaluatorTranslation;
+  /**
+   * Declares the model configuration this adapter uses. Optional.
+   *
+   * One declaration states the model the adapter requests and, when the
+   * adapter knows it, the version that request resolves to. Registration
+   * pins the declaration, so one later mutation of the host object changes
+   * no compared value. The pinned declaration compares against the model
+   * pin of one bound profile at `load` and at every `run`, and one
+   * response that reports another model version than the pin fails its
+   * check. One host that reconfigures its adapter registers it again: one
+   * fresh registration with one changed declaration refuses the same
+   * profile. One absent declaration compares nothing.
+   */
+  readonly model?: EvaluatorModelDeclaration;
+  /**
+   * The preprocessing identity this adapter applies, when one applies.
+   * Optional.
+   *
+   * The identity compares with the preprocessing pin of one bound profile
+   * at `load` and at every `run`. One absent declaration compares nothing.
+   */
+  readonly preprocessing?: string;
 }
 
 /** The host allowlist of registered evaluators. One profile refers only to it. */
@@ -290,14 +331,23 @@ export interface EvaluatorRegistry {
  *
  * Pass the registry to `load` through its `evaluators` option. Registration
  * is explicit host code, so one loaded profile cannot install one evaluator.
- * The registry reads only `id`, `adapter_version`, `assess`, and the
- * optional `translate`. One adapter may hold any other field, such as its
- * client, because it never serializes.
+ * The registry reads only `id`, `adapter_version`, `assess`, the optional
+ * `translate`, the optional `model` declaration, and the optional
+ * `preprocessing` identity. One adapter may hold any other field, such as
+ * its client, because it never serializes.
+ *
+ * Registration pins the contract identity of every adapter: the registry
+ * stores one frozen wrapper whose `id`, `adapter_version`, `model`, and
+ * `preprocessing` state the values that registration read, while `assess`
+ * and `translate` keep calling the host object. One host that mutates its
+ * own adapter object afterwards changes its client state, never the
+ * identity that one bound profile compares and one report records.
  *
  * @throws {ValidationError} when one evaluator states one identifier or one
  * adapter version outside the contract, implements no `assess` operation,
- * states one `translate` that is not one function, or shares one identifier
- * with one earlier registration.
+ * states one `translate` that is not one function, states one model
+ * declaration or preprocessing identity outside its bounds, or shares one
+ * identifier with one earlier registration.
  */
 export function registerEvaluators(...evaluators: readonly Evaluator[]): EvaluatorRegistry {
   const registered = new Map<string, Evaluator>();
@@ -352,7 +402,23 @@ export function registerEvaluators(...evaluators: readonly Evaluator[]): Evaluat
         `${base}/id`,
       );
     }
-    registered.set(id, evaluator);
+    const model = readModelDeclaration(evaluator, base, id);
+    const preprocessing = readPreprocessing(evaluator, base, id);
+    // The wrapper pins the contract identity that registration read. The
+    // host object keeps its mutable client state, and the two operations
+    // keep calling it, so one later mutation of the host object changes no
+    // identity that one profile compares or one report records.
+    const wrapper: Evaluator = Object.freeze({
+      id,
+      adapter_version: version,
+      assess: (request: EvaluatorRequest) => evaluator.assess(request),
+      ...(translate !== undefined
+        ? { translate: (question: ValidatedQuestion) => evaluator.translate!(question) }
+        : {}),
+      ...(model !== undefined ? { model: Object.freeze({ ...model }) } : {}),
+      ...(preprocessing !== undefined ? { preprocessing } : {}),
+    });
+    registered.set(id, wrapper);
   }
   const registry: EvaluatorRegistry = {
     ids: Object.freeze([...registered.keys()]),
@@ -361,6 +427,68 @@ export function registerEvaluators(...evaluators: readonly Evaluator[]): Evaluat
     },
   };
   return Object.freeze(registry);
+}
+
+/** The greatest length of one model identifier or preprocessing identity. */
+const MODEL_LIMIT = 128;
+
+/** Reads and validates the optional model declaration of one evaluator. */
+function readModelDeclaration(
+  evaluator: Evaluator,
+  base: string,
+  id: string,
+): EvaluatorModelDeclaration | undefined {
+  const model = (evaluator as { readonly model?: unknown }).model;
+  if (model === undefined) {
+    return undefined;
+  }
+  if (typeof model !== "object" || model === null || Array.isArray(model)) {
+    throw new ValidationError(
+      "invalid_field_type",
+      `The evaluator ${JSON.stringify(id)} states one model declaration that is not one object with one requested model.`,
+      `${base}/model`,
+    );
+  }
+  const requested = (model as { readonly requested?: unknown }).requested;
+  if (typeof requested !== "string" || requested === "" || requested.length > MODEL_LIMIT) {
+    throw new ValidationError(
+      "invalid_field_type",
+      `The evaluator ${JSON.stringify(id)} states one requested model that is not one nonempty identifier of at most ${MODEL_LIMIT} characters.`,
+      `${base}/model/requested`,
+    );
+  }
+  const resolved = (model as { readonly resolved?: unknown }).resolved;
+  if (resolved !== undefined) {
+    if (typeof resolved !== "string" || resolved === "" || resolved.length > MODEL_LIMIT) {
+      throw new ValidationError(
+        "invalid_field_type",
+        `The evaluator ${JSON.stringify(id)} states one resolved model that is not one nonempty identifier of at most ${MODEL_LIMIT} characters.`,
+        `${base}/model/resolved`,
+      );
+    }
+    return Object.freeze({ requested, resolved });
+  }
+  return Object.freeze({ requested });
+}
+
+/** Reads and validates the optional preprocessing identity of one evaluator. */
+function readPreprocessing(evaluator: Evaluator, base: string, id: string): string | undefined {
+  const preprocessing = (evaluator as { readonly preprocessing?: unknown }).preprocessing;
+  if (preprocessing === undefined) {
+    return undefined;
+  }
+  if (
+    typeof preprocessing !== "string" ||
+    preprocessing === "" ||
+    preprocessing.length > MODEL_LIMIT
+  ) {
+    throw new ValidationError(
+      "invalid_field_type",
+      `The evaluator ${JSON.stringify(id)} states one preprocessing identity that is not one nonempty string of at most ${MODEL_LIMIT} characters.`,
+      `${base}/preprocessing`,
+    );
+  }
+  return preprocessing;
 }
 
 // ---------------------------------------------------------------------------
@@ -495,8 +623,16 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
   // one absent optional measurement stays absent.
   let text: string;
   try {
-    text = JSON.stringify(assessment);
-  } catch {
+    // The strict boundary rejects what JSON serialization would silently
+    // drop or coerce: one `undefined`-valued field, one function, one Date,
+    // one non-finite number. The core must see the answer exactly as the
+    // adapter stated it, so one nonportable assessment becomes one
+    // `invalid_assessment` failure instead of one coerced validation.
+    text = strictJsonText(assessment, "/assessment");
+  } catch (cause) {
+    if (cause instanceof ValidationError) {
+      return failure("invalid_assessment", cause.message);
+    }
     return failure(
       "evaluator_error",
       "The assessment holds one value that JSON cannot express, so the core cannot validate it.",

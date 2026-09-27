@@ -36,6 +36,7 @@ import {
   type ValidatedQuestion,
 } from "../src/index.js";
 import { dispatchAssessment } from "../src/evaluator.js";
+import { parseExactJson } from "../src/exact-json.js";
 import {
   nativeCanonicalForm,
   nativeComputeSelfHash,
@@ -146,8 +147,7 @@ async function dispatchedRequest(record: (typeof doc.cases)[number]): Promise<Ev
     definitionText,
     JSON.stringify({ id: CASE_ID, input: record.case_input }),
   );
-  const projected = caseInfo.projectedInputs.find((entry) => entry.checkId === record.check)
-    ?.inputs as Readonly<Record<string, JSONValue>>;
+  const projected = parseProjected(caseInfo, record.check);
   let seen: EvaluatorRequest | undefined;
   const evaluator: Evaluator = {
     id: "capture-test",
@@ -161,7 +161,7 @@ async function dispatchedRequest(record: (typeof doc.cases)[number]): Promise<Ev
     artifact,
     checkKinds: info.checkKinds,
     checkId: record.check,
-    projectedInputs: projected,
+    projectedInputs: projected as Readonly<Record<string, JSONValue>>,
     evaluator,
     budget: BUDGET,
     signal: new AbortController().signal,
@@ -175,6 +175,15 @@ async function dispatchedRequest(record: (typeof doc.cases)[number]): Promise<Ev
 // ---------------------------------------------------------------------------
 // The translated questions of the fixture cases.
 // ---------------------------------------------------------------------------
+
+/** Parses the projected inputs of one check from the boundary text. */
+function parseProjected(
+  caseInfo: { projectedInputs: Array<{ checkId: string; inputs: string }> },
+  checkId: string,
+): Readonly<Record<string, unknown>> {
+  const text = caseInfo.projectedInputs.find((entry) => entry.checkId === checkId)?.inputs;
+  return (text === undefined ? {} : parseExactJson(text)) as Record<string, unknown>;
+}
 
 test("the package ships the translation version of the fixture group", () => {
   expect(JEV_TRANSLATION_VERSION).toBe(doc.translation_version);

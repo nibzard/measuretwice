@@ -157,11 +157,18 @@ registry.ids; // ["label-only-test"]
 
 **Inputs:** one or more evaluator objects. One evaluator states one `id`
 inside the identifier rule, one nonempty `adapter_version` of at most 64
-characters, one `assess` operation, and one optional `translate` operation.
+characters, one `assess` operation, one optional `translate` operation, and
+one optional `model` declaration. One `model` declaration states the
+configured model as `{ requested }`, with one optional `resolved` version.
+One optional `preprocessing` string names the preprocessing step that the
+adapter applies before the call.
 
 **Output:** one frozen registry. `ids` lists every registered identifier in
-registration order. `get` returns the evaluator of one identifier, or
-`undefined`.
+registration order. `get` returns the pinned registration record of one
+identifier, or `undefined`. The record is frozen and states the identity,
+the declared `model` and `preprocessing`, and the delegate operations. It is
+not the caller's object: one mutation of the caller's object after
+registration changes no binding and no report.
 
 **Side effects:** none.
 
@@ -183,14 +190,21 @@ Evidence references must name inputs of the `using` list.
 `invalid_field_type` and one duplicate identifier with `duplicate_id`. During
 one run, one thrown adapter error, one malformed answer, and one assessment
 outside the contract of its check become one component failure record with
-`evaluator_error` or `invalid_assessment`. One broken adapter never crashes
-one run, and one invalid answer never enters one report.
+`evaluator_error` or `invalid_assessment`. One answer that JSON cannot
+preserve becomes `invalid_assessment`; nothing is coerced. One broken
+adapter never crashes one run, and one invalid answer never enters one
+report.
 
 **Compatibility:** one bound profile refers only to registered evaluators.
 One unknown reference fails `load` with `evaluator_mismatch`. One changed
 adapter version fails the same way. When the adapter exposes `translate`,
 one changed translated question fails with `translation_mismatch`. One
-loaded file installs no evaluator.
+declared `model` that names another model than the profile pin fails with
+`model_resolution_changed` at load and at every run, and one response whose
+`model_resolved` names another model than the pin fails its check
+permanently with the same code. One changed `preprocessing` declaration
+fails the binding check with `evaluator_mismatch`. One loaded file installs
+no evaluator.
 
 ## `createJevEvaluator`
 
@@ -456,8 +470,11 @@ It writes nothing. Both forms create a validated, frozen snapshot independent of
 profile, verifies its stored self-hash, validates the complete profile
 contract, and checks its compatibility with the definition in shadow mode.
 One bound profile that names evaluators is compared against the live
-registry: one unregistered reference, one changed adapter version, and one
-changed translation fail before any execution.
+registry: one unregistered reference, one changed adapter version, one
+changed translation, and one declared model that names another model than
+the profile pin fail before any execution. Every run repeats the live
+comparison, so one registry that changed after `load` refuses the run
+before any evaluator is called.
 
 For a first run, pass the generated value directly:
 
@@ -705,7 +722,9 @@ path, the two dataset paths, the evaluator registry, the sampling model of
 every validation interval, and the storage references of the evaluation
 reports that the host keeps. The optional fields state the validation splits
 that earlier claims consumed, the profile `id`, the `intendedUse`, execution
-overrides, the `signal`, and the injected boundaries.
+overrides, the `signal`, the injected boundaries, and one `onMeasurement`
+sink that receives each completed run report, in measurement order, as the
+calibration measures it.
 
 **Output:** one `Calibration`. `profile` is the signed candidate artifact,
 loadable as generated. `fitting` is the fitting report of the bounded search.
@@ -738,11 +757,14 @@ contract, one plan that binds another definition, evaluator, or dataset, and
 one calculation above the fitting budget throw `ValidationError` with one
 field path before or during the procedure. One evaluator failure on one
 measured case refuses with the operational code of the record, because one
-stored assessment is missing and no search may invent one. One model alias
-that resolved to two versions during the measurements refuses with
-`model_resolution_changed`. One aborted `signal` refuses with
+stored assessment is missing and no search may invent one. Completed
+measurements that preceded one refusal already reached the `onMeasurement`
+sink, so one later failure keeps finished runs accessible to the host. One
+model alias that resolved to two versions during the measurements refuses
+with `model_resolution_changed`. One aborted `signal` refuses with
 `run_cancelled`, and one aborted before the first case with
-`cancelled_before_start`.
+`cancelled_before_start`. One `onMeasurement` sink that throws refuses the
+calibration with the thrown error, and no partial fit runs.
 
 The retention rule: the profile records the evaluation-report references,
 and the host owns that storage. Keep one reviewed copy of the fitting and

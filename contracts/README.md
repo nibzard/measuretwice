@@ -462,6 +462,7 @@ Execution reasons, reported in check records:
 | `run_cancelled` | The caller cancelled the run. |
 | `late_result_rejected` | A result arrived after a terminal state. It is recorded, not applied. |
 | `invalid_state_transition` | An event does not fit the run state. |
+| `model_resolution_changed` | The model that answered one attempt differs from the pinned resolution. The check fails permanently; one drifted identity must not serve one pinned profile. |
 
 Skip reasons, reported in check records:
 
@@ -478,7 +479,7 @@ Compatibility reasons, reported before execution:
 | `definition_mismatch` | The profile binds a different definition hash. |
 | `evaluator_mismatch` | A bound evaluator is not registered, or its version differs. |
 | `translation_mismatch` | The translated question hash differs. |
-| `model_resolution_changed` | A model alias resolved to a different version. |
+| `model_resolution_changed` | A declared or resolved model differs from the pinned model of the binding. The same code names one response that drifted after the execution answered. |
 | `policy_mismatch` | The policy family or parameters do not fit the definition. |
 | `scope_mismatch` | The declared scope differs from the requested use. |
 | `qualification_insufficient` | Enforcement needs a validated profile. |

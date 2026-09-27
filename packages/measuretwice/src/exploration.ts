@@ -39,6 +39,7 @@ import type { Definition } from "./define-checks.js";
 import type { Evaluator, EvaluatorRegistry, ValidatedQuestion } from "./evaluator.js";
 import { validatedQuestion } from "./evaluator.js";
 import { ValidationError } from "./error.js";
+import { jsonText as strictJsonText } from "./json-boundary.js";
 import {
   NativeFailure,
   nativeCanonicalForm,
@@ -50,7 +51,7 @@ import {
   type DefinitionInfo,
   type LiveBindingEntry,
 } from "./native.js";
-import type { ExecutionConfig, Profile, ProfileBinding } from "./run.js";
+import { frozenDefinition, type ExecutionConfig, type Profile, type ProfileBinding } from "./run.js";
 
 // ---------------------------------------------------------------------------
 // Public types of the generator.
@@ -158,6 +159,10 @@ export function createExplorationProfile(
 ): Profile {
   const definitionText = jsonText(definition);
   const info = throughCore(() => nativeValidateDefinition(definitionText));
+  // Generation reads one frozen snapshot of the validated text, so one host
+  // adapter whose `translate` operation mutates the caller's definition
+  // object changes neither the recorded questions nor the generated hash.
+  const snapshot = frozenDefinition(definitionText);
 
   if (info.isExactOnly) {
     throw new ValidationError(
@@ -172,7 +177,7 @@ export function createExplorationProfile(
   const bindings: ProfileBinding[] = [];
   const live: LiveBindingEntry[] = [];
   for (const entry of questionChecks) {
-    const check = definition.checks.find((named) => named.id === entry.id);
+    const check = snapshot.checks.find((named) => named.id === entry.id);
     if (check === undefined) {
       throw new Error(
         `measuretwice found no check artifact for ${JSON.stringify(entry.id)}. The core validated the definition, so this is one internal inconsistency.`,
@@ -183,13 +188,17 @@ export function createExplorationProfile(
     const evaluator = assignment.evaluator;
     const translation = recordedTranslation(evaluator, question, entry.id);
     // No resolved model is recorded: generation measures nothing. One later
-    // run that states one resolution compares it against the request.
+    // run that states one resolution compares it against the request. The
+    // requested model comes from the binding options or, when the host
+    // states none, from the model the adapter declared at registration, so
+    // one generated profile binds the model its evaluator requests.
+    const requestedModel = assignment.model ?? evaluator.model?.requested;
     const binding: ProfileBinding = {
       check: entry.id,
       evaluator: evaluator.id,
       adapter_version: evaluator.adapter_version,
       translation,
-      ...(assignment.model !== undefined ? { model: { requested: assignment.model } } : {}),
+      ...(requestedModel !== undefined ? { model: { requested: requestedModel } } : {}),
       ...(assignment.preprocessing !== undefined
         ? { preprocessing: assignment.preprocessing }
         : {}),
@@ -202,6 +211,15 @@ export function createExplorationProfile(
     };
     if (typeof evaluator.translate === "function") {
       liveEntry.translation = translation.content_hash;
+    }
+    if (evaluator.model !== undefined) {
+      liveEntry.requested_model = evaluator.model.requested;
+      if (evaluator.model.resolved !== undefined) {
+        liveEntry.resolved_model = evaluator.model.resolved;
+      }
+    }
+    if (evaluator.preprocessing !== undefined) {
+      liveEntry.preprocessing = evaluator.preprocessing;
     }
     live.push(liveEntry);
   }
@@ -455,17 +473,9 @@ function throughCore<T>(operation: () => T): T {
   }
 }
 
-/** Serializes one artifact and rejects what JSON cannot preserve. Mirrors the twin in `run.ts`. */
+/** Serializes one artifact and rejects what JSON cannot preserve. */
 function jsonText(value: unknown, fieldPath = ""): string {
-  try {
-    return JSON.stringify(value);
-  } catch (error) {
-    throw new ValidationError(
-      "nonportable_value",
-      `The value ${fieldPath === "" ? "at the root" : `at ${fieldPath}`} holds one value that JSON cannot preserve: ${error instanceof Error ? error.message : String(error)}. Pass one JSON value.`,
-      fieldPath,
-    );
-  }
+  return strictJsonText(value, fieldPath);
 }
 
 /** Builds the canonical text of one translated question through the core. */

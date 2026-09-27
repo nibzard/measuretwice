@@ -23,11 +23,14 @@
  *
  * Usage:
  *
- *   node scripts/verify-install.mjs [--packages <dir>] [--require-all] [--keep]
+ *   node scripts/verify-install.mjs [--packages <dir>] [--binaries <dir>] [--require-all] [--keep]
  *
  * Without `--packages`, run `npm run build` and `npm run build:packages`
  * first; the root command `npm run verify:install` does that for you. With
  * `--require-all`, a tarball of every declared target must be present.
+ * With `--binaries`, the directory of collected release binaries must hold
+ * the exact binary that every packed platform tarball carries, so the gate
+ * also proves tarball-to-release-artifact provenance.
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -57,7 +60,7 @@ const checkSource = path.join(repoRoot, "scripts", "install-check.mjs");
 
 /** Parses the command line. */
 function options() {
-  const parsed = { packagesDir: null, requireAll: false, keep: false };
+  const parsed = { packagesDir: null, binariesDir: null, requireAll: false, keep: false };
   const args = process.argv.slice(2);
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -66,14 +69,26 @@ function options() {
       if (value === undefined) {
         throw new Error("--packages needs one directory path.");
       }
-      parsed.packagesDir = path.resolve(value);
+      // Both directory options resolve against the repository root, like
+      // the --artifacts option of the assembly script, so one call from
+      // any working directory reads the same trees.
+      parsed.packagesDir = path.resolve(repoRoot, value);
+      index += 1;
+    } else if (arg === "--binaries") {
+      const value = args[index + 1];
+      if (value === undefined) {
+        throw new Error("--binaries needs one directory path.");
+      }
+      parsed.binariesDir = path.resolve(repoRoot, value);
       index += 1;
     } else if (arg === "--require-all") {
       parsed.requireAll = true;
     } else if (arg === "--keep") {
       parsed.keep = true;
     } else {
-      throw new Error(`Unknown option ${arg}. Use --packages <dir>, --require-all, or --keep.`);
+      throw new Error(
+        `Unknown option ${arg}. Use --packages <dir>, --binaries <dir>, --require-all, or --keep.`,
+      );
     }
   }
   return parsed;
@@ -334,6 +349,43 @@ async function main() {
     if (tarball.abi !== undefined) {
       reviewPlatformTarball(tarball, publicTarball.version);
     }
+  }
+  // The provenance clause: with `--binaries`, every packed platform binary
+  // must equal the collected release binary of its target, so the gate
+  // proves that the tarballs carry the intended release artifacts and not
+  // one local development build of the assembly runner. Without
+  // `--binaries`, the comparison below stays self-referential by design:
+  // one development flow holds no separate release artifact set.
+  if (settings.binariesDir !== null) {
+    if (!existsSync(settings.binariesDir)) {
+      fail(`the binaries directory ${settings.binariesDir} does not exist.`);
+    }
+    let verified = 0;
+    for (const abi of declaredAbis) {
+      const tarball = tarballs.find((entry) => entry.abi === abi);
+      if (tarball === undefined) {
+        continue;
+      }
+      const packed = tarballMember(tarball.path, `package/index.${abi}.node`);
+      if (packed === null) {
+        fail(`${tarball.fileName} holds no native binary.`);
+      }
+      const source = path.join(settings.binariesDir, `index.${abi}.node`);
+      if (!existsSync(source)) {
+        fail(`the binaries directory holds no index.${abi}.node for ${tarball.fileName}.`);
+      }
+      if (sha256(packed) !== sha256(readFileSync(source))) {
+        fail(
+          `${tarball.fileName} carries one binary that differs from the collected release ` +
+            `artifact ${source}. Rebuild the packages with \`build-packages --artifacts\`.`,
+        );
+      }
+      verified += 1;
+    }
+    process.stdout.write(
+      `binary provenance verified: ${verified} of ${declaredAbis.length} declared targets ` +
+        `against ${settings.binariesDir}\n`,
+    );
   }
   const expectedBinarySha = sha256(
     tarballMember(hostTarball.path, `package/index.${host}.node`) ??

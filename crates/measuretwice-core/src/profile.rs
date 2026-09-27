@@ -1057,10 +1057,11 @@ fn validate_performance(root: &Map<String, Value>) -> Result<(), ValidationError
 ///
 /// One entry states what one registered evaluator serves for one bound
 /// check today: the adapter version, the live translated question, the
-/// resolved model version, and the preprocessing identity. Every optional
-/// part that the host cannot state stays absent, and one absent part is
-/// not compared. The core resolves no model and reads no clock, so the
-/// host owns every live value.
+/// model the adapter requests today, the version that request resolves to,
+/// and the preprocessing identity. Every optional part that the host
+/// cannot state stays absent, and one absent part is not compared. The
+/// core resolves no model and reads no clock, so the host owns every live
+/// value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LiveBinding {
     /// The bound check that this entry serves.
@@ -1072,6 +1073,9 @@ pub struct LiveBinding {
     /// The content hash of the live translated question, when the adapter
     /// states one.
     pub translation: Option<String>,
+    /// The model the adapter requests today, when the adapter states its
+    /// configuration. One versioned identifier or one alias.
+    pub requested_model: Option<String>,
     /// The model version that the requested alias resolves to today, when
     /// the host states one.
     pub resolved_model: Option<String>,
@@ -1107,6 +1111,7 @@ pub fn parse_live_bindings(value: &Value, base: &str) -> Result<Vec<LiveBinding>
                 "evaluator",
                 "adapter_version",
                 "translation",
+                "requested_model",
                 "resolved_model",
                 "preprocessing",
             ],
@@ -1138,6 +1143,12 @@ pub fn parse_live_bindings(value: &Value, base: &str) -> Result<Vec<LiveBinding>
                 &format!("{entry_base}/resolved_model"),
                 128,
                 "The resolved model version",
+            )?,
+            requested_model: parse_bounded_string(
+                entry.get("requested_model"),
+                &format!("{entry_base}/requested_model"),
+                128,
+                "The requested model",
             )?,
             preprocessing: parse_bounded_string(
                 entry.get("preprocessing"),
@@ -1355,6 +1366,22 @@ fn check_live_bindings(
                     format!(
                         "The profile records one translated question whose content hash differs from the live translation of the check {}. One changed translation changes the binding and needs new qualification.",
                         fragment(&binding.check)
+                    ),
+                ));
+            }
+        }
+        if let (Some(bound), Some(current)) = (
+            binding.model.as_ref().map(|model| &model.requested),
+            entry.requested_model.as_ref(),
+        ) {
+            if bound != current {
+                return Err(ValidationError::new(
+                    ReasonCode::ModelResolutionChanged,
+                    format!("{binding_base}/model/requested"),
+                    format!(
+                        "The profile records the requested model {}, but the registered adapter requests {} today. One changed model configuration changes the binding and needs new qualification.",
+                        fragment(bound),
+                        fragment(current)
                     ),
                 ));
             }
@@ -2347,6 +2374,7 @@ mod tests {
             translation: Some(HASH_A.to_owned()),
             resolved_model: Some("jev-1.13-2026-09-01".to_owned()),
             preprocessing: Some("plain-v1".to_owned()),
+            requested_model: None,
         }]
     }
 
@@ -3285,6 +3313,7 @@ mod tests {
                 translation: Some(HASH_A.to_owned()),
                 resolved_model: None,
                 preprocessing: None,
+                requested_model: None,
             },
             LiveBinding {
                 check: "adds-information".to_owned(),
@@ -3293,6 +3322,7 @@ mod tests {
                 translation: Some(HASH_A.to_owned()),
                 resolved_model: None,
                 preprocessing: None,
+                requested_model: None,
             },
         ];
         let error = check_compatibility(
@@ -3336,6 +3366,7 @@ mod tests {
             translation: Some(HASH_A.to_owned()),
             resolved_model: None,
             preprocessing: None,
+            requested_model: None,
         }];
         let error = check_compatibility(&floored, &binary_definition, &live, &shadow(), "/profile")
             .expect_err("the binary floor fails");
@@ -3368,6 +3399,7 @@ mod tests {
             translation: Some(HASH_A.to_owned()),
             resolved_model: Some("jev-1.13-2026-09-01".to_owned()),
             preprocessing: Some("plain-v1".to_owned()),
+            requested_model: None,
         }];
         let error = check_compatibility(&profile, &definition, &changed, &shadow(), "/profile")
             .expect_err("the changed version fails");
@@ -3384,6 +3416,7 @@ mod tests {
             translation: None,
             resolved_model: None,
             preprocessing: None,
+            requested_model: None,
         }];
         let error = check_compatibility(&profile, &definition, &rebound, &shadow(), "/profile")
             .expect_err("the rebound identifier fails");
@@ -3412,6 +3445,7 @@ mod tests {
             translation: None,
             resolved_model: None,
             preprocessing: None,
+            requested_model: None,
         }];
         let error =
             check_compatibility(&on_rule, &definition, &on_rule_live, &shadow(), "/profile")
@@ -3444,6 +3478,7 @@ mod tests {
             translation: Some(HASH_B.to_owned()),
             resolved_model: Some("jev-1.13-2026-09-01".to_owned()),
             preprocessing: Some("plain-v1".to_owned()),
+            requested_model: None,
         }];
         let error = check_compatibility(&profile, &definition, &reframed, &shadow(), "/profile")
             .expect_err("the changed translation fails");
@@ -3461,6 +3496,7 @@ mod tests {
             translation: Some(HASH_A.to_owned()),
             resolved_model: Some("jev-1.13-2026-09-01".to_owned()),
             preprocessing: Some("normalized-v2".to_owned()),
+            requested_model: None,
         }];
         let error =
             check_compatibility(&profile, &definition, &preprocessed, &shadow(), "/profile")
@@ -3477,6 +3513,7 @@ mod tests {
             translation: None,
             resolved_model: None,
             preprocessing: None,
+            requested_model: None,
         }];
         check_compatibility(&profile, &definition, &silent, &shadow(), "/profile")
             .expect("one silent adapter states nothing to compare");
@@ -3496,6 +3533,7 @@ mod tests {
             translation: Some(HASH_A.to_owned()),
             resolved_model: Some("jev-1.14-2026-10-01".to_owned()),
             preprocessing: Some("plain-v1".to_owned()),
+            requested_model: None,
         }];
         for request in [shadow(), enforcement(None)] {
             let error = check_compatibility(&profile, &definition, &drifted, &request, "/profile")
@@ -3518,6 +3556,45 @@ mod tests {
             "/profile",
         )
         .expect("one unrecorded resolution compares nothing");
+    }
+
+    #[test]
+    fn one_changed_requested_model_invalidates_the_binding() {
+        let definition = validated(CATEGORICAL);
+        let profile =
+            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+
+        // The registered adapter requests another model today.
+        let drifted = vec![LiveBinding {
+            check: "message-supported".to_owned(),
+            evaluator: "jev-choice".to_owned(),
+            adapter_version: "0.1.0".to_owned(),
+            translation: Some(HASH_A.to_owned()),
+            requested_model: Some("jev-1.14".to_owned()),
+            resolved_model: Some("jev-1.13-2026-09-01".to_owned()),
+            preprocessing: Some("plain-v1".to_owned()),
+        }];
+        for request in [shadow(), enforcement(None)] {
+            let error = check_compatibility(&profile, &definition, &drifted, &request, "/profile")
+                .expect_err("the drifted request fails");
+            assert_eq!(error.code, ReasonCode::ModelResolutionChanged);
+            assert_eq!(error.field_path, "/profile/bindings/0/model/requested");
+            assert!(error.message.contains("jev-1.14"), "{error}");
+        }
+
+        // One matching request with one matching resolution passes, and one
+        // host that states no requested model compares nothing.
+        let matching = vec![LiveBinding {
+            check: "message-supported".to_owned(),
+            evaluator: "jev-choice".to_owned(),
+            adapter_version: "0.1.0".to_owned(),
+            translation: Some(HASH_A.to_owned()),
+            requested_model: Some("jev-1.13".to_owned()),
+            resolved_model: Some("jev-1.13-2026-09-01".to_owned()),
+            preprocessing: Some("plain-v1".to_owned()),
+        }];
+        check_compatibility(&profile, &definition, &matching, &shadow(), "/profile")
+            .expect("the matching request passes");
     }
 
     #[test]

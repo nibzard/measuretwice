@@ -204,14 +204,29 @@ function portableValue(value: unknown, path: string): JSONValue {
     return null;
   }
   if (Array.isArray(value)) {
-    return value.map((item, index) => portableValue(item, `${path}/${index}`));
+    // The index loop reads every slot, so one hole routes its implicit
+    // `undefined` through the refusal instead of crossing as `null`.
+    const items: JSONValue[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      items.push(portableValue(value[index], `${path}/${index}`));
+    }
+    return items;
   }
   if (!isPlainObject(value)) {
     throw nonportable(path, `one ${constructorOf(value)} value`);
   }
   const copy: Record<string, JSONValue> = {};
   for (const key of Object.keys(value)) {
-    copy[key] = portableValue(value[key], `${path}/${key}`);
+    // Defined, not assigned: one assignment to one key such as `__proto__`
+    // follows the accessor of `Object.prototype` and silently drops or
+    // relocates the value. The defined key stays visible, so the core can
+    // refuse it where the contract does not declare it.
+    Object.defineProperty(copy, key, {
+      value: portableValue(value[key], `${path}/${key}`),
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   return copy;
 }
@@ -274,7 +289,18 @@ function portableSchema(node: unknown, path: string, inProperty: boolean): JSONV
     if (key === "properties" && isPlainObject(field)) {
       const properties: Record<string, JSONValue> = {};
       for (const name of Object.keys(field)) {
-        properties[name] = portableSchema(field[name], `${path}/properties/${name}`, true);
+        // The property name is defined, not assigned: one assignment to a
+        // name such as `__proto__` follows the accessor of
+        // Object.prototype and drops the property silently. Defining the
+        // key keeps the authored schema visible, so the Rust core refuses
+        // one unsupported name with its field path instead of one
+        // misleading property count.
+        Object.defineProperty(properties, name, {
+          value: portableSchema(field[name], `${path}/properties/${name}`, true),
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
       copy.properties = properties;
       continue;
@@ -283,7 +309,15 @@ function portableSchema(node: unknown, path: string, inProperty: boolean): JSONV
       copy.items = portableSchema(field, `${path}/items`, false);
       continue;
     }
-    copy[key] = portableValue(field, `${path}/${key}`);
+    // Defined, not assigned, for the same reason as the property names
+    // above: one key that assignment would redirect must stay visible to
+    // the core, which refuses unknown keywords with one field path.
+    Object.defineProperty(copy, key, {
+      value: portableValue(field, `${path}/${key}`),
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   return copy;
 }

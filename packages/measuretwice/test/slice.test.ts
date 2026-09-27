@@ -20,6 +20,8 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import Type from "typebox";
 import { defineChecks, load, ValidationError, type FileAccess } from "../src/index.js";
+import { parseExactJson } from "../src/exact-json.js";
+import { jsonText } from "../src/json-boundary.js";
 import {
   NativeFailure,
   nativeCanonicalForm,
@@ -386,6 +388,30 @@ test("invalid cases fail through the core before any rule runs", async () => {
       "nonportable_value",
       "",
     ],
+    [
+      "an undefined-valued input field",
+      { id: "case-9", input: { ...passing, unexpected: undefined } },
+      "nonportable_value",
+      "/input/unexpected",
+    ],
+    [
+      "a function-valued input field",
+      { id: "case-9", input: { ...passing, unexpected: () => 1 } },
+      "nonportable_value",
+      "/input/unexpected",
+    ],
+    [
+      "a Date input value",
+      { id: "case-9", input: { ...passing, summary: new Date("2026-01-01T00:00:00Z") } },
+      "nonportable_value",
+      "/input/summary",
+    ],
+    [
+      "a non-finite number input",
+      { id: "case-9", input: { ...passing, summary: Number.NaN } },
+      "nonportable_value",
+      "/input/summary",
+    ],
   ];
   for (const [note, badCase, code, fieldPath] of table) {
     const failure = await failureOf(() =>
@@ -403,6 +429,57 @@ test("invalid cases fail through the core before any rule runs", async () => {
   );
   expect(mode.code).toBe("invalid_field_type");
   expect(mode.fieldPath).toBe("/mode");
+});
+
+test("the serialization boundary keeps hostile keys visible and refuses silent coercion", async () => {
+  const reviewer = await load(typedDeliveryLimits, sliceOptions());
+
+  // One own `__proto__` data property of one parsed case input stays one
+  // named field of the crossing text, so the closed input schema of the
+  // core refuses it. The boundary drops nothing.
+  const protoInput = JSON.parse(
+    '{"summary":"The delivery limit is 900 characters","notice":"One notice.","__proto__":{"x":1}}',
+  );
+  const protoFailure = await failureOf(() =>
+    reviewer.run({
+      id: "case-9",
+      input: protoInput,
+    } as { id: string; input: { summary: string; notice: string } }),
+  );
+  expect(protoFailure.code).toBe("unknown_field");
+  expect(protoFailure.fieldPath).toBe("/input/__proto__");
+
+  // One array hole holds one implicit `undefined`, which no JSON text
+  // preserves, so the boundary refuses it with the path of its slot
+  // instead of rendering one `null`.
+  const holeFailure = await failureOf(() =>
+    reviewer.run({
+      id: "case-9",
+      input: { summary: "The delivery limit is 900 characters", notice: "One notice.", tags: [1, , 2] },
+    } as unknown as { id: string; input: { summary: string; notice: string } }),
+  );
+  expect(holeFailure.code).toBe("nonportable_value");
+  expect(holeFailure.fieldPath).toBe("/input/tags/1");
+
+  // One big integer crosses as its exact digits, and the exact parser
+  // returns the same value, so one record of the core stays replayable.
+  expect(jsonText(9007199254740993n, "/input/count")).toBe("9007199254740993");
+  expect(parseExactJson("9007199254740993")).toBe(9007199254740993n);
+  expect(parseExactJson(jsonText({ count: -42 }, "/input"))).toEqual({ count: -42 });
+  // The emitted key states itself: one parsed `__proto__` key stays one
+  // named field of the text, in object key order.
+  expect(jsonText(JSON.parse('{"__proto__":{"x":1},"a":2}'), "/input")).toBe(
+    '{"__proto__":{"x":1},"a":2}',
+  );
+
+  // The exact parser accepts the strict number grammar alone: one leading
+  // zero, one bare dot, one trailing dot, one bare sign, and one exponent
+  // without digits refuse.
+  for (const bad of ["01", "1.", ".5", "-", "1e"]) {
+    expect(() => parseExactJson(bad), bad).toThrow(/strict JSON/);
+  }
+  expect(parseExactJson("0")).toBe(0);
+  expect(parseExactJson("-0.5e2")).toBe(-50);
 });
 
 // ---------------------------------------------------------------------------

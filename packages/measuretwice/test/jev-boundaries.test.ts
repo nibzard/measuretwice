@@ -32,6 +32,7 @@ import {
 } from "../src/index.js";
 import { dispatchAssessment } from "../src/evaluator.js";
 import { nativeValidateCase, nativeValidateDefinition } from "../src/native.js";
+import { parseExactJson } from "../src/exact-json.js";
 
 /** The fixed start time of every test run: 24 September 2026, midnight UTC. */
 const START_MS = Date.UTC(2026, 8, 24, 0, 0, 0);
@@ -260,7 +261,7 @@ function projectionsOf(record: { id: string; input: Record<string, JSONValue> })
   const caseInfo = nativeValidateCase(FLAGSHIP_TEXT, JSON.stringify(record));
   return caseInfo.projectedInputs.map((entry) => ({
     checkId: entry.checkId,
-    inputs: entry.inputs as Readonly<Record<string, JSONValue>>,
+    inputs: parseExactJson(entry.inputs) as Readonly<Record<string, JSONValue>>,
   }));
 }
 
@@ -651,7 +652,12 @@ test("embedded instructions change no evaluator, tool, permission, or boundary",
   // permission: the registry is the host-built allowlist, frozen at
   // registration, and no request carries one evaluator or tool field.
   expect(registry.ids).toEqual(["jev"]);
-  expect(registry.get("jev")).toBe(evaluator);
+  // Lookup returns the pinned registration record, so the hostile content
+  // can reach neither the caller's adapter object nor its identity.
+  const pinned = registry.get("jev");
+  expect(pinned).toMatchObject({ id: "jev", model: { requested: JEV_DEFAULT_MODEL } });
+  expect(pinned).not.toBe(evaluator);
+  expect(Object.isFrozen(pinned)).toBe(true);
   expect(registry.get("evil-evaluator")).toBeUndefined();
   expect(Object.isFrozen(registry)).toBe(true);
 

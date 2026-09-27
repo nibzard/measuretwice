@@ -343,9 +343,12 @@ if (calibration.qualification !== undefined) {
 ```
 
 One evaluator failure on one measured case refuses the calibration with the
-operational code of the record. One model alias that resolved to two
-versions during the measurements refuses with `model_resolution_changed`.
-One calculation above the published budget refuses with its count. The
+operational code of the record. Completed measurements that preceded the
+refusal already reached the `onMeasurement` sink, so one failed calibration
+keeps its finished, paid runs accessible to your storage. One model alias
+that resolved to two versions during the measurements refuses with
+`model_resolution_changed`. One calculation above the published budget
+refuses with its count. The
 [API reference](../reference/api.md#calibrate) records every refusal.
 
 ## 4. Read the qualification, the intervals, and the slices

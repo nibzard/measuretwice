@@ -27,6 +27,7 @@
  * fails for a missing target when `--require-all` is set.
  */
 import { NapiCli, parseTriple } from "@napi-rs/cli";
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
   cpSync,
@@ -97,7 +98,22 @@ function declaredTargets(crateManifest) {
   });
 }
 
-/** Finds the built binary of one target in the search directories. */
+/** Reads the SHA-256 digest of one file, in lowercase hexadecimal. */
+function sha256Of(file) {
+  return createHash("sha256").update(readFileSync(file)).digest("hex");
+}
+
+/**
+ * Finds the built binary of one target in the search directories.
+ *
+ * The search order is the authority: with `--artifacts`, the collected
+ * release binaries come first and one local development build can never
+ * displace the binary of its own platform. The local crate directory fills
+ * only the targets the artifact collection lacks. The assembly log states
+ * the chosen source and its digest for every target, and the install gate
+ * compares every packed binary against the collected release artifact, so
+ * one displaced artifact cannot pass silently.
+ */
 function findBinary(abi, searchDirs) {
   for (const directory of searchDirs) {
     const candidate = path.join(directory, `index.${abi}.node`);
@@ -165,11 +181,14 @@ async function main() {
 
   await new NapiCli().createNpmDirs({ cwd: crateDir });
 
-  const searchDirs = [crateDir];
-  if (settings.artifactsDir !== null) {
-    searchDirs.push(settings.artifactsDir);
-  }
+  // The collected release binaries of `--artifacts` are authoritative: they
+  // come first, so the local development build of the assembly runner can
+  // never displace the binary of its own platform. Without `--artifacts`,
+  // the local crate directory stays the only source, as one development
+  // flow needs.
+  const searchDirs = settings.artifactsDir !== null ? [settings.artifactsDir, crateDir] : [crateDir];
   const missing = [];
+  const chosen = [];
   for (const target of targets) {
     const targetDir = path.join(crateNpmDir, target.abi);
     const binaryPath = path.join(targetDir, `index.${target.abi}.node`);
@@ -179,6 +198,7 @@ async function main() {
       rmSync(binaryPath, { force: true });
     } else {
       copyFileSync(binary, binaryPath);
+      chosen.push({ target, binary });
     }
     const targetManifest = readJson(path.join(targetDir, "package.json"));
     if (targetManifest.name !== `measuretwice-${target.abi}`) {
@@ -201,6 +221,13 @@ async function main() {
   for (const target of targets) {
     const state = missing.includes(target) ? "missing binary" : "binary ready";
     process.stdout.write(`  measuretwice-${target.abi} (${target.triple}): ${state}\n`);
+  }
+  for (const entry of chosen) {
+    // The chosen source and its digest state which binary the package
+    // carries, so one displaced release artifact stays visible in the log.
+    process.stdout.write(
+      `  measuretwice-${entry.target.abi}: ${path.relative(repoRoot, entry.binary)} sha256 ${sha256Of(entry.binary)}\n`,
+    );
   }
   process.stdout.write(
     `  measuretwice: staged at build/package/measuretwice with ${schemaCount} schemas\n`,

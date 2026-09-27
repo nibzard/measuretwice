@@ -692,6 +692,11 @@ export function createJevEvaluator(options: JevEvaluatorOptions): JevEvaluator {
     id: options.id ?? "jev",
     adapter_version: options.adapter_version ?? JEV_ADAPTER_VERSION,
     translate: translateJevQuestion,
+    // The configured model crosses as the declared identity of the adapter,
+    // so the live-binding comparison of `load` and of every `run` holds the
+    // binding to the model the adapter actually requests. The Jev model
+    // option states one versioned identifier, never one alias.
+    model: { requested: model },
     async assess(request: EvaluatorRequest): Promise<JevExecution> {
       if (request.signal.aborted) {
         return {

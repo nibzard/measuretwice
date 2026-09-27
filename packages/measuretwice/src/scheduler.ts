@@ -144,14 +144,25 @@ export interface ScheduledAttempt {
  * The resolution of one execution: exactly one semantic record or one
  * operational failure. The failure message must satisfy the sanitized
  * reason contract, as the evaluator normalization already guarantees.
+ *
+ * The optional measurements text of one failure states what the failed
+ * attempt reported, under the same `{ evaluator?, timing?, usage? }`
+ * contract as one decided record. The failure boundary accumulates it, so
+ * one failed attempt keeps its reported usage in the report and the run
+ * totals.
  */
 export type ScheduledResolution =
   | { readonly record: ScheduledRecord }
   | {
       readonly failure: {
-        readonly code: "evaluator_error" | "evaluator_timeout" | "invalid_assessment";
+        readonly code:
+          | "evaluator_error"
+          | "evaluator_timeout"
+          | "invalid_assessment"
+          | "model_resolution_changed";
         readonly message: string;
       };
+      readonly measurements?: string;
     };
 
 /**
@@ -186,6 +197,9 @@ export type SchedulerEvent =
  * absent on purpose: one adapter answer outside the contract of its check
  * is one defect of the adapter path, and one retry would return through
  * the same path, so the scheduler treats it as permanent.
+ * `model_resolution_changed` is absent for the same reason: one response
+ * that names another model than the pinned one states one binding drift,
+ * and one retry through the same configuration would drift the same way.
  */
 const RETRYABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
   "evaluator_error",
@@ -515,6 +529,7 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
             check,
             resolution.failure.code,
             resolution.failure.message,
+            resolution.measurements,
           ),
         );
         emit({ type: "attempt_failed", check, code: resolution.failure.code });
@@ -524,7 +539,13 @@ export async function scheduleRun(options: ScheduleOptions): Promise<RunReport> 
         return;
       }
       const outcome = guarded(`attempt failure of the check ${check}`, () =>
-        runFailAttempt(options.state, check, resolution.failure.code, resolution.failure.message),
+        runFailAttempt(
+          options.state,
+          check,
+          resolution.failure.code,
+          resolution.failure.message,
+          resolution.measurements,
+        ),
       );
       emit({ type: "attempt_failed", check, code: resolution.failure.code });
       if (outcome.resolution === "retry_queued") {

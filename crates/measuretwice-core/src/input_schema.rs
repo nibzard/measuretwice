@@ -356,6 +356,12 @@ fn required_names(
                 "Every required entry is a property name.",
             ));
         };
+        if name == "__proto__" {
+            return Err(ValidationError::invalid_field_type(
+                format!("{path}/required/{index}"),
+                "The name __proto__ cannot serve as one input name: no JavaScript boundary can carry it as one own property, so the input would vanish before one evaluator reads it. Rename the input.",
+            ));
+        }
         if !is_input_name(name) {
             return Err(ValidationError::invalid_field_type(
                 format!("{path}/required/{index}"),
@@ -555,7 +561,11 @@ impl Walker {
             if !is_input_name(name) {
                 return Err(ValidationError::invalid_field_type(
                     format!("{path}/properties/{name}"),
-                    "Every property name follows the input name rule.",
+                    if name == "__proto__" {
+                        "The name __proto__ cannot serve as one input name: no JavaScript boundary can carry it as one own property, so the input would vanish before one evaluator reads it. Rename the input."
+                    } else {
+                        "Every property name follows the input name rule."
+                    },
                 ));
             }
             let walked = self.walk(subschema, &format!("{path}/properties/{name}"), depth + 1)?;

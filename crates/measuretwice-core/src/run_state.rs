@@ -58,10 +58,11 @@ use crate::definition::ValidatedDefinition;
 use crate::error::{ReasonCode, ValidationError};
 use crate::report::{
     ArtifactReference, Baseline, CaseReference, CheckRecord, Completion, CompletionStatus, Outcome,
-    ProfileReference, RecordKind, ReportBuilder, RunMode, RunReport, SanitizedReason,
-    MAX_REASON_MESSAGE_CHARACTERS,
+    ProfileReference, QuestionMeasurements, RecordKind, ReportBuilder, RunMode, RunReport,
+    SanitizedReason, Totals, MAX_REASON_MESSAGE_CHARACTERS,
 };
 use crate::rule::AppliedRule;
+use serde_json::{Map, Value};
 
 /// The cause of a `run_cancelled` error record.
 const CANCELLED_WHILE_ACTIVE: &str = "The caller cancelled the run while this check was executing.";
@@ -198,6 +199,11 @@ struct CheckSlot {
     place: CheckPlace,
     /// Attempts started, counting the first attempt.
     attempts: u32,
+    /// The accumulated measurements of the failed attempts of this check:
+    /// usage summed over every failed attempt that reported one, with the
+    /// evaluator versions and the timing of the most recent failed attempt.
+    /// Absent while no failed attempt reported measurements.
+    failed: Option<QuestionMeasurements>,
     /// The record of the check, once it holds one.
     record: Option<CheckRecord>,
 }
@@ -308,6 +314,7 @@ impl RunState {
                 applied_rule,
                 place: CheckPlace::Pending,
                 attempts: 0,
+                failed: None,
                 record: None,
             });
         }
@@ -477,6 +484,13 @@ impl RunState {
     /// attempt, or the operational code of the single failed attempt, as the
     /// runtime traces fix both cases.
     ///
+    /// The optional measurements state what the failed attempt reported: the
+    /// evaluator versions, the timing, and the usage. The boundary
+    /// accumulates the usage across the failed attempts of the check, so one
+    /// retry that succeeds keeps the failed attempts' measurements visible
+    /// in the run totals, and one exhausted check records them on its error
+    /// record. One absent measurement stays absent.
+    ///
     /// # Errors
     ///
     /// Returns a [`ValidationError`] with `invalid_state_transition` when the
@@ -488,6 +502,7 @@ impl RunState {
         check_id: &str,
         code: ReasonCode,
         message: &str,
+        measurements: Option<QuestionMeasurements>,
     ) -> Result<AttemptResolution, ValidationError> {
         self.ensure_running()?;
         require_operational_code(code)?;
@@ -501,6 +516,9 @@ impl RunState {
         }
         let attempts = slot.attempts;
         if attempts < self.limits.max_attempts {
+            // The retry needs no record, so its merge runs alone: no
+            // refusal follows it and the transition stays total.
+            merge_failed_measurements(&mut self.slots[index], measurements);
             let slot = &mut self.slots[index];
             slot.place = CheckPlace::Pending;
             return Ok(AttemptResolution::RetryQueued { attempts });
@@ -519,9 +537,24 @@ impl RunState {
         } else {
             (code, message.to_owned())
         };
+        // The reason validates before the merge, so one refused transition
+        // changes no state and one retried call counts its usage once.
         let reason = SanitizedReason::new(final_code, final_message)?;
-        let record = operational_record(slot, Outcome::Error, reason, Some(attempts as u64));
+        merge_failed_measurements(&mut self.slots[index], measurements);
+        let failed = self.slots[index].failed.clone();
+        let slot = &self.slots[index];
+        let record = operational_record(
+            slot,
+            Outcome::Error,
+            reason,
+            Some(attempts as u64),
+            failed.as_ref(),
+        );
         let slot = &mut self.slots[index];
+        // The accumulated measurements crossed into the record, so the slot
+        // no longer holds them for the run totals: one reported usage sums
+        // exactly once.
+        slot.failed = None;
         slot.record = Some(record);
         slot.place = CheckPlace::Recorded;
         Ok(AttemptResolution::Exhausted)
@@ -537,6 +570,10 @@ impl RunState {
     /// stays visible as itself instead of `retries_exhausted` after dummy
     /// restarts that execute nothing.
     ///
+    /// The optional measurements follow the rules of
+    /// [`RunState::fail_attempt`]: the accumulated usage of the failed
+    /// attempts joins the error record and the run totals.
+    ///
     /// # Errors
     ///
     /// Returns a [`ValidationError`] with `invalid_state_transition` when the
@@ -548,6 +585,7 @@ impl RunState {
         check_id: &str,
         code: ReasonCode,
         message: &str,
+        measurements: Option<QuestionMeasurements>,
     ) -> Result<(), ValidationError> {
         self.ensure_running()?;
         require_operational_code(code)?;
@@ -560,9 +598,23 @@ impl RunState {
             ));
         }
         let attempts = slot.attempts;
+        // The reason validates before the merge, so one refused transition
+        // changes no state and one retried call counts its usage once.
         let reason = SanitizedReason::new(code, message)?;
-        let record = operational_record(slot, Outcome::Error, reason, Some(attempts as u64));
+        merge_failed_measurements(&mut self.slots[index], measurements);
+        let failed = self.slots[index].failed.clone();
+        let slot = &self.slots[index];
+        let record = operational_record(
+            slot,
+            Outcome::Error,
+            reason,
+            Some(attempts as u64),
+            failed.as_ref(),
+        );
         let slot = &mut self.slots[index];
+        // The accumulated measurements crossed into the record, so the slot
+        // no longer holds them for the run totals.
+        slot.failed = None;
         slot.record = Some(record);
         slot.place = CheckPlace::Recorded;
         Ok(())
@@ -659,7 +711,7 @@ impl RunState {
             ));
         }
         let reason = SanitizedReason::new(ReasonCode::QueueFull, QUEUE_FULL)?;
-        let record = operational_record(slot, Outcome::Skipped, reason, None);
+        let record = operational_record(slot, Outcome::Skipped, reason, None, None);
         let slot = &mut self.slots[index];
         slot.record = Some(record);
         slot.place = CheckPlace::Recorded;
@@ -848,6 +900,16 @@ impl RunState {
         for record in &records {
             builder = builder.check(record.clone());
         }
+        // The run totals state the complete known usage of the run: the
+        // measurements of the accepted records plus the measurements that
+        // the failed attempts reported, which no component record carries.
+        // One run that measured no usage states no totals.
+        if let Some(usage) = total_known_usage(&records, &self.slots) {
+            builder = builder.totals(Totals {
+                elapsed_ms: None,
+                usage: Some(usage),
+            });
+        }
         let report = builder.finish()?;
         for (slot, record) in self.slots.iter_mut().zip(records) {
             slot.record = Some(record);
@@ -864,6 +926,30 @@ fn invalid_state(field_path: &str, message: &str) -> ValidationError {
     ValidationError::new(ReasonCode::InvalidStateTransition, field_path, message)
 }
 
+/// Sums the known usage of one run: every accepted record's own usage plus
+/// the accumulated usage of the failed attempts of every check.
+///
+/// Returns `None` when no execution reported usage, so one run that
+/// measured nothing states no totals.
+fn total_known_usage(records: &[CheckRecord], slots: &[CheckSlot]) -> Option<Map<String, Value>> {
+    let mut total: Option<Map<String, Value>> = None;
+    for usage in records
+        .iter()
+        .filter_map(|record| record.usage.as_ref())
+        .chain(slots.iter().filter_map(|slot| {
+            slot.failed
+                .as_ref()
+                .and_then(|failed| failed.usage.as_ref())
+        }))
+    {
+        for (key, value) in usage {
+            let sum = sum_usage_values(total.as_ref().and_then(|total| total.get(key)), value);
+            total.get_or_insert_with(Map::new).insert(key.clone(), sum);
+        }
+    }
+    total
+}
+
 /// Checks that one failure code names one operational failure of an adapter.
 ///
 /// # Errors
@@ -873,26 +959,108 @@ fn invalid_state(field_path: &str, message: &str) -> ValidationError {
 fn require_operational_code(code: ReasonCode) -> Result<(), ValidationError> {
     if matches!(
         code,
-        ReasonCode::EvaluatorError | ReasonCode::EvaluatorTimeout | ReasonCode::InvalidAssessment
+        ReasonCode::EvaluatorError
+            | ReasonCode::EvaluatorTimeout
+            | ReasonCode::InvalidAssessment
+            | ReasonCode::ModelResolutionChanged
     ) {
         return Ok(());
     }
     Err(ValidationError::invalid_field_type(
         "/reason/code",
-        "An attempt failure must carry an operational reason code: evaluator_error, evaluator_timeout, or invalid_assessment.",
+        "An attempt failure must carry one operational reason code: evaluator_error, evaluator_timeout, invalid_assessment, or model_resolution_changed.",
     ))
+}
+
+/// Merges the measurements of one failed attempt into the slot.
+///
+/// Usage sums over every failed attempt that reported one, so no reported
+/// measurement is lost when one attempt fails. The evaluator versions and
+/// the timing state the most recent failed attempt, so an error record
+/// names the execution that failed last. One absent measurement stays
+/// absent.
+fn merge_failed_measurements(slot: &mut CheckSlot, measurements: Option<QuestionMeasurements>) {
+    let Some(incoming) = measurements else {
+        return;
+    };
+    let merged = match slot.failed.take() {
+        None => incoming,
+        Some(mut existing) => {
+            if incoming.evaluator.is_some() {
+                existing.evaluator = incoming.evaluator;
+            }
+            if incoming.timing.is_some() {
+                existing.timing = incoming.timing;
+            }
+            match (existing.usage.take(), incoming.usage) {
+                (None, Some(part)) => existing.usage = Some(part),
+                // One later attempt that reports no usage cannot erase what
+                // the earlier attempts spent: the accumulated total stays.
+                (Some(total), None) => existing.usage = Some(total),
+                (Some(mut total), Some(part)) => {
+                    for (key, value) in part {
+                        let sum = sum_usage_values(total.get(&key), &value);
+                        total.insert(key, sum);
+                    }
+                    existing.usage = Some(total);
+                }
+                (None, None) => {}
+            }
+            existing
+        }
+    };
+    slot.failed = Some(merged);
+}
+
+/// Sums two usage values, keeping the integer spelling when both hold one.
+fn sum_usage_values(prior: Option<&Value>, addend: &Value) -> Value {
+    let Some(prior) = prior else {
+        return addend.clone();
+    };
+    match (prior.as_u64(), addend.as_u64()) {
+        // The integer path keeps the recorded spelling of token counts and
+        // stays exact past the f64 mantissa. One overflowing count falls
+        // through to the floating sum.
+        (Some(prior), Some(addend)) => match prior.checked_add(addend) {
+            Some(total) => Value::from(total),
+            None => Value::from(prior as f64 + addend as f64),
+        },
+        _ => match (prior.as_f64(), addend.as_f64()) {
+            (Some(prior), Some(addend)) => {
+                let sum = prior + addend;
+                // One floating sum that overflows holds no finite JSON
+                // number, so the newer report wins: the recorded value
+                // stays one number the boundary can serialize.
+                if sum.is_finite() {
+                    Value::from(sum)
+                } else {
+                    Value::from(addend)
+                }
+            }
+            // One value that holds no number cannot sum, so the newer report
+            // wins. The report parser accepts numbers only, so this arm
+            // stays unreachable through the wrapper.
+            _ => addend.clone(),
+        },
+    }
 }
 
 /// Builds one record that the boundary constructs itself.
 ///
 /// A rule check states the rule it did not execute, because the report
 /// contract requires an `applied_rule` on every rule record. A question
-/// check records no rule and no policy, because none executed.
+/// check records no rule and no policy, because none executed. The stated
+/// failed measurements join the error record of one attempt failure, so one
+/// error record states the usage the check spent, the evaluator versions of
+/// the last failed attempt, and the timing of that attempt. One terminal
+/// transition states no measurements: the usage that its in-flight work
+/// never reported stays visible through the run totals alone.
 fn operational_record(
     slot: &CheckSlot,
     outcome: Outcome,
     reason: SanitizedReason,
     attempts: Option<u64>,
+    failed: Option<&QuestionMeasurements>,
 ) -> CheckRecord {
     CheckRecord {
         check: slot.id.clone(),
@@ -901,10 +1069,10 @@ fn operational_record(
         assessment: None,
         applied_rule: slot.applied_rule.clone(),
         applied_policy: None,
-        evaluator: None,
+        evaluator: failed.and_then(|failed| failed.evaluator.clone()),
         attempts,
-        timing: None,
-        usage: None,
+        timing: failed.and_then(|failed| failed.timing.clone()),
+        usage: failed.and_then(|failed| failed.usage.clone()),
         reason: Some(reason),
     }
 }
@@ -925,12 +1093,12 @@ fn terminal_record(
         CheckPlace::Active => {
             let reason = SanitizedReason::new(active_code, active_message)
                 .expect("a fixed terminal message is valid");
-            operational_record(slot, active_outcome, reason, None)
+            operational_record(slot, active_outcome, reason, None, None)
         }
         CheckPlace::Pending => {
             let reason = SanitizedReason::new(pending_code, pending_message)
                 .expect("a fixed terminal message is valid");
-            operational_record(slot, pending_outcome, reason, None)
+            operational_record(slot, pending_outcome, reason, None, None)
         }
         CheckPlace::Recorded => slot
             .record
@@ -1111,6 +1279,7 @@ mod tests {
                 "notice-question",
                 ReasonCode::EvaluatorTimeout,
                 "The adapter timed out.",
+                None,
             )
             .expect("the failure resolves");
         assert_eq!(resolution, AttemptResolution::RetryQueued { attempts: 1 });
@@ -1196,6 +1365,7 @@ mod tests {
             "notice-question",
             ReasonCode::EvaluatorError,
             "The adapter reported a network failure.",
+            None,
         )
         .expect("the failure queues a retry");
         let error = run
@@ -1227,6 +1397,7 @@ mod tests {
                 "notice-question",
                 ReasonCode::EvaluatorError,
                 "The adapter reported a network failure.",
+                None,
             )
             .expect("the single failure resolves");
         assert_eq!(resolution, AttemptResolution::Exhausted);
@@ -1264,6 +1435,7 @@ mod tests {
                 "notice-question",
                 ReasonCode::EvaluatorTimeout,
                 "The adapter timed out.",
+                None,
             )
             .expect("the first failure queues a retry");
         retried
@@ -1274,6 +1446,7 @@ mod tests {
                 "notice-question",
                 ReasonCode::EvaluatorError,
                 "The adapter reported a network failure.",
+                None,
             )
             .expect("the last failure resolves");
         assert_eq!(resolution, AttemptResolution::Exhausted);
@@ -1307,12 +1480,18 @@ mod tests {
                 "notice-question",
                 ReasonCode::EvaluatorError,
                 "First failure.",
+                None,
             )
             .expect("the first failure queues a retry");
             run.start_attempt("notice-question", &case, &profile)
                 .expect("the retry starts");
-            run.fail_attempt("notice-question", ReasonCode::EvaluatorError, &message)
-                .expect("the last failure resolves within the reason bound");
+            run.fail_attempt(
+                "notice-question",
+                ReasonCode::EvaluatorError,
+                &message,
+                None,
+            )
+            .expect("the last failure resolves within the reason bound");
             run.start_attempt("summary-length", &case, &profile)
                 .expect("the rule starts");
             run.accept_result("summary-length", rule_record(Outcome::Pass))
@@ -1346,6 +1525,7 @@ mod tests {
             "notice-question",
             ReasonCode::InvalidAssessment,
             "The adapter answered outside the contract of its check.",
+            None,
         )
         .expect("the permanent failure records at once");
 
@@ -1370,6 +1550,7 @@ mod tests {
                 "notice-question",
                 ReasonCode::InvalidAssessment,
                 "The adapter answered outside the contract of its check.",
+                None,
             )
             .expect_err("the recorded check failed again");
         assert_eq!(error.field_path, "/check", "{error}");
@@ -1380,6 +1561,7 @@ mod tests {
                 "summary-length",
                 ReasonCode::InvalidAssessment,
                 "The adapter answered outside the contract of its check.",
+                None,
             )
             .expect_err("the unstarted check recorded one error");
         assert_eq!(error.field_path, "/check", "{error}");
@@ -1390,6 +1572,7 @@ mod tests {
                 "summary-length",
                 ReasonCode::QueueFull,
                 "The queue reported one skip.",
+                None,
             )
             .expect_err("the non-operational code crossed");
         assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
@@ -1399,6 +1582,7 @@ mod tests {
                 "summary-length",
                 ReasonCode::QueueFull,
                 "The queue reported one skip.",
+                None,
             )
             .expect_err("the non-operational permanent code crossed");
         assert_eq!(error.field_path, "/reason/code", "{error}");
@@ -1416,6 +1600,250 @@ mod tests {
         assert_eq!(question.attempts, Some(1));
         let reason = question.reason.as_ref().expect("an error states a reason");
         assert_eq!(reason.code, ReasonCode::InvalidAssessment);
+    }
+
+    /// One measurement set of one failed attempt, for the retention tests.
+    fn failed_measurements(input_tokens: u64) -> crate::report::QuestionMeasurements {
+        crate::report::QuestionMeasurements {
+            evaluator: Some(crate::report::EvaluatorVersions {
+                id: "state-review".to_owned(),
+                adapter_version: "1.0.0".to_owned(),
+                model_resolved: None,
+            }),
+            timing: Some(crate::report::Timing {
+                queued_ms: None,
+                execution_ms: Some(serde_json::Number::from(input_tokens * 10)),
+            }),
+            usage: Some(serde_json::Map::from_iter([(
+                "input_tokens".to_owned(),
+                serde_json::Value::from(input_tokens),
+            )])),
+        }
+    }
+
+    #[test]
+    fn failed_attempt_measurements_join_the_error_record_and_the_totals() {
+        // One exhausted check keeps the usage that its failed attempts
+        // reported, the evaluator versions of the last failed attempt, and
+        // that attempt's timing. One run that measured usage states its
+        // totals.
+        let (case, profile) = binding();
+        let mut run = state(2);
+
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the first attempt starts");
+        run.fail_attempt(
+            "notice-question",
+            ReasonCode::EvaluatorError,
+            "The adapter reported one network failure.",
+            Some(failed_measurements(100)),
+        )
+        .expect("the failure queues one retry");
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the retry starts");
+        run.fail_attempt(
+            "notice-question",
+            ReasonCode::EvaluatorError,
+            "The adapter reported one network failure.",
+            Some(failed_measurements(23)),
+        )
+        .expect("the exhausted retry records one error");
+
+        run.start_attempt("summary-length", &case, &profile)
+            .expect("the rule attempt starts");
+        run.accept_result("summary-length", rule_record(Outcome::Pass))
+            .expect("the rule result is accepted");
+        run.complete(None).expect("the run completes");
+
+        let report = run.report().expect("the terminal report exists");
+        let question = &report.checks()[1];
+        assert_eq!(question.outcome, Outcome::Error);
+        assert_eq!(question.attempts, Some(2));
+        // The usage sums over both failed attempts.
+        assert_eq!(
+            question
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(123u64))
+        );
+        // The evaluator versions and the timing state the last failure.
+        assert_eq!(
+            question
+                .evaluator
+                .as_ref()
+                .map(|versions| versions.id.as_str()),
+            Some("state-review")
+        );
+        assert_eq!(
+            question
+                .timing
+                .as_ref()
+                .and_then(|timing| timing.execution_ms.as_ref()),
+            Some(&serde_json::Number::from(230u64))
+        );
+        // The totals state the complete known usage of the run.
+        let totals = report.totals().expect("one measured run states totals");
+        assert_eq!(
+            totals
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(123u64))
+        );
+    }
+
+    #[test]
+    fn retried_failure_usage_stays_visible_in_the_totals() {
+        // One retry that succeeds keeps its own measurements on the accepted
+        // record, and the failed attempt's usage stays visible in the totals.
+        let (case, profile) = binding();
+        let mut run = state(2);
+
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the first attempt starts");
+        run.fail_attempt(
+            "notice-question",
+            ReasonCode::EvaluatorError,
+            "The adapter reported one network failure.",
+            Some(failed_measurements(100)),
+        )
+        .expect("the failure queues one retry");
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the retry starts");
+        let mut accepted = question_record(Outcome::Pass);
+        accepted.usage = Some(serde_json::Map::from_iter([(
+            "input_tokens".to_owned(),
+            serde_json::Value::from(5u64),
+        )]));
+        run.accept_result("notice-question", accepted)
+            .expect("the retry result is accepted");
+
+        run.start_attempt("summary-length", &case, &profile)
+            .expect("the rule attempt starts");
+        run.accept_result("summary-length", rule_record(Outcome::Pass))
+            .expect("the rule result is accepted");
+        run.complete(None).expect("the run completes");
+
+        let report = run.report().expect("the terminal report exists");
+        let question = &report.checks()[1];
+        // The accepted record keeps the measurements of its own execution.
+        assert_eq!(
+            question
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(5u64))
+        );
+        // The totals state the complete known usage: the failed attempt
+        // plus the accepted one.
+        let totals = report.totals().expect("one measured run states totals");
+        assert_eq!(
+            totals
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(105u64))
+        );
+    }
+
+    #[test]
+    fn one_attempt_without_usage_erases_no_accumulated_usage() {
+        // One later failed attempt that reports no measurements cannot
+        // erase the usage that the earlier attempts spent: the error
+        // record and the totals keep the accumulated amount.
+        let (case, profile) = binding();
+        let mut run = state(2);
+
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the first attempt starts");
+        run.fail_attempt(
+            "notice-question",
+            ReasonCode::EvaluatorError,
+            "The adapter reported one network failure.",
+            Some(failed_measurements(100)),
+        )
+        .expect("the failure queues one retry");
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the retry starts");
+        run.fail_attempt(
+            "notice-question",
+            ReasonCode::EvaluatorError,
+            "The adapter reported one network failure.",
+            None,
+        )
+        .expect("the exhausted retry records one error");
+
+        run.start_attempt("summary-length", &case, &profile)
+            .expect("the rule attempt starts");
+        run.accept_result("summary-length", rule_record(Outcome::Pass))
+            .expect("the rule result is accepted");
+        run.complete(None).expect("the run completes");
+
+        let report = run.report().expect("the terminal report exists");
+        let question = &report.checks()[1];
+        assert_eq!(question.outcome, Outcome::Error);
+        assert_eq!(
+            question
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(100u64))
+        );
+        let totals = report.totals().expect("one measured run states totals");
+        assert_eq!(
+            totals
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(100u64))
+        );
+    }
+
+    #[test]
+    fn one_refused_failure_changes_no_state_and_counts_its_usage_once() {
+        // One reason that fails validation refuses the whole transition
+        // before any measurement merges, so one retried call for the same
+        // attempt counts its usage exactly once.
+        let (case, profile) = binding();
+        let mut run = state(1);
+
+        run.start_attempt("notice-question", &case, &profile)
+            .expect("the attempt starts");
+        let error = run
+            .fail_permanent(
+                "notice-question",
+                ReasonCode::ModelResolutionChanged,
+                "",
+                Some(failed_measurements(100)),
+            )
+            .expect_err("the empty reason message was accepted");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        // The attempt stays in flight: the refusal changed no state, so the
+        // same transition now succeeds.
+        run.fail_permanent(
+            "notice-question",
+            ReasonCode::ModelResolutionChanged,
+            "The response named another model than the pin.",
+            Some(failed_measurements(100)),
+        )
+        .expect("the valid failure records its error after the refusal");
+
+        run.start_attempt("summary-length", &case, &profile)
+            .expect("the rule attempt starts");
+        run.accept_result("summary-length", rule_record(Outcome::Pass))
+            .expect("the rule result is accepted");
+        run.complete(None).expect("the run completes");
+
+        let report = run.report().expect("the terminal report exists");
+        let totals = report.totals().expect("one measured run states totals");
+        assert_eq!(
+            totals
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.get("input_tokens")),
+            Some(&serde_json::json!(100u64))
+        );
     }
 
     #[test]
@@ -1677,6 +2105,7 @@ mod tests {
                 "summary-length",
                 ReasonCode::EvaluatorError,
                 "The adapter reported a network failure.",
+                None,
             )
             .expect_err("the terminal failure was accepted"),
             run.skip_queue_full("summary-length")
@@ -1911,7 +2340,7 @@ mod tests {
         run.start_attempt("notice-question", &case, &profile)
             .expect("the attempt starts");
         let error = run
-            .fail_attempt("notice-question", ReasonCode::QueueFull, "Full.")
+            .fail_attempt("notice-question", ReasonCode::QueueFull, "Full.", None)
             .expect_err("the skip code was accepted as a failure");
         assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
         assert_eq!(error.field_path, "/reason/code", "{error}");
@@ -1929,6 +2358,7 @@ mod tests {
                 "summary-length",
                 ReasonCode::EvaluatorError,
                 "The adapter reported a network failure.",
+                None,
             )
             .expect_err("the failure without an attempt was accepted");
         assert_eq!(error.code, ReasonCode::InvalidStateTransition, "{error}");

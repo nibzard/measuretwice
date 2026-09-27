@@ -959,6 +959,358 @@ test("one changed model alias cannot enter enforcement", async () => {
   expect(evaluator.calls).toHaveLength(0);
 });
 
+test("one evaluator identity pins at registration and cannot drift", async () => {
+  // The host keeps one mutable adapter object, mutates its declared
+  // identity after registration, then loads. Registration pins the
+  // contract identity the profile binds, so the mutation changes the
+  // client state alone: the load binds, the run serves, and the records
+  // state the pinned identity.
+  let served = 0;
+  const host = {
+    id: "drift-evaluator",
+    adapter_version: "1.0.0",
+    async assess() {
+      served += 1;
+      return coveredExecution("scripted-1.4.0");
+    },
+  } as { id: string; adapter_version: string } & Evaluator;
+  const registry = registerEvaluators(host);
+  const clock = new FakeClock(START_MS);
+  const profile = createExplorationProfile(triage, registry, {
+    execution: { max_active: 4, max_pending: 8, deadline_ms: 1000, max_attempts: 1 },
+  });
+  // The mutation lands between the registration and the load: the profile
+  // and the registry still pair, because the registry holds the pinned
+  // registration record, not the caller's object.
+  host.adapter_version = "2.0.0";
+  host.id = "other-evaluator";
+  const reviewer = await load(triage, {
+    profile,
+    evaluators: registry,
+    now: () => clock.nowMs(),
+    nextRunId: sequenceIds("run"),
+    setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
+  });
+  const report = await reviewer.run({ id: "case-1", input: CASE_INPUT });
+  expect(recordOf(report, "claim-covered").outcome).toBe("pass");
+  expect(served).toBeGreaterThan(0);
+  // The records state the identity that registration pinned, never the
+  // mutated fields of the host object.
+  for (const check of report.checks) {
+    if (check.evaluator !== undefined) {
+      expect(check.evaluator.id).toBe("drift-evaluator");
+      expect(check.evaluator.adapter_version).toBe("1.0.0");
+    }
+  }
+  // One fresh registration of the mutated object no longer serves the
+  // bound profile: the compatibility gate refuses the changed identity.
+  const drifted = await failureOf(() =>
+    load(triage, {
+      profile,
+      evaluators: registerEvaluators(host),
+      now: () => clock.nowMs(),
+      nextRunId: sequenceIds("run"),
+    }),
+  );
+  expect(drifted.code).toBe("evaluator_mismatch");
+});
+
+/** One covered execution of the claim check, with one stated model. */
+function coveredExecution(model?: string) {
+  return {
+    assessment: {
+      kind: "categorical" as const,
+      label: "covered",
+      distribution: [
+        { name: "covered", mass: 0.9 },
+        { name: "incomplete", mass: 0.05 },
+        { name: "contradicted", mass: 0.05 },
+      ],
+    },
+    ...(model === undefined ? {} : { model_resolved: model }),
+  };
+}
+
+test("one adapter that declares another model refuses the bound profile", async () => {
+  // The profile pins the model the binding requests; the adapter declares
+  // the model it actually configures today. One declaration that names
+  // another model refuses the binding at load and at every run.
+  const registry = registerEvaluators({
+    id: "scripted-test",
+    adapter_version: "0.1.0",
+    model: { requested: "scripted-2.0.0" },
+    async assess() {
+      return coveredExecution("scripted-1.4.0");
+    },
+  });
+  const clock = new FakeClock(START_MS);
+  // One profile that pins the requested model of every binding to another
+  // version than the adapter declares.
+  const base = createExplorationProfile(triage, registry, {
+    execution: { max_active: 4, max_pending: 8, deadline_ms: 1000, max_attempts: 1 },
+  });
+  const { content_hash: _hash, ...withoutHash } = base;
+  const pinnedArtifact = {
+    ...withoutHash,
+    bindings: base.bindings.map((binding) => ({
+      ...binding,
+      model: { requested: "scripted-1.4.0" },
+    })),
+  };
+  const pinned = {
+    ...pinnedArtifact,
+    content_hash: nativeComputeSelfHash("profile", JSON.stringify(pinnedArtifact)),
+  } as unknown as Profile;
+  const refusal = await failureOf(() =>
+    load(triage, {
+      profile: pinned,
+      evaluators: registry,
+      now: () => clock.nowMs(),
+      nextRunId: sequenceIds("run"),
+    }),
+  );
+  expect(refusal.code).toBe("model_resolution_changed");
+  expect(refusal.fieldPath).toBe("/profile/bindings/0/model/requested");
+
+  // A generated profile records the declared model, so the same registry
+  // loads it and serves it, and one reconstructed adapter with another
+  // configured model refuses the same profile.
+  const generated = createExplorationProfile(triage, registry, {
+    execution: { max_active: 4, max_pending: 8, deadline_ms: 1000, max_attempts: 1 },
+  });
+  const generatedBinding = generated.bindings.find(
+    (binding) => binding.check === "claim-covered",
+  );
+  expect(generatedBinding?.model?.requested).toBe("scripted-2.0.0");
+  const reviewer = await load(triage, {
+    profile: generated,
+    evaluators: registry,
+    now: () => clock.nowMs(),
+    nextRunId: sequenceIds("run"),
+  });
+  const report = await reviewer.run({ id: "case-1", input: CASE_INPUT });
+  expect(recordOf(report, "claim-covered").outcome).toBe("pass");
+
+  const reconfigured = registerEvaluators({
+    id: "scripted-test",
+    adapter_version: "0.1.0",
+    model: { requested: "scripted-2.1.0" },
+    async assess() {
+      return coveredExecution();
+    },
+  });
+  const changed = await failureOf(() =>
+    load(triage, {
+      profile: generated,
+      evaluators: reconfigured,
+      now: () => clock.nowMs(),
+      nextRunId: sequenceIds("run"),
+    }),
+  );
+  expect(changed.code).toBe("model_resolution_changed");
+});
+
+test("one response that names another model than the pin fails the check", async () => {
+  // One profile that pins its resolved model cannot be served by one
+  // response that names another model, or by one that names none: the
+  // check fails permanently with the stable model code instead of passing
+  // under one drifted identity.
+  const scope = "The reviewed pilot population of the declaration.";
+  const buildEvaluator = (model: string | undefined): Evaluator => ({
+    id: "scripted-test",
+    adapter_version: "0.1.0",
+    async assess() {
+      return coveredExecution(model);
+    },
+  });
+  const validatedProfile = (registry: ReturnType<typeof registerEvaluators>) => {
+    const exploration = createExplorationProfile(triage, registry, {
+      execution: { max_active: 4, max_pending: 8, deadline_ms: 1000, max_attempts: 1 },
+    });
+    const artifact: Record<string, unknown> = {
+      schema_version: 1,
+      id: "triage-model-pin",
+      origin: "calibration",
+      intended_use: scope,
+      definition: exploration.definition,
+      bindings: exploration.bindings.map((binding) => ({
+        ...binding,
+        model: { requested: "scripted-1", resolved: "scripted-1.4.0" },
+      })),
+      policy: exploration.policy,
+      execution: exploration.execution,
+      evidence: {
+        plan: { id: "triage-plan", content_hash: "a".repeat(64) },
+        datasets: [
+          { id: "triage-cases", revision: "2026-09-24", content_hash: "b".repeat(64) },
+        ],
+        splits: [
+          { id: "fitting", content_hash: "c".repeat(64) },
+          { id: "validation", content_hash: "d".repeat(64) },
+        ],
+        label_provenance: "Synthetic cases, then one human review.",
+        evaluation_reports: ["reports/triage-validation.json"],
+        statistical_method: "Wilson score intervals at 95 percent confidence.",
+      },
+      qualification: { status: "validated_for_scope", scope, reasons: ["measured_evidence"] },
+    };
+    artifact["content_hash"] = nativeComputeSelfHash("profile", JSON.stringify(artifact));
+    return artifact as unknown as Profile;
+  };
+  const clock = new FakeClock(START_MS);
+  const runWith = async (model: string | undefined) => {
+    const registry = registerEvaluators(buildEvaluator(model));
+    const reviewer = await load(triage, {
+      profile: validatedProfile(registry),
+      evaluators: registry,
+      now: () => clock.nowMs(),
+      nextRunId: sequenceIds("run"),
+      setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
+    });
+    return reviewer.run({ id: "case-1", input: CASE_INPUT });
+  };
+  const drifted = await runWith("scripted-2.0.0");
+  expect(recordOf(drifted, "claim-covered").outcome).toBe("error");
+  expect(recordOf(drifted, "claim-covered").reason?.code).toBe("model_resolution_changed");
+  expect(recordOf(drifted, "claim-covered").reason?.message).toContain("scripted-2.0.0");
+  // The record keeps the measurements of the execution that answered.
+  expect(recordOf(drifted, "claim-covered").evaluator).toMatchObject({
+    model_resolved: "scripted-2.0.0",
+  });
+
+  const silent = await runWith(undefined);
+  expect(recordOf(silent, "claim-covered").reason?.code).toBe("model_resolution_changed");
+  expect(recordOf(silent, "claim-covered").reason?.message).toContain("reported no model version");
+});
+
+test("failed attempts keep their reported usage and the totals state the whole run", async () => {
+  // One first attempt fails retryably while reporting usage, and the retry
+  // succeeds with one smaller amount. The accepted record keeps its own
+  // usage, and the run totals state the complete known usage, so one
+  // consumer cannot mistake one partial measurement for one complete one.
+  const single = defineChecks({
+    version: 1,
+    name: "usage-accounting",
+    inputs: Type.Object(
+      { text: Type.String({ minLength: 1 }) },
+      { additionalProperties: false },
+    ),
+    checks: [
+      {
+        id: "supported",
+        name: "Supported claim",
+        using: ["text"],
+        question: "Is the claim supported?",
+        answers: { supported: "Supported.", contradicted: "Contradicted." },
+        accept: "supported",
+      },
+    ],
+  });
+  const usageCase = { text: "sample" };
+  const clock = new FakeClock(START_MS);
+  const runUsage = async (steps: readonly unknown[]) => {
+    let attempt = 0;
+    const registry = registerEvaluators({
+      id: "usage-evaluator",
+      adapter_version: "1.0.0",
+      async assess() {
+        const step = steps[Math.min(attempt, steps.length - 1)]!;
+        attempt += 1;
+        return step as never;
+      },
+    });
+    const profile = createExplorationProfile(single, registry, {
+      execution: { max_active: 2, max_pending: 4, deadline_ms: 1000, max_attempts: 2, backoff_ms: 0 },
+    });
+    const reviewer = await load(single, {
+      profile,
+      evaluators: registry,
+      now: () => clock.nowMs(),
+      nextRunId: sequenceIds("run"),
+      setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
+    });
+    return reviewer.run({ id: "case-1", input: usageCase });
+  };
+  const retried = await runUsage([
+    {
+      failure: { code: "evaluator_error", message: "The provider refused the connection." },
+      usage: { input_tokens: 100 },
+      latency_ms: 10,
+    },
+    {
+      assessment: { kind: "categorical", label: "supported", distribution: [
+        { name: "supported", mass: 0.95 },
+        { name: "contradicted", mass: 0.05 },
+      ] },
+      usage: { input_tokens: 5 },
+      latency_ms: 2,
+    },
+  ]);
+  const accepted = recordOf(retried, "supported");
+  expect(accepted.outcome).toBe("pass");
+  expect(accepted.attempts).toBe(2);
+  expect(accepted.usage).toEqual({ input_tokens: 5 });
+  expect(retried.totals?.usage).toEqual({ input_tokens: 105 });
+
+  // One exhausted check keeps the usage of its failed attempts on the
+  // error record, with the evaluator versions and the timing of the last
+  // failure, and the totals state the complete amount.
+  const exhausted = await runUsage([
+    {
+      failure: { code: "evaluator_error", message: "First failure." },
+      usage: { input_tokens: 100 },
+      latency_ms: 10,
+    },
+    {
+      failure: { code: "evaluator_error", message: "Second failure." },
+      usage: { input_tokens: 23 },
+      latency_ms: 30,
+    },
+  ]);
+  const error = recordOf(exhausted, "supported");
+  expect(error.outcome).toBe("error");
+  expect(error.attempts).toBe(2);
+  expect(error.reason?.code).toBe("retries_exhausted");
+  expect(error.usage).toEqual({ input_tokens: 123 });
+  expect(error.evaluator).toMatchObject({ id: "usage-evaluator" });
+  expect(error.timing?.execution_ms).toBe(30);
+  expect(exhausted.totals?.usage).toEqual({ input_tokens: 123 });
+});
+
+test("one definition that declares the proto input name refuses at validation", async () => {
+  // The name passes the character rule of the contract but cannot cross
+  // one JavaScript boundary as one own data property: one assignment
+  // follows the accessor of Object.prototype, so the input would vanish
+  // before one evaluator reads it. Validation refuses it with its field
+  // path instead. The definition text states the key directly, because one
+  // object literal would set the prototype instead of the property.
+  const declared = JSON.parse(`{
+    "schema_version": 1,
+    "name": "proto-input",
+    "inputs": {
+      "type": "object",
+      "properties": { "text": { "type": "string" }, "__proto__": { "type": "string" } },
+      "required": ["text", "__proto__"],
+      "additionalProperties": false
+    },
+    "checks": [
+      {
+        "id": "supported",
+        "name": "Supported claim",
+        "using": ["text", "__proto__"],
+        "question": "Is the claim supported?",
+        "answers": { "supported": "Supported.", "contradicted": "Contradicted." }
+      }
+    ]
+  }`);
+  const clock = new FakeClock(START_MS);
+  const failure = await failureOf(() =>
+    load(declared, { now: () => clock.nowMs(), nextRunId: sequenceIds("run") }),
+  );
+  expect(failure.code).toBe("invalid_field_type");
+  expect(failure.message).toContain("__proto__");
+});
+
 // ---------------------------------------------------------------------------
 // The workflow boundary: shadow, evaluation, and calibration.
 // ---------------------------------------------------------------------------

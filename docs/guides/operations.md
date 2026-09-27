@@ -230,7 +230,7 @@ most 500 characters. What stays and what never enters:
 | Kept | Never enters |
 | --- | --- |
 | The raw assessment, the applied policy, the evaluator versions, the attempt count, the timing, the usage. | Raw case content. One report names the case by identifier and input hash alone. |
-| The operational cause: the code, the attempt count, the last failure. | Credentials. |
+| The operational cause: the code, the attempt count, the last failure, and the usage and timing that the failed attempts reported. | Credentials. |
 | The class, the status, and the request identifier of one thrown provider error. | The provider message, the response body, and the headers, because each can echo case content. |
 
 One hostile provider error that quotes your case content crosses as its

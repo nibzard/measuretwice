@@ -36,6 +36,7 @@ import {
 } from "../src/index.js";
 import { dispatchAssessment } from "../src/evaluator.js";
 import { nativeComputeSelfHash, nativeValidateCase, nativeValidateDefinition } from "../src/native.js";
+import { parseExactJson } from "../src/exact-json.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -144,13 +145,12 @@ async function dispatchCase(
     text,
     JSON.stringify({ id: "adapter-conformance-case", input: record.case_input }),
   );
-  const projected = caseInfo.projectedInputs.find((entry) => entry.checkId === record.check)
-    ?.inputs as Readonly<Record<string, JSONValue>>;
+  const projected = parseProjected(caseInfo, record.check);
   return dispatchAssessment({
     artifact,
     checkKinds: info.checkKinds,
     checkId: record.check,
-    projectedInputs: projected,
+    projectedInputs: projected as Readonly<Record<string, JSONValue>>,
     evaluator,
     budget: BUDGET,
     signal,
@@ -180,6 +180,15 @@ function adapterFor(
 // ---------------------------------------------------------------------------
 // The conformance cases.
 // ---------------------------------------------------------------------------
+
+/** Parses the projected inputs of one check from the boundary text. */
+function parseProjected(
+  caseInfo: { projectedInputs: Array<{ checkId: string; inputs: string }> },
+  checkId: string,
+): Readonly<Record<string, unknown>> {
+  const text = caseInfo.projectedInputs.find((entry) => entry.checkId === checkId)?.inputs;
+  return (text === undefined ? {} : parseExactJson(text)) as Record<string, unknown>;
+}
 
 test("every adapter conformance case reproduces its expected execution", async () => {
   expect(doc.cases.length).toBeGreaterThanOrEqual(15);

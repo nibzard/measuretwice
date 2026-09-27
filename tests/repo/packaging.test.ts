@@ -12,7 +12,8 @@
  */
 import { test, expect } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -269,4 +270,31 @@ test("the packed platform tarball holds the binary, the license, and the manifes
   expect(new Set(files)).toEqual(
     new Set([`index.${abi}.node`, "LICENSE", "README.md", "package.json"]),
   );
+});
+
+test("one collected artifact set displaces the local development binary", () => {
+  // The artifact workflow builds one local host binary for the generated
+  // loader, then collects the cross-built release binaries. The collected
+  // binary of the host platform must win over the local development build,
+  // which is what the search order of `--artifacts` states.
+  const abi = hostAbi();
+  const artifacts = mkdtempSync(path.join(tmpdir(), "measuretwice-artifacts-"));
+  try {
+    writeFileSync(path.join(artifacts, `index.${abi}.node`), "collected-release-binary");
+    execFileSync(
+      process.execPath,
+      [path.join(repoRoot, "scripts", "build-packages.mjs"), "--artifacts", artifacts],
+      { cwd: repoRoot, encoding: "utf8" },
+    );
+    const assembled = readFileSync(path.join(crateDir, "npm", abi, `index.${abi}.node`), "utf8");
+    expect(assembled).toBe("collected-release-binary");
+  } finally {
+    rmSync(artifacts, { recursive: true, force: true });
+    // Restore the assembly from the local build outputs, so the checks that
+    // read the assembled state stay unaffected.
+    execFileSync(process.execPath, [path.join(repoRoot, "scripts", "build-packages.mjs")], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+  }
 });

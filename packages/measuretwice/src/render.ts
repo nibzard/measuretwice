@@ -39,6 +39,7 @@
  */
 import type { CheckDefinition, Definition, JSONValue } from "./define-checks.js";
 import { ValidationError } from "./error.js";
+import { jsonText as strictJsonText } from "./json-boundary.js";
 import {
   NativeFailure,
   nativeValidateDefinition,
@@ -114,15 +115,7 @@ function throughCore<T>(operation: () => T): T {
 
 /** Serializes one artifact and rejects what JSON cannot preserve. */
 function jsonText(value: unknown, fieldPath: string): string {
-  try {
-    return JSON.stringify(value);
-  } catch (error) {
-    throw new ValidationError(
-      "nonportable_value",
-      `The value ${fieldPath === "" ? "at the root" : `at ${fieldPath}`} holds one value that JSON cannot preserve: ${error instanceof Error ? error.message : String(error)}. Pass one JSON value.`,
-      fieldPath,
-    );
-  }
+  return strictJsonText(value, fieldPath);
 }
 
 /** Reads the detail level of one render call. */

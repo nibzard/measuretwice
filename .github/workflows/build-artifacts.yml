@@ -49,11 +49,11 @@ jobs:
             target: x86_64-pc-windows-msvc
             cross: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       # The zig toolchain links the cross targets. Zig 0.14 renamed its
       # release archives from zig-<os>-<cpu> to zig-<cpu>-<os>, and the v1
       # action still requests the old names, so every download failed with
@@ -61,11 +61,11 @@ jobs:
       # links stay deterministic: zig 0.16.0 mishandles the separate
       # "-Wl,-exported_symbols_list" arguments of cargo-zigbuild 0.23.4 on
       # the darwin link, and 0.15.2 links every cross target.
-      - uses: mlugg/setup-zig@v2
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
         if: matrix.cross
         with:
           version: 0.15.2
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "24"
           cache: npm
@@ -77,7 +77,7 @@ jobs:
           --package-json-path crates/measuretwice-node/package.json
           --target ${{ matrix.target }} ${{ matrix.cross && '--cross-compile' || '' }}
       - name: Upload the binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: binary-${{ matrix.target }}
           path: crates/measuretwice-node/index.*.node
@@ -89,10 +89,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v5
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "24"
           cache: npm
@@ -101,7 +101,7 @@ jobs:
       - name: Build the loader, the declarations, and the package
         run: npm run build
       - name: Collect the binaries of every target
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
           pattern: binary-*
@@ -111,7 +111,7 @@ jobs:
       - name: Pack every package
         run: npm pack crates/measuretwice-node/npm/* build/package/measuretwice
       - name: Upload the tarballs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: packages
           path: "*.tgz"
@@ -150,16 +150,22 @@ jobs:
             node: "22"
             architecture: x64
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ matrix.node }}
           architecture: ${{ matrix.architecture }}
           cache: npm
       - name: Download the packed tarballs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: packages
           path: packages
+      - name: Download the collected release binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: binaries
+          pattern: binary-*
+          merge-multiple: true
       - name: Verify one clean installation without Rust tooling
-        run: node scripts/verify-install.mjs --packages packages --require-all
+        run: node scripts/verify-install.mjs --packages packages --binaries binaries --require-all

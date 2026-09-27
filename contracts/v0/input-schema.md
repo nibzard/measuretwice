@@ -33,7 +33,10 @@ The root schema describes the complete input object of one case.
 
 1. The root is an object schema. `type` is `object`.
 2. `properties` declares one to 64 inputs. Each key follows the input name
-   rules in [common.schema.json](common.schema.json).
+   rules in [common.schema.json](common.schema.json). The name `__proto__`
+   is rejected at validation: one JavaScript property assignment redirects
+   it to the prototype accessor, so the boundary cannot carry it as one own
+   data property.
 3. `required` is present. It names every declared input. Every top-level
    input is required.
 4. `additionalProperties` is `false`.

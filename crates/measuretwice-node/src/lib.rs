@@ -61,6 +61,25 @@ fn strict(text: &str) -> Result<Value, napi::Error> {
     lift(json::parse_strict(text))
 }
 
+/// Parses one optional measurements text under the record contract.
+///
+/// One absent text states no measurements. One present text parses through
+/// the strict JSON gate and the measurement parser of the report layer, the
+/// same path that `decide_question_check` applies, so a failure boundary
+/// accepts exactly the measurement shapes that the record boundary accepts.
+fn parse_measurements(
+    text: Option<String>,
+) -> Result<Option<report::QuestionMeasurements>, napi::Error> {
+    match text {
+        None => Ok(None),
+        Some(text) => {
+            let value = strict(&text)?;
+            let measurements = lift(report::QuestionMeasurements::parse(&value, "/measurements"))?;
+            Ok(Some(measurements))
+        }
+    }
+}
+
 /// The kind of one check of a validated definition, as the contracts name it.
 #[napi(object)]
 pub struct CheckKindEntry {
@@ -125,9 +144,13 @@ pub fn validate_definition(definition_text: String) -> Result<DefinitionInfo, na
 pub struct ProjectedInputsEntry {
     /// The check that these inputs serve.
     pub check_id: String,
-    /// The declared inputs of the check, by name. No other field appears
-    /// here.
-    pub inputs: Value,
+    /// The declared inputs of the check, by name, as strict JSON text. No
+    /// other field appears here. Parse it with one parser that defines
+    /// every key as one own data property, such as `JSON.parse`: one
+    /// `Set`-style object conversion follows the accessor of
+    /// `Object.prototype` and silently drops one `__proto__` key, so the
+    /// inputs never cross as one converted value.
+    pub inputs: String,
 }
 
 /// The result of validating one case against one definition.
@@ -159,7 +182,8 @@ pub fn validate_case(definition_text: String, case_text: String) -> Result<CaseI
             .into_iter()
             .map(|projected| ProjectedInputsEntry {
                 check_id: projected.check_id,
-                inputs: Value::Object(projected.inputs),
+                inputs: serde_json::to_string(&Value::Object(projected.inputs))
+                    .expect("the projected inputs serialize"),
             })
             .collect(),
     })
@@ -454,14 +478,20 @@ pub struct DatasetCaseEntry {
     pub group: String,
     /// Slice and failure-type tags.
     pub tags: Vec<String>,
-    /// The complete input object, unchanged.
-    pub input: Value,
+    /// The complete input object, unchanged, as strict JSON text. Parse it
+    /// with one parser that defines every key as one own data property,
+    /// such as `JSON.parse`: one `Set`-style object conversion follows the
+    /// accessor of `Object.prototype` and silently drops one `__proto__`
+    /// key, so the object never crosses as one converted value.
+    pub input: String,
     /// The input-domain content hash of the complete input object.
     pub input_hash: String,
-    /// Reference labels and expected outcomes, when one is present.
-    pub expected: Option<Value>,
-    /// The provenance of the reference label.
-    pub label: Value,
+    /// Reference labels and expected outcomes, when one is present, as
+    /// strict JSON text. Parse it as `input`.
+    pub expected: Option<String>,
+    /// The provenance of the reference label, as strict JSON text. Parse it
+    /// as `input`.
+    pub label: String,
 }
 
 /// One flagged label conflict of one validated dataset, as data.
@@ -576,12 +606,12 @@ pub fn validate_dataset(
             id: record.id().to_owned(),
             group: record.group().to_owned(),
             tags: record.tags().to_vec(),
-            input: Value::Object(record.input().clone()),
+            input: serde_json::to_string(record.input()).expect("the input serializes"),
             input_hash: hashing::input_hash(record.input()),
             expected: record
                 .expected()
-                .map(|expected| serde_json::to_value(expected).expect("the labels serialize")),
-            label: serde_json::to_value(record.label()).expect("the label serializes"),
+                .map(|expected| serde_json::to_string(expected).expect("the labels serialize")),
+            label: serde_json::to_string(record.label()).expect("the label serializes"),
         });
     }
     Ok(DatasetInfo {
@@ -1933,35 +1963,42 @@ impl RunState {
 
     /// Resolves one in-flight attempt with an operational failure.
     ///
-    /// The code must name an operational failure: evaluator_error,
-    /// evaluator_timeout, or invalid_assessment. With attempts left, the
-    /// check returns to the queue. Without attempts left, it records one
-    /// error outcome.
+    /// The code must name one operational failure: evaluator_error,
+    /// evaluator_timeout, invalid_assessment, or model_resolution_changed.
+    /// With attempts left, the check returns to the queue. Without attempts
+    /// left, it records one error outcome. The optional measurements text
+    /// states `{ evaluator?, timing?, usage? }`, parsed under the same
+    /// contract as `decideQuestionCheck`, so the failed attempt's reported
+    /// usage stays visible in the report.
     #[napi]
     pub fn fail_attempt(
         &mut self,
         check_id: String,
         code: String,
         message: String,
+        measurements_text: Option<String>,
     ) -> Result<AttemptOutcome, napi::Error> {
         let code = ReasonCode::from_registry(&code).ok_or_else(|| {
             failure(ValidationError::invalid_field_type(
                 "/code",
-                "An attempt failure must carry an operational reason code: evaluator_error, evaluator_timeout, or invalid_assessment.",
+                "An attempt failure must carry one operational reason code: evaluator_error, evaluator_timeout, invalid_assessment, or model_resolution_changed.",
             ))
         })?;
-        lift(self.inner.fail_attempt(&check_id, code, &message)).map(
-            |resolution| match resolution {
-                AttemptResolution::RetryQueued { attempts } => AttemptOutcome {
-                    resolution: "retry_queued".to_owned(),
-                    attempts: Some(attempts),
-                },
-                AttemptResolution::Exhausted => AttemptOutcome {
-                    resolution: "exhausted".to_owned(),
-                    attempts: None,
-                },
-            },
+        let measurements = parse_measurements(measurements_text)?;
+        lift(
+            self.inner
+                .fail_attempt(&check_id, code, &message, measurements),
         )
+        .map(|resolution| match resolution {
+            AttemptResolution::RetryQueued { attempts } => AttemptOutcome {
+                resolution: "retry_queued".to_owned(),
+                attempts: Some(attempts),
+            },
+            AttemptResolution::Exhausted => AttemptOutcome {
+                resolution: "exhausted".to_owned(),
+                attempts: None,
+            },
+        })
     }
 
     /// Resolves one in-flight attempt with one permanent operational
@@ -1969,22 +2006,29 @@ impl RunState {
     ///
     /// The wrapper states that the failure is permanent: the check records
     /// its error outcome at the failing attempt, whatever attempts remain,
-    /// and no retry starts. The code must name an operational failure:
-    /// evaluator_error, evaluator_timeout, or invalid_assessment.
+    /// and no retry starts. The code must name one operational failure:
+    /// evaluator_error, evaluator_timeout, invalid_assessment, or
+    /// model_resolution_changed. The optional measurements text follows the
+    /// rules of `failAttempt`.
     #[napi]
     pub fn fail_permanent(
         &mut self,
         check_id: String,
         code: String,
         message: String,
+        measurements_text: Option<String>,
     ) -> Result<(), napi::Error> {
         let code = ReasonCode::from_registry(&code).ok_or_else(|| {
             failure(ValidationError::invalid_field_type(
                 "/code",
-                "An attempt failure must carry an operational reason code: evaluator_error, evaluator_timeout, or invalid_assessment.",
+                "An attempt failure must carry one operational reason code: evaluator_error, evaluator_timeout, invalid_assessment, or model_resolution_changed.",
             ))
         })?;
-        lift(self.inner.fail_permanent(&check_id, code, &message))
+        let measurements = parse_measurements(measurements_text)?;
+        lift(
+            self.inner
+                .fail_permanent(&check_id, code, &message, measurements),
+        )
     }
 
     /// Resolves one in-flight attempt with its component record.

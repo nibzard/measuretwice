@@ -341,6 +341,8 @@ export interface LiveBindingEntry {
   adapter_version: string;
   /** The live translated-question hash, when the adapter states one. */
   translation?: string;
+  /** The model the registered adapter requests today, when it declares one. */
+  requested_model?: string;
   /** The resolved model version, when the host states one. */
   resolved_model?: string;
   /** The preprocessing identity, when one applies. */
@@ -868,24 +870,44 @@ export function runStartAttempt(
   return call(() => run.startAttempt(checkId, caseReferenceText, profileReferenceText));
 }
 
-/** Resolves one in-flight attempt with an operational failure. */
+/**
+ * Resolves one in-flight attempt with an operational failure.
+ *
+ * The optional measurements text states what the failed attempt reported:
+ * `{ evaluator?, timing?, usage? }`, under the same contract as
+ * `decideQuestionCheck`. The core accumulates the usage of the failed
+ * attempts, so one retry that succeeds keeps it visible in the run totals
+ * and one exhausted check records it on its error record.
+ */
 export function runFailAttempt(
   run: RunState,
   checkId: string,
   code: string,
   message: string,
+  measurementsText?: string,
 ): { resolution: string; attempts?: number } {
-  return call(() => run.failAttempt(checkId, code, message));
+  return call(() =>
+    run.failAttempt(checkId, code, message, measurementsText === undefined ? null : measurementsText),
+  );
 }
 
 /**
  * Resolves one in-flight attempt with one permanent operational failure.
  *
  * The wrapper states that it declines the retry, so the check records its
- * error at the failing attempt, whatever attempts remain.
+ * error at the failing attempt, whatever attempts remain. The optional
+ * measurements text follows the rules of `runFailAttempt`.
  */
-export function runFailPermanent(run: RunState, checkId: string, code: string, message: string): void {
-  call(() => run.failPermanent(checkId, code, message));
+export function runFailPermanent(
+  run: RunState,
+  checkId: string,
+  code: string,
+  message: string,
+  measurementsText?: string,
+): void {
+  call(() =>
+    run.failPermanent(checkId, code, message, measurementsText === undefined ? null : measurementsText),
+  );
 }
 
 /** Resolves one in-flight attempt with its component record. */

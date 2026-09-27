@@ -50,6 +50,7 @@
  */
 import type { Definition, JSONValue } from "./define-checks.js";
 import { ValidationError } from "./error.js";
+import { parseExactJson } from "./exact-json.js";
 import {
   nativeRequireSeparatedSplits,
   nativeSplitOverlap,
@@ -500,15 +501,24 @@ export function datasetOf(source: DatasetSource, definitionText: string): Datase
   const metadata: unknown = JSON.parse(source.metadataText);
   deepFreeze(metadata);
   const cases = info.records.map((record) => {
+    // The input, the expected labels, and the provenance cross as strict
+    // JSON text, and `JSON.parse` defines every key as one own data
+    // property, so one key that a `Set`-style object conversion would
+    // redirect, such as `__proto__`, arrives as the data the core
+    // validated. One text that JSON cannot parse names one internal
+    // inconsistency of the boundary.
     const value = {
       line: record.line,
       id: record.id,
       group: record.group,
       tags: Object.freeze([...record.tags]),
-      input: record.input,
+      input: parsedRecordField(record.input, record.line, "input"),
       input_hash: record.inputHash,
-      expected: record.expected,
-      label: record.label,
+      expected:
+        record.expected === undefined
+          ? undefined
+          : parsedRecordField(record.expected, record.line, "expected"),
+      label: parsedRecordField(record.label, record.line, "label"),
     };
     deepFreeze(value);
     return value as DatasetCase;
@@ -579,6 +589,26 @@ export function datasetOf(source: DatasetSource, definitionText: string): Datase
   Object.freeze(dataset.splits);
   deepFreeze(dataset);
   return dataset;
+}
+
+/**
+ * Parses one record field that crossed the boundary as strict JSON text.
+ *
+ * The core states the input object, the expected labels, and the label
+ * provenance of one record as text, so the parse defines every key as one
+ * own data property and keeps keys that one object conversion would
+ * redirect. One text that JSON cannot parse names one internal
+ * inconsistency of the boundary, because the core produced the text from
+ * one validated record.
+ */
+function parsedRecordField(text: string, line: number, field: string): unknown {
+  try {
+    return parseExactJson(text);
+  } catch (cause) {
+    throw new Error(
+      `measuretwice received one ${field} text of the record at line ${line} that JSON cannot parse: ${cause instanceof Error ? cause.message : String(cause)}. This is one internal inconsistency.`,
+    );
+  }
 }
 
 /** Builds the frozen identity of one dataset from the core result. */

@@ -91,6 +91,7 @@ import {
 import {
   deepFreeze,
   defaultFiles,
+  frozenDefinition,
   jsonText,
   load,
   readText,
@@ -162,6 +163,16 @@ export interface CalibrateOptions {
    * assessment for every case of its split. Optional.
    */
   readonly signal?: AbortSignal;
+  /**
+   * The completed-measurement sink of the host. The calibration awaits one
+   * call per measured case, in measurement order, with the frozen run
+   * report, after the run passed every completeness check. The sink exists
+   * so one later failure or one abort cannot make completed measurements
+   * inaccessible: the host that persists each report keeps its evidence
+   * whatever happens next. The sink changes no gate, and one throwing sink
+   * refuses the calibration like one unreadable file. Optional.
+   */
+  readonly onMeasurement?: (report: RunReport) => void | Promise<void>;
   /** The file access that reads the stated paths. The default uses Node APIs. */
   readonly files?: FileAccess;
   /** The clock of the wrapper, in epoch milliseconds. The default reads the system clock. */
@@ -585,20 +596,16 @@ export async function calibrate(
 
   const files = options.files ?? defaultFiles;
   let definitionText: string;
-  let artifact: Definition | undefined;
   if (typeof definition === "string") {
     requireJsonPath(definition, "/definition");
     definitionText = await readText(files, definition);
   } else {
     definitionText = jsonText(definition, "");
-    artifact = definition;
   }
+  // The artifact is one frozen snapshot of the validated text, exactly as
+  // `load` builds it: the calibration keeps no caller-owned object.
   const info = throughCore(() => nativeValidateDefinition(definitionText));
-  if (artifact === undefined) {
-    const parsed: unknown = JSON.parse(definitionText);
-    deepFreeze(parsed);
-    artifact = parsed as Definition;
-  }
+  const artifact: Definition = frozenDefinition(definitionText);
 
   // The plan and the dataset cross through the same bounded readers the
   // library uses everywhere, and the core stays the one validation
@@ -667,7 +674,15 @@ export async function calibrate(
   // replays one stored assessment of every fitting case.
   const runs: RunReport[] = [];
   const resolvedModels: string[] = [];
-  const fittingAssessments = await measureSplit(reviewer, dataset, fittingSplit, options.signal, runs, resolvedModels);
+  const fittingAssessments = await measureSplit(
+    reviewer,
+    dataset,
+    fittingSplit,
+    options.signal,
+    runs,
+    resolvedModels,
+    options.onMeasurement,
+  );
   const fitting = parseFittingReport(
     await throughCoreAsync(() =>
       nativeFitPolicy(
@@ -730,6 +745,7 @@ export async function calibrate(
     options.signal,
     runs,
     resolvedModels,
+    options.onMeasurement,
   );
   const request = JSON.stringify({
     sampling: options.sampling,
@@ -951,6 +967,7 @@ export async function measureSplit(
   signal: AbortSignal | undefined,
   runs: RunReport[],
   resolvedModels: string[],
+  onMeasurement?: (report: RunReport) => void | Promise<void>,
 ): Promise<Record<string, Record<string, unknown>>> {
   const byId = new Map(dataset.cases.map((record) => [record.id, record]));
   const assessments: Record<string, Record<string, unknown>> = {};
@@ -1006,6 +1023,12 @@ export async function measureSplit(
       }
     }
     assessments[caseId] = byCheck;
+    // The completed measurement reaches the host sink after every
+    // completeness check, so one later failure or one abort cannot make
+    // one completed, paid measurement inaccessible.
+    if (onMeasurement !== undefined) {
+      await onMeasurement(run);
+    }
   }
   return assessments;
 }

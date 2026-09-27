@@ -33,6 +33,7 @@ import {
 import { dispatchAssessment } from "../src/evaluator.js";
 import { ScriptedBoundary } from "./support/deterministic.js";
 import { nativeComputeSelfHash, nativeValidateCase, nativeValidateDefinition } from "../src/native.js";
+import { parseExactJson } from "../src/exact-json.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -179,13 +180,12 @@ async function dispatch(
 ): Promise<EvaluatorExecution> {
   const info = nativeValidateDefinition(questionText());
   const caseInfo = nativeValidateCase(questionText(), JSON.stringify(QUESTION_CASE));
-  const projected = caseInfo.projectedInputs.find((entry) => entry.checkId === checkId)
-    ?.inputs as Readonly<Record<string, JSONValue>>;
+  const projected = parseProjected(caseInfo, checkId);
   return dispatchAssessment({
     artifact: questionChecks,
     checkKinds: info.checkKinds,
     checkId,
-    projectedInputs: projected,
+    projectedInputs: projected as Readonly<Record<string, JSONValue>>,
     evaluator,
     budget: BUDGET,
     signal,
@@ -196,13 +196,27 @@ async function dispatch(
 // Registration: stable identities, lookup, and rejection records.
 // ---------------------------------------------------------------------------
 
+/** Parses the projected inputs of one check from the boundary text. */
+function parseProjected(
+  caseInfo: { projectedInputs: Array<{ checkId: string; inputs: string }> },
+  checkId: string,
+): Readonly<Record<string, unknown>> {
+  const text = caseInfo.projectedInputs.find((entry) => entry.checkId === checkId)?.inputs;
+  return (text === undefined ? {} : parseExactJson(text)) as Record<string, unknown>;
+}
+
 test("registerEvaluators records stable identities and returns one frozen registry", () => {
   const first = scriptedEvaluator("jev-choice", "0.1.0", []);
   const second = scriptedEvaluator("jev-noul", "0.1.0", []);
   const registry = registerEvaluators(first, second);
   expect(registry.ids).toEqual(["jev-choice", "jev-noul"]);
-  expect(registry.get("jev-choice")).toBe(first);
-  expect(registry.get("jev-noul")).toBe(second);
+  // Lookup returns the pinned registration record, never the caller's
+  // object: frozen, with the identity fixed at the registration instant.
+  const pinned = registry.get("jev-choice");
+  expect(pinned).toMatchObject({ id: "jev-choice", adapter_version: "0.1.0" });
+  expect(pinned).not.toBe(first);
+  expect(Object.isFrozen(pinned)).toBe(true);
+  expect(registry.get("jev-noul")?.id).toBe("jev-noul");
   expect(registry.get("nowhere")).toBeUndefined();
   expect(Object.isFrozen(registry)).toBe(true);
 

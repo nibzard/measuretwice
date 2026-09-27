@@ -154,11 +154,16 @@ holds six classes:
 | Class | Where it surfaces | Examples |
 | --- | --- | --- |
 | Validation | `ValidationError` before execution | `invalid_json`, `missing_field`, `unknown_field`, `invalid_field_type`, `unsupported_keyword`, `nonportable_value`, `hash_mismatch`, `oversized_input`, `unsupported_format` |
-| Execution | One component record of one run report | `evaluator_error`, `evaluator_timeout`, `invalid_assessment`, `retries_exhausted`, `deadline_exceeded`, `run_cancelled`, `late_result_rejected` |
+| Execution | One component record of one run report | `evaluator_error`, `evaluator_timeout`, `invalid_assessment`, `retries_exhausted`, `deadline_exceeded`, `run_cancelled`, `late_result_rejected`, `model_resolution_changed` |
 | Skip | One component record of one run report | `queue_full`, `cancelled_before_start`, `deadline_before_start` |
 | Compatibility | `load` and the enforcement gate, before execution | `definition_mismatch`, `evaluator_mismatch`, `translation_mismatch`, `model_resolution_changed`, `policy_mismatch`, `scope_mismatch`, `qualification_insufficient`, `profile_not_selected` |
 | Qualification | The profile artifact | `starter_policy`, `measured_evidence`, `exact_rules_only` |
 | Statistics | Evaluation and calibration results | `insufficient_evidence`, `zero_denominator`, `unsupported_sampling`, `criteria_not_met` |
+
+`model_resolution_changed` surfaces in both classes: the compatibility
+gate refuses one declared model that names another model than the profile
+pin before any execution, and one component record names one response whose
+resolved model drifted from the pin after the execution answered.
 
 Every `ValidationError` states one code, one JSON Pointer field path, and
 one sanitized message. The message holds no credential and no raw case
@@ -215,10 +220,15 @@ its qualification evidence. `load` verifies, in this order:
 
 The compatibility check compares the definition hash, every evaluator
 reference against the live registry with its adapter version, the translated
-question hash of every adapter that exposes one, the policy family and its
-coverage, and the model resolution. One refused comparison names its code:
+question hash of every adapter that exposes one, the preprocessing identity,
+the policy family and its coverage, and the model: the requested model of
+the live declaration against the pin of the binding, and the resolved
+version when the host states one. One refused comparison names its code:
 `definition_mismatch`, `evaluator_mismatch`, `translation_mismatch`,
-`model_resolution_changed`, or `policy_mismatch`.
+`model_resolution_changed`, or `policy_mismatch`. Every run repeats the
+comparison against the live registry, and one response whose resolved model
+names another model than the pin fails its check with
+`model_resolution_changed`.
 
 Enforcement adds three gates before any case work starts:
 

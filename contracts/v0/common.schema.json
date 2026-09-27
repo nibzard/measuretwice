@@ -31,10 +31,10 @@
     },
     "input_name": {
       "type": "string",
-      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+      "pattern": "^(?!__proto__$)[a-zA-Z_][a-zA-Z0-9_]*$",
       "minLength": 1,
       "maxLength": 64,
-      "description": "Declared input name. Same character rules as a TypeScript property name."
+      "description": "Declared input name. Same character rules as a TypeScript property name, with one exclusion: __proto__ cannot cross a JavaScript boundary as one own property, so the name is rejected before any input can silently vanish."
     },
     "content_hash": {
       "type": "string",

@@ -1699,6 +1699,7 @@ mod tests {
             translation: Some(TRANSLATION.to_owned()),
             resolved_model: Some("scripted-1.4.0".to_owned()),
             preprocessing: None,
+            requested_model: None,
         }]
     }
 

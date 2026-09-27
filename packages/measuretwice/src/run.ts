@@ -85,6 +85,8 @@ import type { DefinedChecks, Definition, ExactRule, JSONValue } from "./define-c
 import type { EvaluatorRegistry } from "./evaluator.js";
 import { dispatchAssessment, validatedQuestion } from "./evaluator.js";
 import { ValidationError } from "./error.js";
+import { parseExactJson } from "./exact-json.js";
+import { jsonText } from "./json-boundary.js";
 import {
   NativeFailure,
   nativeAssessRuleChecks,
@@ -570,17 +572,7 @@ export function throughCore<T>(operation: () => T): T {
 }
 
 /** Serializes one artifact and rejects what JSON cannot preserve. */
-export function jsonText(value: unknown, fieldPath: string): string {
-  try {
-    return JSON.stringify(value);
-  } catch (error) {
-    throw new ValidationError(
-      "nonportable_value",
-      `The value ${fieldPath === "" ? "at the root" : `at ${fieldPath}`} holds one value that JSON cannot preserve: ${error instanceof Error ? error.message : String(error)}. Pass one JSON value.`,
-      fieldPath,
-    );
-  }
-}
+export { jsonText } from "./json-boundary.js";
 
 /** Returns true when the value is one plain JSON object. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -639,6 +631,45 @@ export function deepFreeze(value: unknown): void {
     }
     Object.freeze(value);
   }
+}
+
+/**
+ * Parses one validated definition text into one frozen snapshot.
+ *
+ * Both input shapes of every entry point that binds one definition end in
+ * this snapshot: the wrapper keeps no caller-owned definition object, so
+ * one mutation of the caller's value after `load`, `calibrate`, `revise`,
+ * or `evaluate` changes neither the dispatched questions nor the hashes
+ * that the reports already recorded. `JSON.parse` defines every key as one
+ * own data property, so the snapshot also keeps keys that assignment would
+ * redirect, such as `__proto__`.
+ */
+export function frozenDefinition(text: string): Definition {
+  const parsed: unknown = JSON.parse(text);
+  deepFreeze(parsed);
+  return parsed as Definition;
+}
+
+/**
+ * Parses the projected inputs of one check from the boundary text.
+ *
+ * The core states the projection as strict JSON, so this parse cannot fail
+ * for one validated case; one failure names one internal inconsistency of
+ * the boundary instead of returning one partial input set. The parsed value
+ * is frozen, because the request that carries it must not change between
+ * the projection and the dispatch.
+ */
+function parsedProjectedInputs(text: string): Readonly<Record<string, JSONValue>> {
+  let value: unknown;
+  try {
+    value = parseExactJson(text);
+  } catch (cause) {
+    throw new Error(
+      `measuretwice received one projected-input text that JSON cannot parse: ${cause instanceof Error ? cause.message : String(cause)}. This is one internal inconsistency.`,
+    );
+  }
+  deepFreeze(value);
+  return value as Record<string, JSONValue>;
 }
 
 /** The greatest length of one sanitized reason message, from the portable contracts. */
@@ -732,11 +763,14 @@ function readProfileArtifact(text: string): Profile {
  *
  * One entry per bound check that one registered evaluator serves, so the
  * core can compare the binding: the registered identifier, the adapter
- * version, and the live translated question of every adapter that exposes
- * the optional `translate` operation. One changed translation then fails
- * with `translation_mismatch` before any execution. One loaded file cannot
- * install one evaluator, so one reference outside the registry supplies no
- * entry and the core reports it.
+ * version, the live translated question of every adapter that exposes the
+ * optional `translate` operation, the model configuration that every
+ * adapter declares, and the preprocessing identity of every adapter that
+ * states one. One changed translation then fails with
+ * `translation_mismatch` and one changed model configuration with
+ * `model_resolution_changed`, both before any execution. One loaded file
+ * cannot install one evaluator, so one reference outside the registry
+ * supplies no entry and the core reports it.
  */
 /**
  * Builds the live evaluator state of one profile, one entry per bound
@@ -762,6 +796,19 @@ export function liveEvaluatorBindings(
       evaluator: evaluator.id,
       adapter_version: evaluator.adapter_version,
     };
+    // The model configuration and the preprocessing identity that the
+    // adapter declared at registration cross as the live counterparts of
+    // the profile pins, so the core compares both. One absent declaration
+    // compares nothing, exactly as one absent pin does.
+    if (evaluator.model !== undefined) {
+      entry.requested_model = evaluator.model.requested;
+      if (evaluator.model.resolved !== undefined) {
+        entry.resolved_model = evaluator.model.resolved;
+      }
+    }
+    if (evaluator.preprocessing !== undefined) {
+      entry.preprocessing = evaluator.preprocessing;
+    }
     const kind = info.checkKinds.find((named) => named.id === binding.check);
     const check =
       kind !== undefined && kind.kind !== "rule"
@@ -812,21 +859,19 @@ export async function load(
   const evaluators = options.evaluators;
 
   let definitionText: string;
-  let artifact: Definition | undefined;
   if (typeof definition === "string") {
     requireJsonPath(definition, "/definition");
     definitionText = await readText(files, definition);
   } else {
     definitionText = jsonText(definition, "");
-    artifact = definition;
   }
-  // The core is the one validation authority for both input shapes.
+  // The core is the one validation authority for both input shapes. The
+  // artifact is one frozen snapshot of the validated text for both shapes:
+  // the reviewer never retains the caller's object, so one later mutation
+  // of that object changes neither what runs nor what the report hashes
+  // already bound.
   const info = throughCore(() => nativeValidateDefinition(definitionText));
-  if (artifact === undefined) {
-    const parsed: unknown = JSON.parse(definitionText);
-    deepFreeze(parsed);
-    artifact = parsed as Definition;
-  }
+  const artifact: Definition = frozenDefinition(definitionText);
 
   let profile: Profile | undefined;
   let profileText: string | undefined;
@@ -849,16 +894,17 @@ export async function load(
     profile = synthesizeExactProfile(info);
     profileText = JSON.stringify(profile);
   }
-  // The live evaluator state of the binding, reused by the enforcement gate
-  // of `run`.
-  const liveBindings: LiveBindingEntry[] = [];
-  const boundProfileText = profileText;
-  if (profile !== undefined && boundProfileText !== undefined) {
-    liveBindings.push(
-      ...liveEvaluatorBindings(profile, info, artifact, options.evaluators),
-    );
+  // The live evaluator state of the binding, compared once at load. Every
+  // run re-reads the registry and repeats the comparison, so one adapter
+  // that changed after load refuses the run instead of serving it.
+  if (profile !== undefined && profileText !== undefined) {
     throughCore(() =>
-      nativeCheckProfileCompatibility(boundProfileText, definitionText, liveBindings, "shadow"),
+      nativeCheckProfileCompatibility(
+        profileText,
+        definitionText,
+        liveEvaluatorBindings(profile, info, artifact, options.evaluators),
+        "shadow",
+      ),
     );
   }
 
@@ -875,23 +921,31 @@ export async function load(
           "/mode",
         );
       }
-      // Enforcement runs the complete compatibility gate of the core again,
-      // in enforcement mode: the bindings, then the declared scope, then
-      // the qualification clause, then the host selection. One unvalidated
-      // profile refuses with `qualification_insufficient`, and one run that
-      // states no selected reviewed hash or another hash refuses with
-      // `profile_not_selected`, before any case work starts, whatever
-      // checks the definition holds.
-      if (mode === "enforcement" && profile !== undefined && profileText !== undefined) {
+      // Every run re-reads the evaluator state that the registry holds and
+      // repeats the complete compatibility gate of the core, before any
+      // case work. Registration pins the identity, the model declaration,
+      // and the preprocessing identity of every adapter, and the translated
+      // question stays live through the adapter, so this gate revalidates
+      // the pinned declarations and the live translation against the bound
+      // profile at every run, with the same reason codes as `load` itself.
+      // Enforcement mode adds the scope, the qualification clause, and the
+      // host selection: one unvalidated profile refuses with
+      // `qualification_insufficient`, and one run that states no selected
+      // reviewed hash or another hash refuses with `profile_not_selected`,
+      // before any case work starts, whatever checks the definition holds.
+      if (profile !== undefined && profileText !== undefined) {
+        const liveNow = liveEvaluatorBindings(profile, info, artifact, evaluators);
         throughCore(() =>
-          nativeCheckProfileCompatibility(
-            profileText,
-            definitionText,
-            liveBindings,
-            "enforcement",
-            runOptions.scope,
-            runOptions.selectedProfileHash,
-          ),
+          mode === "enforcement"
+            ? nativeCheckProfileCompatibility(
+                profileText,
+                definitionText,
+                liveNow,
+                "enforcement",
+                runOptions.scope,
+                runOptions.selectedProfileHash,
+              )
+            : nativeCheckProfileCompatibility(profileText, definitionText, liveNow, "shadow"),
         );
       }
       // One question check needs one bound profile: its binding names the
@@ -913,11 +967,15 @@ export async function load(
       const bound = profile as Profile;
 
       // The core validates the case and projects the authorized inputs of
-      // every check before any work starts.
+      // every check before any work starts. The projection crosses as
+      // strict JSON text, and the wrapper parses it: `JSON.parse` defines
+      // every key as one own data property, so one key that a `Set`-style
+      // object conversion would redirect, such as `__proto__`, arrives as
+      // the data the core validated.
       const caseText = jsonText(caseInput, "");
       const caseInfo = throughCore(() => nativeValidateCase(definitionText, caseText));
       const projected = new Map(
-        caseInfo.projectedInputs.map((entry) => [entry.checkId, entry.inputs]),
+        caseInfo.projectedInputs.map((entry) => [entry.checkId, parsedProjectedInputs(entry.inputs)]),
       );
       const caseReference = JSON.stringify({
         id: caseInfo.id,
@@ -1007,7 +1065,9 @@ export async function load(
         // The operational record of the execution: the bound evaluator
         // versions with the model version that served the call, the queue
         // wait and the execution time of this attempt, and the usage that
-        // the adapter reported. One absent measurement stays absent.
+        // the adapter reported. One absent measurement stays absent. The
+        // measurements travel with every resolution, failures included, so
+        // one failed attempt keeps its reported usage in the report.
         const measurements = JSON.stringify({
           evaluator: {
             id: binding.evaluator,
@@ -1024,7 +1084,31 @@ export async function load(
           ...(execution.usage !== undefined ? { usage: execution.usage } : {}),
         });
         if ("failure" in execution) {
-          return { failure: execution.failure };
+          return { failure: execution.failure, measurements };
+        }
+        // The resolved-model pin of the binding compares with the model
+        // version that the response reports, before the assessment is
+        // decided. One profile that pins the model of its qualification
+        // cannot be served by one response that names another model or
+        // states none: the binding cannot be verified, so the check fails
+        // permanently instead of passing under one drifted identity. The
+        // resolved model that registration declared compares the same way,
+        // so one adapter that answers with another model than its own
+        // declaration fails even one profile that pins no resolution.
+        const declaredModel = evaluator.model?.resolved;
+        const pinnedModel = binding.model?.resolved ?? declaredModel;
+        if (pinnedModel !== undefined && execution.model_resolved !== pinnedModel) {
+          return {
+            failure: {
+              code: "model_resolution_changed" as const,
+              message: shorten(
+                execution.model_resolved === undefined
+                  ? `The check ${JSON.stringify(attempt.check)} pins the resolved model ${JSON.stringify(pinnedModel)}, but the evaluator reported no model version, so the binding cannot be verified.`
+                  : `The check ${JSON.stringify(attempt.check)} pins the resolved model ${JSON.stringify(pinnedModel)}, but the response reports the model ${JSON.stringify(execution.model_resolved)}. One changed model invalidates the qualification.`,
+              ),
+            },
+            measurements,
+          };
         }
         const policyText = JSON.stringify({
           accept_cutoff: policy.accept_cutoff,
@@ -1055,6 +1139,7 @@ export async function load(
                   `${cause.code}${cause.fieldPath === "" ? "" : ` (at ${cause.fieldPath})`}: ${cause.message}`,
                 ),
               },
+              measurements,
             };
           }
           throw cause;

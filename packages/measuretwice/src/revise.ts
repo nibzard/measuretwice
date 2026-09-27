@@ -118,6 +118,7 @@ import {
 import {
   deepFreeze,
   defaultFiles,
+  frozenDefinition,
   jsonText,
   load,
   liveEvaluatorBindings,
@@ -315,6 +316,15 @@ export interface ReviseOptions {
    * revision: no partial validation runs. Optional.
    */
   readonly signal?: AbortSignal;
+  /**
+   * The completed-measurement sink of the host. The revision awaits one
+   * call per freshly measured case, in measurement order, with the frozen
+   * run report, after the run passed every completeness check. The sink
+   * changes no gate; it keeps completed measurements accessible to the
+   * host when one later failure or one abort refuses the revision.
+   * Optional.
+   */
+  readonly onMeasurement?: (report: RunReport) => void | Promise<void>;
   /** The file access that reads the stated paths. The default uses Node APIs. */
   readonly files?: FileAccess;
   /** The clock of the wrapper, in epoch milliseconds. The default reads the system clock. */
@@ -407,20 +417,16 @@ export async function revise(
 
   const files = options.files ?? defaultFiles;
   let definitionText: string;
-  let artifact: Definition | undefined;
   if (typeof definition === "string") {
     requireJsonPath(definition, "/definition");
     definitionText = await readText(files, definition);
   } else {
     definitionText = jsonText(definition, "");
-    artifact = definition;
   }
+  // The artifact is one frozen snapshot of the validated text, exactly as
+  // `load` builds it: the revision keeps no caller-owned object.
   const info = throughCore(() => nativeValidateDefinition(definitionText));
-  if (artifact === undefined) {
-    const parsed: unknown = JSON.parse(definitionText);
-    deepFreeze(parsed);
-    artifact = parsed as Definition;
-  }
+  const artifact: Definition = frozenDefinition(definitionText);
 
   // The revised plan crosses through the same boundary as one first
   // calibration, and its definition and evaluator checks run before one
@@ -565,6 +571,7 @@ export async function revise(
           options.signal,
           runs,
           resolvedModels,
+          options.onMeasurement,
         ),
         "/assessments",
       );

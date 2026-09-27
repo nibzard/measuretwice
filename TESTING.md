@@ -114,7 +114,8 @@ without the repository. `scripts/verify-install.mjs` enforces that as one
 gate:
 
 1. It packs the assembled packages, or takes packed tarballs with
-   `--packages <dir>`.
+   `--packages <dir>`, and states the collected release binaries with
+   `--binaries <dir>`.
 2. It creates one empty project outside the repository and removes every
    Rust tool from the installation environment. One probe proves that
    `cargo` and `rustc` no longer resolve.
@@ -126,7 +127,10 @@ gate:
    smoke case through TypeBox authoring and the exported JSON, rejects the
    CommonJS `require` of the package, checks the type declarations and the
    shipped CLI entry, and resolves the native artifact of the platform,
-   compared by its sha256 digest against the packed binary.
+   compared by its sha256 digest against the packed binary. With
+   `--binaries`, the digest of every packed platform binary is also
+   compared against the collected release binary of its target, so one
+   local development build cannot displace the release artifact.
 5. It prints the observation and `INSTALL_GATE_OK` when every expectation
    holds.
 
@@ -488,11 +492,14 @@ live evaluation.
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every push and pull request. It runs the
-Rust format, lint, and test gates, cross-checks the declared Rust targets
+Rust format, lint, and test gates, checks the workspace against the minimum
+supported Rust version, cross-checks the declared Rust targets
 that no hosted runner executes natively, and builds the native binding with
 Node.js 20, 22, and 24 on Linux, plus Windows and macOS, as
-[DEVELOPING.md](DEVELOPING.md) declares. The jobs read no secrets, so the
-whole pipeline stays deterministic and free.
+[DEVELOPING.md](DEVELOPING.md) declares. Every third-party action reference
+is pinned to one full commit identifier; the floating `dtolnay/rust-toolchain`
+action stays floating, with one comment that states the reason. The jobs read
+no secrets, so the whole pipeline stays deterministic and free.
 
 `.github/workflows/build-artifacts.yml` builds one release binary for every
 declared target on a matching runner, assembles the platform packages and

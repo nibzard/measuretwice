@@ -31,6 +31,7 @@ import {
   type EvaluatorExecution,
   type EvaluatorRequest,
   type FileAccess,
+  type RunReport,
 } from "../src/index.js";
 import { createScriptedEvaluator } from "../src/test-evaluator.js";
 import { FakeClock, sequenceIds } from "./support/deterministic.js";
@@ -798,6 +799,75 @@ test("one evaluator failure on one measured case refuses the calibration", async
   expect(failure.fieldPath).toBe("/assessments/fit-3/message-supported");
   expect(failure.message).toContain("The provider timed out.");
   expect(bound.calls.length).toBe(3);
+});
+
+test("the completed-measurement sink keeps finished runs when one later case fails", async () => {
+  // The third measurement fails operationally, so the calibration refuses.
+  // Every completed measurement before it reached the host sink, in
+  // measurement order, with its frozen report: one later failure cannot
+  // make completed, paid measurements inaccessible.
+  const received: RunReport[] = [];
+  const bound = await bind({
+    steps: [
+      answer(0.95, 0.03, 0.02),
+      answer(0.75, 0.15, 0.1),
+      { failure: { code: "evaluator_timeout", message: "The provider timed out." } },
+    ],
+    options: {
+      execution: { max_attempts: 1, backoff_ms: 0 },
+      onMeasurement: (report: RunReport) => {
+        received.push(report);
+      },
+    },
+  });
+  const failure = await failureOf(() => bound.options());
+  expect(failure.code).toBe("evaluator_timeout");
+  expect(received.length).toBe(2);
+  expect(received.map((report) => report.case.id)).toEqual(["fit-1", "fit-2"]);
+  for (const report of received) {
+    expect(Object.isFrozen(report)).toBe(true);
+    expect(report.completion.status).toBe("completed");
+  }
+
+  // A throwing sink refuses the calibration like one unreadable file, and
+  // no partial fit runs.
+  const throwing = await bind({
+    options: {
+      onMeasurement: (_report: RunReport) => {
+        throw new Error("the host storage refused the write");
+      },
+    },
+  });
+  await expect(throwing.options()).rejects.toThrowError(/host storage refused/);
+});
+
+test("the measurement sink receives every report of one complete calibration", async () => {
+  // One calibration that qualifies also feeds the sink: one frozen report
+  // per measured case, in measurement order, fitting split first.
+  const received: RunReport[] = [];
+  const bound = await bind({
+    options: {
+      onMeasurement: (report: RunReport) => {
+        received.push(report);
+      },
+    },
+  });
+  const calibration = await bound.options();
+  expect(calibration.qualification?.status).toBe("validated_for_scope");
+  expect(received.map((report) => report.case.id)).toEqual([
+    "fit-1",
+    "fit-2",
+    "fit-3",
+    "fit-4",
+    "hold-1",
+    "hold-2",
+    "hold-3",
+  ]);
+  for (const report of received) {
+    expect(Object.isFrozen(report)).toBe(true);
+    expect(report.completion.status).toBe("completed");
+    expect(report.run_id).toMatch(/^run-\d{6}$/);
+  }
 });
 
 test("two resolved model versions refuse the candidate binding", async () => {

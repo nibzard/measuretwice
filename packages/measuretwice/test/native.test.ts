@@ -14,6 +14,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseExactJson } from "../src/exact-json.js";
 import {
   NativeFailure,
   nativeAssessRuleChecks,
@@ -184,6 +185,15 @@ test("definition rejections report the stated codes and paths", () => {
   }
 });
 
+/** Parses the projected inputs of one check from the boundary text. */
+function parseProjected(
+  caseInfo: { projectedInputs: Array<{ checkId: string; inputs: string }> },
+  checkId: string,
+): Readonly<Record<string, unknown>> {
+  const text = caseInfo.projectedInputs.find((entry) => entry.checkId === checkId)?.inputs;
+  return (text === undefined ? {} : parseExactJson(text)) as Record<string, unknown>;
+}
+
 /** Builds one probe definition around one root input schema. */
 function probeDefinition(inputs: unknown): string {
   const properties = (inputs as { properties: Record<string, unknown> }).properties;
@@ -253,7 +263,7 @@ test("input validation records report the stated codes and paths", () => {
       const info = nativeValidateCase(definitionText, caseText);
       expect(info.projectedInputs, record.note).toHaveLength(1);
       expect(info.projectedInputs[0]?.checkId, record.note).toBe("probe");
-      expect(info.projectedInputs[0]?.inputs, record.note).toHaveProperty(
+      expect(parseProjected(info, "probe"), record.note).toHaveProperty(
         Object.keys(input)[0] ?? "",
       );
     } else {
@@ -2472,14 +2482,14 @@ test("numbers and strings keep their behavior across the boundary", () => {
   });
   const info = nativeValidateCase(definitionText, caseText);
   expect(info.projectedInputs).toHaveLength(2);
-  const projected = info.projectedInputs[1]?.inputs as Record<string, unknown>;
+  const projected = parseExactJson(info.projectedInputs[1]!.inputs) as Record<string, unknown>;
   expect(projected.text).toBe("a😀b");
   expect((projected.text as string).length).toBe(4); // UTF-16 units in JavaScript
   expect(projected.weight).toBe(0.5);
   expect(projected.count).toBe(900);
   expect(projected.flag).toBe(true);
   // The rule projection holds its one declared input, nothing else.
-  expect(info.projectedInputs[0]?.inputs).toEqual({ text: "a😀b" });
+  expect(parseExactJson(info.projectedInputs[0]!.inputs)).toEqual({ text: "a😀b" });
   // The rule counts code points, not UTF-16 units: 3 pass maxLength 5.
   expect(nativeAssessRuleChecks(definitionText, caseText)[0]?.outcome).toBe("pass");
 
@@ -2496,7 +2506,7 @@ test("numbers and strings keep their behavior across the boundary", () => {
   );
   // An integer above the safe range crosses as one exact BigInt value, so
   // the wrapper receives the value the core read, not a rounded double.
-  const exactProjected = exact.projectedInputs[1]?.inputs as Record<string, unknown>;
+  const exactProjected = parseExactJson(exact.projectedInputs[1]!.inputs) as Record<string, unknown>;
   expect(exactProjected.count).toBe(9007199254740993n);
   expect(String(exactProjected.count)).toBe("9007199254740993");
 

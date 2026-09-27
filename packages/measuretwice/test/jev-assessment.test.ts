@@ -33,6 +33,7 @@ import {
 } from "../src/index.js";
 import { dispatchAssessment } from "../src/evaluator.js";
 import { nativeValidateCase, nativeValidateDefinition } from "../src/native.js";
+import { parseExactJson } from "../src/exact-json.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -159,8 +160,7 @@ async function dispatchCase(
     definitionText,
     JSON.stringify({ id: "normalization-case-1", input: record.case_input }),
   );
-  const projected = caseInfo.projectedInputs.find((entry) => entry.checkId === record.check)
-    ?.inputs as Readonly<Record<string, JSONValue>>;
+  const projected = parseProjected(caseInfo, record.check);
   const evaluator = createJevEvaluator({ call: fake.call, now: time.now });
   expect(evaluator.id).toBe("jev");
   expect(evaluator.adapter_version).toBe(JEV_ADAPTER_VERSION);
@@ -168,7 +168,7 @@ async function dispatchCase(
     artifact,
     checkKinds: info.checkKinds,
     checkId: record.check,
-    projectedInputs: projected,
+    projectedInputs: projected as Readonly<Record<string, JSONValue>>,
     evaluator,
     budget: BUDGET,
     signal,
@@ -186,6 +186,15 @@ function failureOf(result: EvaluatorExecution): EvaluatorFailure {
 // ---------------------------------------------------------------------------
 // The fixture cases through the adapter and the dispatch contract.
 // ---------------------------------------------------------------------------
+
+/** Parses the projected inputs of one check from the boundary text. */
+function parseProjected(
+  caseInfo: { projectedInputs: Array<{ checkId: string; inputs: string }> },
+  checkId: string,
+): Readonly<Record<string, unknown>> {
+  const text = caseInfo.projectedInputs.find((entry) => entry.checkId === checkId)?.inputs;
+  return (text === undefined ? {} : parseExactJson(text)) as Record<string, unknown>;
+}
 
 test("every normalization case reproduces its expected execution", async () => {
   expect(doc.cases.length).toBeGreaterThanOrEqual(20);
@@ -298,13 +307,12 @@ test("one requested model override reaches the boundary", async () => {
     definitionText,
     JSON.stringify({ id: "normalization-case-1", input: record.case_input }),
   );
-  const projected = caseInfo.projectedInputs.find((entry) => entry.checkId === record.check)
-    ?.inputs as Readonly<Record<string, JSONValue>>;
+  const projected = parseProjected(caseInfo, record.check);
   await dispatchAssessment({
     artifact,
     checkKinds: info.checkKinds,
     checkId: record.check,
-    projectedInputs: projected,
+    projectedInputs: projected as Readonly<Record<string, JSONValue>>,
     evaluator: createJevEvaluator({
       call: fake.call,
       now: time.now,

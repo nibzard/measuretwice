@@ -650,6 +650,12 @@ fn parse_check(value: &Value, index: usize) -> Result<Check, ValidationError> {
                         "Every using entry must be a string.",
                     ));
                 };
+                if text == "__proto__" {
+                    return Err(ValidationError::invalid_field_type(
+                        &using_path,
+                        "The name __proto__ cannot serve as one input name: no JavaScript boundary can carry it as one own property, so the input would vanish before one evaluator reads it. Rename the input.",
+                    ));
+                }
                 if !is_input_name(text) {
                     return Err(ValidationError::invalid_field_type(
                         &using_path,
@@ -952,7 +958,19 @@ pub(crate) fn is_artifact_id(value: &str) -> bool {
 /// Checks the input name rule of `common.schema.json`: a letter or an
 /// underscore first, then letters, digits, or underscores, 64 characters at
 /// most.
+///
+/// `__proto__` is excluded from the rule. A property with that name cannot
+/// cross one JavaScript boundary as one own data property: assignment and
+/// `Set`-style conversion follow the accessor of `Object.prototype`, so the
+/// key silently vanishes or relocates onto the prototype before one adapter
+/// reads it. The exclusion turns that silent loss into one validation
+/// refusal with one field path, at the one predicate that every relevant
+/// gate shares: schema property names, required names, `using` entries,
+/// and the input names of report records.
 pub(crate) fn is_input_name(value: &str) -> bool {
+    if value == "__proto__" {
+        return false;
+    }
     let mut characters = value.chars();
     matches!(characters.next(), Some(first) if first.is_ascii_alphabetic() || first == '_')
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
@@ -1124,6 +1142,29 @@ mod tests {
             assert_eq!(error.code, ReasonCode::InvalidFieldType, "{using}: {error}");
             assert_eq!(error.field_path, "/checks/0/using");
         }
+    }
+
+    #[test]
+    fn the_proto_input_name_is_refused_wherever_it_appears() {
+        // A property named __proto__ passes the character rule but cannot
+        // cross one JavaScript boundary as one own data property: one
+        // assignment follows the accessor of Object.prototype, so the input
+        // would silently vanish before one evaluator reads it. The gates
+        // that share the input-name predicate refuse it.
+        let mut declared = minimal_definition();
+        declared["inputs"]["properties"]["__proto__"] = json!({"type": "string", "minLength": 1});
+        let error = validate_definition_str(&declared.to_string())
+            .expect_err("the declared proto name refuses");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert!(error.message.contains("__proto__"), "{error}");
+
+        let mut named = minimal_definition();
+        named["checks"][0]["using"] = json!(["summary", "__proto__"]);
+        let error =
+            validate_definition_str(&named.to_string()).expect_err("the proto using entry refuses");
+        assert_eq!(error.code, ReasonCode::InvalidFieldType, "{error}");
+        assert_eq!(error.field_path, "/checks/0/using", "{error}");
+        assert!(error.message.contains("__proto__"), "{error}");
     }
 
     #[test]

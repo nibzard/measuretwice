@@ -221,7 +221,17 @@ export function jevEvidenceState(
         `/inputs/${name}`,
       );
     }
-    evidence[name] = inputs[name] as JSONValue;
+    // The key is defined, not assigned: one assignment to one name such as
+    // `__proto__` follows the accessor of Object.prototype and silently
+    // drops or relocates the evidence. The input-name rule refuses that
+    // name at authoring, and this construction keeps the helper safe for
+    // any input that reaches it.
+    Object.defineProperty(evidence, name, {
+      value: inputs[name] as JSONValue,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   for (const key of Object.keys(inputs)) {
     if (!named.has(key)) {
