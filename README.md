@@ -40,6 +40,7 @@ Expected outcomes:
 | Missing evidence | Dana says the date is undecided. | The launch is Friday. | review |
 
 These are synthetic cases with model-proposed labels. They establish no reliability claim.
+The example runs in shadow mode: it records judgments and changes no application action.
 Change a candidate and run again. Scripted answers stay fixed; connect a real evaluator to assess changed text.
 
 ## Write the requirement

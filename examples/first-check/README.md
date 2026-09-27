@@ -22,6 +22,7 @@ The first command shows each source, candidate, proposed reference, and report.
 The second adds recorded measurements and rules.
 Expected outcomes are pass, fail, and review, in that order.
 The profile remains unvalidated. No provider runs and no file is written.
+Shadow mode records judgments and changes no application action.
 The script intentionally prints the public synthetic inputs beside the reports.
 The library report still contains no raw case text.
 

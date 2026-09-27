@@ -54,6 +54,8 @@ Its labels remain unreviewed, and its cases do not establish deployment reliabil
 
 The first-check example and direct profile loading address first-run setup.
 The report view explains recorded review conditions.
+The [verification record](../reports/ergonomics-update.md) records the clean-checkout checks.
+Use [the human study procedure](../guides/usability.md) to test the experience with a new developer.
 Human usability, direct-integration effort, and representative qualification evidence remain unmeasured.
 These require participants and data; implementation alone cannot establish them.
 
