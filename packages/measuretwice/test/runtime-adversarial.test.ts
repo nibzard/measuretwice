@@ -959,12 +959,7 @@ test("one changed model alias cannot enter enforcement", async () => {
   expect(evaluator.calls).toHaveLength(0);
 });
 
-test("one evaluator identity pins at registration and cannot drift", async () => {
-  // The host keeps one mutable adapter object, mutates its declared
-  // identity after registration, then loads. Registration pins the
-  // contract identity the profile binds, so the mutation changes the
-  // client state alone: the load binds, the run serves, and the records
-  // state the pinned identity.
+test("one changed evaluator declaration refuses loading before execution", async () => {
   let served = 0;
   const host = {
     id: "drift-evaluator",
@@ -973,46 +968,19 @@ test("one evaluator identity pins at registration and cannot drift", async () =>
       served += 1;
       return coveredExecution("scripted-1.4.0");
     },
-  } as { id: string; adapter_version: string } & Evaluator;
+  };
   const registry = registerEvaluators(host);
-  const clock = new FakeClock(START_MS);
-  const profile = createExplorationProfile(triage, registry, {
-    execution: { max_active: 4, max_pending: 8, deadline_ms: 1000, max_attempts: 1 },
-  });
-  // The mutation lands between the registration and the load: the profile
-  // and the registry still pair, because the registry holds the pinned
-  // registration record, not the caller's object.
+  const profile = createExplorationProfile(triage, registry);
   host.adapter_version = "2.0.0";
-  host.id = "other-evaluator";
-  const reviewer = await load(triage, {
-    profile,
-    evaluators: registry,
-    now: () => clock.nowMs(),
-    nextRunId: sequenceIds("run"),
-    setTimer: (atMs, onWake) => clock.setTimer(atMs, onWake),
-  });
-  const report = await reviewer.run({ id: "case-1", input: CASE_INPUT });
-  expect(recordOf(report, "claim-covered").outcome).toBe("pass");
-  expect(served).toBeGreaterThan(0);
-  // The records state the identity that registration pinned, never the
-  // mutated fields of the host object.
-  for (const check of report.checks) {
-    if (check.evaluator !== undefined) {
-      expect(check.evaluator.id).toBe("drift-evaluator");
-      expect(check.evaluator.adapter_version).toBe("1.0.0");
-    }
-  }
-  // One fresh registration of the mutated object no longer serves the
-  // bound profile: the compatibility gate refuses the changed identity.
-  const drifted = await failureOf(() =>
-    load(triage, {
-      profile,
-      evaluators: registerEvaluators(host),
-      now: () => clock.nowMs(),
-      nextRunId: sequenceIds("run"),
-    }),
-  );
-  expect(drifted.code).toBe("evaluator_mismatch");
+  const refusal = await failureOf(() => load(triage, { profile, evaluators: registry }));
+  expect(refusal.code).toBe("evaluator_mismatch");
+  expect(refusal.fieldPath).toBe("/evaluators/0/adapter_version");
+  expect(served).toBe(0);
+  const reRegistered = await failureOf(() => load(triage, {
+    profile, evaluators: registerEvaluators(host),
+  }));
+  expect(reRegistered.code).toBe("evaluator_mismatch");
+  expect(served).toBe(0);
 });
 
 /** One covered execution of the claim check, with one stated model. */

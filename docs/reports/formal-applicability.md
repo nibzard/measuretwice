@@ -253,3 +253,16 @@ Its `AttemptFail` transition therefore needs no change for this formatting updat
 Rust regression tests check the retained cause and the 500-character bound, including non-ASCII text.
 TypeScript tests check the cause and next action through the public run interface.
 No new model-check result is claimed.
+
+## Registration and terminal report sinks
+
+Evaluator registration captures the callable methods and checks declared identity before lookup and invocation.
+These checks strengthen the wrapper boundary. They add no run state or transition to the core model.
+The host still owns mutable client state and closures.
+Regression tests cover method replacement, declaration changes, and refusal before execution.
+
+The `onRun` sink receives a frozen terminal report before calibration completeness checks.
+The callback cannot change the run state or make partial assessments eligible for fitting.
+Regression tests cover failed and cancelled reports, retained usage, and revision forwarding.
+These callbacks provide inspection and persistence. They do not provide verified resumption.
+The existing model bounds and omissions remain unchanged.

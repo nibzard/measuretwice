@@ -342,6 +342,11 @@ if (calibration.qualification !== undefined) {
 }
 ```
 
+Use `onRun` to persist every terminal run, including failed, cancelled, and timed-out cases.
+The operation awaits the callback before completeness checks. A throwing callback refuses the operation.
+Use `onMeasurement` when your storage needs only complete measurements.
+Neither callback resumes calibration or permits fitting on partial assessments.
+
 One evaluator failure on one measured case refuses the calibration with the
 operational code of the record. Completed measurements that preceded the
 refusal already reached the `onMeasurement` sink, so one failed calibration

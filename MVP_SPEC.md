@@ -188,8 +188,13 @@ Do not silently drop an unsupported constraint. TypeBox authoring metadata may b
 Application preprocessing remains outside the definition; profiles record its version when it affects assessments.
 
 Case validation rejects stored integers that binary64 hashing cannot preserve exactly.
+The TypeScript boundary emits integer `Number` values as their exact integer digits.
+Evaluator registration captures methods and rejects later changes to declared identity before execution.
+The host remains responsible for mutable client state and closures.
 TypeScript rejects `bigint` values before serialization. Use string inputs for arbitrary integer precision.
 Malformed evaluator answers keep valid usage, model, and latency measurements on their error records.
+Calibration and revision can deliver every terminal measurement run through an awaited `onRun` sink.
+Completeness gates still reject partial assessments. Automatic resumption remains unimplemented.
 
 Validate definitions, schemas, cases, profiles, and assessments in Rust. Keep mutation, type coercion, and implicit input defaults disabled.
 Use one canonicalization procedure in Rust for hashes. Define numeric limits, string handling, omitted values, and ordered arrays explicitly.

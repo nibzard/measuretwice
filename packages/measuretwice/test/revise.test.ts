@@ -35,6 +35,7 @@ import {
   type EvaluatorRequest,
   type FileAccess,
   type ReviseOptions,
+  type RunReport,
 } from "../src/index.js";
 import { createScriptedEvaluator } from "../src/test-evaluator.js";
 import { FakeClock, sequenceIds } from "./support/deterministic.js";
@@ -451,7 +452,10 @@ async function failureOf(operation: () => unknown): Promise<ValidationError> {
 
 test("one revision over one fresh split reuses the fitting assessments", async () => {
   const bound = await boundRevision();
-  const revision = await bound.options();
+  const terminal: RunReport[] = [];
+  const revision = await bound.options({ onRun: (report: RunReport) => { terminal.push(report); } });
+  expect(terminal).toEqual(revision.runs);
+  expect(terminal.map(report => report.case.id)).toEqual(["fresh-1", "fresh-2", "fresh-3"]);
 
   // The fitting search replayed the four stored assessments and measured
   // nothing on the fitting split: only the three fresh validation cases

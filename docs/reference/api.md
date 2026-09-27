@@ -167,8 +167,12 @@ adapter applies before the call.
 registration order. `get` returns the pinned registration record of one
 identifier, or `undefined`. The record is frozen and states the identity,
 the declared `model` and `preprocessing`, and the delegate operations. It is
-not the caller's object: one mutation of the caller's object after
-registration changes no binding and no report.
+not the caller's object. Registration captures `assess` and `translate` with their original host receiver.
+Replacing a host method leaves the registered method unchanged.
+Lookup and invocation reject changed identity, version, model, or preprocessing declarations.
+Version and preprocessing changes fail with `evaluator_mismatch`; model changes fail with `model_resolution_changed`.
+Register a changed adapter again and use a compatible profile.
+The registry does not freeze mutable clients or arbitrary closures. The host owns their behavior.
 
 **Side effects:** none.
 
@@ -577,6 +581,8 @@ The core rejects stored integers that this format cannot represent exactly.
 For example, `9007199254740992` is accepted, but `9007199254740993` is rejected with `invalid_field_type`.
 The error points to the input value. Validation fails before an evaluator runs.
 TypeScript `bigint` values fail with `nonportable_value` before serialization.
+Integer JavaScript `Number` values serialize as their exact integer value before core validation.
+For example, `2 ** 63` crosses as `9223372036854775808` and retains the same input hash as raw JSON.
 Declare a string input when an identifier needs arbitrary integer precision.
 Previously accepted JSON integers that need rounding now fail validation.
 Existing hashes remain unchanged. A schema change requires new profile qualification.
@@ -738,7 +744,9 @@ reports that the host keeps. The optional fields state the validation splits
 that earlier claims consumed, the profile `id`, the `intendedUse`, execution
 overrides, the `signal`, the injected boundaries, and one `onMeasurement`
 sink that receives each completed run report, in measurement order, as the
-calibration measures it.
+calibration measures it. An optional `onRun` sink receives every terminal report before completeness checks.
+It includes failed, cancelled, and timed-out runs. Both sinks are awaited.
+A throwing sink refuses the operation. Neither sink enables automatic resumption.
 
 **Output:** one `Calibration`. `profile` is the signed candidate artifact,
 loadable as generated. `fitting` is the fitting report of the bounded search.
@@ -787,6 +795,9 @@ qualification reports beside the selected profile. The
 path from exploration to reliance.
 
 ## `revise`
+
+`revise` supports the same `onRun` and `onMeasurement` sinks as `calibrate` for freshly measured cases.
+Replayed runs do not invoke either sink.
 
 ```ts
 import {

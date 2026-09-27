@@ -325,6 +325,13 @@ export interface ReviseOptions {
    * Optional.
    */
   readonly onMeasurement?: (report: RunReport) => void | Promise<void>;
+  /**
+   * Receives every terminal run report before completeness checks, including
+   * failed, cancelled, and timed-out runs. The operation awaits the sink.
+   * A throwing sink refuses the operation. This callback changes no fitting
+   * gate and provides no automatic resumption. Optional.
+   */
+  readonly onRun?: (report: RunReport) => void | Promise<void>;
   /** The file access that reads the stated paths. The default uses Node APIs. */
   readonly files?: FileAccess;
   /** The clock of the wrapper, in epoch milliseconds. The default reads the system clock. */
@@ -572,6 +579,7 @@ export async function revise(
           runs,
           resolvedModels,
           options.onMeasurement,
+          options.onRun,
         ),
         "/assessments",
       );

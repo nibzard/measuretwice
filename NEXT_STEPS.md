@@ -26,6 +26,8 @@ The host-owned completed-run sink exists: `calibrate` and `revise` accept one
 optional `onMeasurement` callback and await it once per measured case, after
 the run passed every completeness check, so one later failure or one abort
 no longer makes completed measurements inaccessible.
+The optional `onRun` sink receives every terminal report before completeness checks.
+Failed, cancelled, and timed-out runs stay inspectable without entering fitting.
 What remains open is verified resumption: define how a resumed operation
 checks definitions, inputs, evaluator bindings, and measurement profiles,
 reuses only verified completed runs, and measures the rest.

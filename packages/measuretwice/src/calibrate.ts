@@ -173,6 +173,13 @@ export interface CalibrateOptions {
    * refuses the calibration like one unreadable file. Optional.
    */
   readonly onMeasurement?: (report: RunReport) => void | Promise<void>;
+  /**
+   * Receives every terminal run report before completeness checks, including
+   * failed, cancelled, and timed-out runs. The operation awaits the sink.
+   * A throwing sink refuses the operation. This callback changes no fitting
+   * gate and provides no automatic resumption. Optional.
+   */
+  readonly onRun?: (report: RunReport) => void | Promise<void>;
   /** The file access that reads the stated paths. The default uses Node APIs. */
   readonly files?: FileAccess;
   /** The clock of the wrapper, in epoch milliseconds. The default reads the system clock. */
@@ -682,6 +689,7 @@ export async function calibrate(
     runs,
     resolvedModels,
     options.onMeasurement,
+    options.onRun,
   );
   const fitting = parseFittingReport(
     await throughCoreAsync(() =>
@@ -746,6 +754,7 @@ export async function calibrate(
     runs,
     resolvedModels,
     options.onMeasurement,
+    options.onRun,
   );
   const request = JSON.stringify({
     sampling: options.sampling,
@@ -968,6 +977,7 @@ export async function measureSplit(
   runs: RunReport[],
   resolvedModels: string[],
   onMeasurement?: (report: RunReport) => void | Promise<void>,
+  onRun?: (report: RunReport) => void | Promise<void>,
 ): Promise<Record<string, Record<string, unknown>>> {
   const byId = new Map(dataset.cases.map((record) => [record.id, record]));
   const assessments: Record<string, Record<string, unknown>> = {};
@@ -984,6 +994,9 @@ export async function measureSplit(
       signal === undefined ? {} : { signal },
     );
     runs.push(run);
+    if (onRun !== undefined) {
+      await onRun(run);
+    }
     if (run.completion.status === "cancelled") {
       throw new ValidationError(
         "run_cancelled",

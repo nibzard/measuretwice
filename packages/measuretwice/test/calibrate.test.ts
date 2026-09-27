@@ -772,14 +772,18 @@ test("one aborted signal refuses the calibration without one candidate", async (
       return execution(0.95, 0.03, 0.02);
     },
   };
+  const terminal: RunReport[] = [];
   const cancellingBound = await bind({
     evaluator: cancelling,
-    options: { signal: controller.signal },
+    options: { signal: controller.signal, onRun: (report: RunReport) => { terminal.push(report); } },
   });
   const during = await failureOf(() => cancellingBound.options());
   expect(during.code).toBe("run_cancelled");
   expect(during.fieldPath).toBe("/cases/fit-3");
   expect(seen).toBe(3);
+  expect(terminal.map(report => report.case.id)).toEqual(["fit-1", "fit-2", "fit-3"]);
+  expect(terminal[2]?.completion.status).toBe("cancelled");
+  expect(Object.isFrozen(terminal[2])).toBe(true);
 });
 
 test("one evaluator failure on one measured case refuses the calibration", async () => {
@@ -807,14 +811,16 @@ test("the completed-measurement sink keeps finished runs when one later case fai
   // measurement order, with its frozen report: one later failure cannot
   // make completed, paid measurements inaccessible.
   const received: RunReport[] = [];
+  const terminal: RunReport[] = [];
   const bound = await bind({
     steps: [
       answer(0.95, 0.03, 0.02),
       answer(0.75, 0.15, 0.1),
-      { failure: { code: "evaluator_timeout", message: "The provider timed out." } },
+      { failure: { code: "evaluator_timeout", message: "The provider timed out." }, usage: { input_tokens: 20 } },
     ],
     options: {
       execution: { max_attempts: 1, backoff_ms: 0 },
+      onRun: (report: RunReport) => { terminal.push(report); },
       onMeasurement: (report: RunReport) => {
         received.push(report);
       },
@@ -823,6 +829,10 @@ test("the completed-measurement sink keeps finished runs when one later case fai
   const failure = await failureOf(() => bound.options());
   expect(failure.code).toBe("evaluator_timeout");
   expect(received.length).toBe(2);
+  expect(terminal.map(report => report.case.id)).toEqual(["fit-1", "fit-2", "fit-3"]);
+  expect(terminal[2]?.checks[0]).toMatchObject({ outcome: "error", usage: { input_tokens: 20 } });
+  expect(terminal[2]?.totals?.usage).toEqual({ input_tokens: 20 });
+  expect(Object.isFrozen(terminal[2])).toBe(true);
   expect(received.map((report) => report.case.id)).toEqual(["fit-1", "fit-2"]);
   for (const report of received) {
     expect(Object.isFrozen(report)).toBe(true);

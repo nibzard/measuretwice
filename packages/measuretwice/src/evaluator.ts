@@ -295,8 +295,8 @@ export interface Evaluator {
    *
    * One declaration states the model the adapter requests and, when the
    * adapter knows it, the version that request resolves to. Registration
-   * pins the declaration, so one later mutation of the host object changes
-   * no compared value. The pinned declaration compares against the model
+   * pins the declaration and rejects later changes to the host declaration.
+   * The pinned declaration compares against the model
    * pin of one bound profile at `load` and at every `run`, and one
    * response that reports another model version than the pin fails its
    * check. One host that reconfigures its adapter registers it again: one
@@ -318,7 +318,7 @@ export interface Evaluator {
 export interface EvaluatorRegistry {
   /** Every registered identifier, in registration order. */
   readonly ids: readonly string[];
-  /** Returns the registered evaluator, or undefined when the identifier names none. */
+  /** Returns the registered evaluator, or undefined. Throws when its host identity changed. */
   get(id: string): Evaluator | undefined;
 }
 
@@ -338,10 +338,12 @@ export interface EvaluatorRegistry {
  *
  * Registration pins the contract identity of every adapter: the registry
  * stores one frozen wrapper whose `id`, `adapter_version`, `model`, and
- * `preprocessing` state the values that registration read, while `assess`
- * and `translate` keep calling the host object. One host that mutates its
- * own adapter object afterwards changes its client state, never the
- * identity that one bound profile compares and one report records.
+ * `preprocessing` state the values that registration read. The wrapper
+ * captures `assess` and `translate` with their original host receiver.
+ * Replacing a host method leaves the registered method unchanged.
+ * Lookup and invocation reject changed identity declarations. Register a
+ * changed adapter again and select a compatible profile. Mutable client
+ * state and closures remain the host's responsibility.
  *
  * @throws {ValidationError} when one evaluator states one identifier or one
  * adapter version outside the contract, implements no `assess` operation,
@@ -350,7 +352,7 @@ export interface EvaluatorRegistry {
  * identifier with one earlier registration.
  */
 export function registerEvaluators(...evaluators: readonly Evaluator[]): EvaluatorRegistry {
-  const registered = new Map<string, Evaluator>();
+  const registered = new Map<string, { evaluator: Evaluator; assertIdentity: () => void }>();
   for (const [index, evaluator] of evaluators.entries()) {
     const base = `/evaluators/${index}`;
     if (typeof evaluator !== "object" || evaluator === null) {
@@ -404,26 +406,52 @@ export function registerEvaluators(...evaluators: readonly Evaluator[]): Evaluat
     }
     const model = readModelDeclaration(evaluator, base, id);
     const preprocessing = readPreprocessing(evaluator, base, id);
-    // The wrapper pins the contract identity that registration read. The
-    // host object keeps its mutable client state, and the two operations
-    // keep calling it, so one later mutation of the host object changes no
-    // identity that one profile compares or one report records.
+    const assess = evaluator.assess;
+    const assertIdentity = (): void => {
+      for (const [name, expected] of [["id", id], ["adapter_version", version], ["preprocessing", preprocessing]] as const) {
+        if (evaluator[name] !== expected) {
+          throw new ValidationError(
+            "evaluator_mismatch",
+            `The registered evaluator changed ${name}. Register the changed adapter again and use a compatible profile.`,
+            `${base}/${name}`,
+          );
+        }
+      }
+      const currentModel = readModelDeclaration(evaluator, base, id);
+      if (currentModel?.requested !== model?.requested || currentModel?.resolved !== model?.resolved) {
+        throw new ValidationError(
+          "model_resolution_changed",
+          "The registered evaluator changed its model declaration. Register the changed adapter again and use a compatible profile.",
+          `${base}/model`,
+        );
+      }
+    };
+    // Capture both methods with their original receiver. Replacing a host
+    // method does not replace the registered implementation.
     const wrapper: Evaluator = Object.freeze({
       id,
       adapter_version: version,
-      assess: (request: EvaluatorRequest) => evaluator.assess(request),
-      ...(translate !== undefined
-        ? { translate: (question: ValidatedQuestion) => evaluator.translate!(question) }
+      assess: (request: EvaluatorRequest) => {
+        assertIdentity();
+        return assess.call(evaluator, request);
+      },
+      ...(typeof translate === "function"
+        ? { translate: (question: ValidatedQuestion) => {
+            assertIdentity();
+            return translate.call(evaluator, question);
+          } }
         : {}),
       ...(model !== undefined ? { model: Object.freeze({ ...model }) } : {}),
       ...(preprocessing !== undefined ? { preprocessing } : {}),
     });
-    registered.set(id, wrapper);
+    registered.set(id, { evaluator: wrapper, assertIdentity });
   }
   const registry: EvaluatorRegistry = {
     ids: Object.freeze([...registered.keys()]),
     get(id: string): Evaluator | undefined {
-      return registered.get(id);
+      const entry = registered.get(id);
+      entry?.assertIdentity();
+      return entry?.evaluator;
     },
   };
   return Object.freeze(registry);

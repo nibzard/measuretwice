@@ -11,7 +11,9 @@
  * is generated output, so the scan skips it too.
  */
 import { test, expect } from "vitest";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,7 +21,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 
 const SCANNED_EXTENSIONS = new Set([".md", ".ts", ".json", ".toml", ".html", ".yml", ".yaml"]);
 // The generated directories hold build output that other suites rewrite
-// while this scan runs, so the scan stays away from them.
+// while this scan runs. The scan also limits discovery to tracked files.
 const EXCLUDED_DIRECTORIES = new Set([
   ".git",
   "node_modules",
@@ -57,29 +59,15 @@ function forbiddenForm(text: string): string | undefined {
   return undefined;
 }
 
-function scannedFiles(): string[] {
-  const files: string[] = [];
-  const stack = [repoRoot];
-  while (stack.length > 0) {
-    const current = stack.pop() as string;
-    for (const entry of readdirSync(current)) {
-      if (entry === "research" && current === repoRoot) {
-        continue;
-      }
-      const full = path.join(current, entry);
-      if (statSync(full).isDirectory()) {
-        if (!EXCLUDED_DIRECTORIES.has(entry)) {
-          stack.push(full);
-        }
-      } else {
-        const relative = path.relative(repoRoot, full);
-        if (SCANNED_EXTENSIONS.has(path.extname(entry)) && !EXCLUDED_FILES.has(relative)) {
-          files.push(relative);
-        }
-      }
-    }
-  }
-  return files.sort();
+function scannedFiles(root = repoRoot): string[] {
+  const tracked = execFileSync("git", ["-C", root, "ls-files", "--cached", "-z"], { encoding: "utf8" });
+  return tracked.split("\0").filter(file => {
+    const segments = file.split("/");
+    const relative = path.join(...segments);
+    return file !== "" && segments[0] !== "research" &&
+      !segments.slice(0, -1).some(segment => EXCLUDED_DIRECTORIES.has(segment)) &&
+      SCANNED_EXTENSIONS.has(path.extname(file)) && !EXCLUDED_FILES.has(relative);
+  }).map(file => path.join(...file.split("/"))).sort();
 }
 
 function loadJson(file: string): unknown {
@@ -140,4 +128,25 @@ test("the name scan rejects every wrong form and keeps the correct name", () => 
   }
   expect(forbiddenForm("measuretwice")).toBeUndefined();
   expect(scannedFiles()).toContain(path.join("packages", "measuretwice", "package.json"));
+});
+
+
+test("the source scan excludes untracked packaging transactions", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "measuretwice-source-scan-"));
+  try {
+    execFileSync("git", ["init", "--quiet", root]);
+    writeFileSync(path.join(root, "source.md"), "measuretwice\n");
+    execFileSync("git", ["-C", root, "add", "source.md"]);
+    const transient = path.join(root, "crates", "measuretwice-node", ".napi-rs-filesystem-transaction.swp");
+    mkdirSync(transient, { recursive: true });
+    writeFileSync(path.join(transient, "owner.json"), "{}");
+    const files = scannedFiles(root);
+    rmSync(transient, { recursive: true });
+    expect(files).toEqual(["source.md"]);
+    expect(files.map(file => readFileSync(path.join(root, file), "utf8"))).toEqual(["measuretwice\n"]);
+    rmSync(path.join(root, "source.md"));
+    expect(() => readFileSync(path.join(root, scannedFiles(root)[0]!), "utf8")).toThrow(/ENOENT/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

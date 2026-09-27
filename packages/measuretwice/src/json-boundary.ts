@@ -71,7 +71,9 @@ function emit(value: unknown, path: string, ancestors: Set<object>, depth: numbe
       if (!Number.isFinite(value)) {
         throw nonportable(path, "a number that is not finite");
       }
-      return JSON.stringify(value);
+      // Some integer Numbers stringify to a nearby decimal integer.
+      // Emit the exact integer held by the Number before core validation.
+      return Number.isInteger(value) ? BigInt(value).toString() : JSON.stringify(value);
     case "object":
       break;
     default:

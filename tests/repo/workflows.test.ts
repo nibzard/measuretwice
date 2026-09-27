@@ -3,10 +3,10 @@
  * Workflow hardening checks.
  *
  * Every action reference in the CI and artifact workflows is pinned to one
- * full commit digest, with one trailing comment that names the tag it came
+ * full commit digest, with one trailing comment that names the upstream revision it came
  * from, so one moved or hijacked tag cannot change what one job runs. The
- * one documented exception is the floating Rust toolchain, which must catch
- * what one newer stable compiler rejects. The checks also keep the declared
+ * compiler channel stays stable independently of the action digest.
+ * The checks also keep the declared
  * minimum Rust version of `Cargo.toml` compiled by its own CI job. They
  * read local files only, so they stay deterministic.
  */
@@ -44,11 +44,6 @@ test("every action reference is pinned to one commit digest", () => {
   for (const file of WORKFLOWS) {
     const workflow = read(file);
     for (const { line, reference } of usesReferences(workflow)) {
-      // The floating Rust toolchain is the documented exception: pinning it
-      // would freeze the compiler that the lint jobs exist to preview.
-      if (reference === "dtolnay/rust-toolchain@stable") {
-        continue;
-      }
       const [, revision] = reference.split("@");
       expect(
         revision !== undefined && /^[0-9a-f]{40}$/.test(revision),
@@ -63,7 +58,7 @@ test("the pinned references keep their tag comments", () => {
     const workflow = read(file);
     for (const line of workflow.split("\n")) {
       if (/^\s*-?\s*uses:\s*\S+@[0-9a-f]{40}/.test(line)) {
-        expect(line.trim().match(/#\s*v\d+(?:\.\d+)*$/), `${file}: ${line.trim()}`).not.toBeNull();
+        expect(line.trim().match(/#\s*(?:v\d+(?:\.\d+)*|stable)$/), `${file}: ${line.trim()}`).not.toBeNull();
       }
     }
   }

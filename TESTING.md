@@ -491,14 +491,17 @@ live evaluation.
 
 ## Continuous integration
 
+The project-name scan reads tracked source paths with `git ls-files`.
+Untracked packaging transactions cannot enter the scan. Missing tracked files still fail.
+
 `.github/workflows/ci.yml` runs on every push and pull request. It runs the
 Rust format, lint, and test gates, checks the workspace against the minimum
 supported Rust version, cross-checks the declared Rust targets
 that no hosted runner executes natively, and builds the native binding with
 Node.js 20, 22, and 24 on Linux, plus Windows and macOS, as
 [DEVELOPING.md](DEVELOPING.md) declares. Every third-party action reference
-is pinned to one full commit identifier; the floating `dtolnay/rust-toolchain`
-action stays floating, with one comment that states the reason. The jobs read
+is pinned to one full commit identifier. The Rust toolchain action requests
+`toolchain: stable` independently of its pinned action implementation. The jobs read
 no secrets, so the whole pipeline stays deterministic and free.
 
 `.github/workflows/build-artifacts.yml` builds one release binary for every
