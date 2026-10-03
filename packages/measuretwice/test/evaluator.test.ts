@@ -529,7 +529,7 @@ function boundProfile(): Record<string, unknown> {
       translation: { content_hash: "0".repeat(64), question: "One translated question." },
     })),
     policy: {
-      family: "probability_mass_v0",
+      family: "probability_mass_v1",
       checks: info.checkKinds.map((entry) => ({
         check: entry.id,
         accept_cutoff: 0.75,
@@ -587,7 +587,7 @@ test("load binds one profile whose evaluator is registered, and run dispatches t
         ],
       },
     },
-    { assessment: { kind: "binary", value: false } },
+    { assessment: { kind: "binary", probability_yes: 0 } },
     {
       assessment: {
         kind: "ordered",

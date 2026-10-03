@@ -164,7 +164,7 @@ const INCOMPLETE = {
 
 /** One passing binary answer: the conversation acknowledged nothing. */
 const NOTHING_NEW = {
-  assessment: { kind: "binary" as const, value: false },
+  assessment: { kind: "binary" as const, probability_yes: 0 },
   model_resolved: "jev-1.13.0",
   latency_ms: 120,
 };

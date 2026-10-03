@@ -255,7 +255,7 @@ test("the generated profile is explicitly unvalidated and binds no rule check", 
   expect(result.profile.origin).toBe("exploration");
   expect(result.profile.qualification.status).toBe("unvalidated");
   expect(result.profile.qualification.reasons).toEqual(["starter_policy"]);
-  expect(result.profile.policy.family).toBe("probability_mass_v0");
+  expect(result.profile.policy.family).toBe("probability_mass_v1");
   const policyChecks = result.profile.policy.checks ?? [];
   expect(policyChecks.map((entry) => entry.check)).toEqual(QUESTION_CHECKS);
   for (const entry of policyChecks) {
@@ -314,7 +314,7 @@ test("each shadow run records the host baseline beside the new outcome", () => {
     "pass",
     "pass",
   ]);
-  expect(duplicated[2]?.assessment).toEqual({ kind: "binary", value: true });
+  expect(duplicated[2]?.assessment).toEqual({ kind: "binary", probability_yes: 1 });
   // The over-length case passes every question and fails in code.
   const verbose = result.reports[5]!.checks;
   expect(verbose.map((record) => record.outcome)).toEqual([

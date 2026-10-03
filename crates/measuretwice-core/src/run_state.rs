@@ -506,6 +506,11 @@ impl RunState {
     ) -> Result<AttemptResolution, ValidationError> {
         self.ensure_running()?;
         require_operational_code(code)?;
+        if matches!(crate::report::Recovery::for_code(code), Some(recovery) if !recovery.retryable)
+        {
+            self.fail_permanent(check_id, code, message, measurements)?;
+            return Ok(AttemptResolution::Exhausted);
+        }
         let index = self.slot_index(check_id)?;
         let slot = &self.slots[index];
         if slot.place != CheckPlace::Active {
@@ -539,7 +544,8 @@ impl RunState {
         };
         // The reason validates before the merge, so one refused transition
         // changes no state and one retried call counts its usage once.
-        let reason = SanitizedReason::new(final_code, final_message)?;
+        let mut reason = SanitizedReason::new(final_code, final_message)?;
+        reason.recovery = crate::report::Recovery::for_code(code);
         merge_failed_measurements(&mut self.slots[index], measurements);
         let failed = self.slots[index].failed.clone();
         let slot = &self.slots[index];
@@ -960,6 +966,12 @@ fn require_operational_code(code: ReasonCode) -> Result<(), ValidationError> {
     if matches!(
         code,
         ReasonCode::EvaluatorError
+            | ReasonCode::EvaluatorAuthentication
+            | ReasonCode::EvaluatorPermission
+            | ReasonCode::EvaluatorRequest
+            | ReasonCode::EvaluatorRateLimit
+            | ReasonCode::EvaluatorUnknown
+            | ReasonCode::OversizedInput
             | ReasonCode::EvaluatorTimeout
             | ReasonCode::InvalidAssessment
             | ReasonCode::ModelResolutionChanged
@@ -2362,5 +2374,34 @@ mod tests {
             )
             .expect_err("the failure without an attempt was accepted");
         assert_eq!(error.code, ReasonCode::InvalidStateTransition, "{error}");
+    }
+    #[test]
+    fn permanent_causes_cannot_enter_the_retry_queue() {
+        let (case, profile) = binding();
+        for code in [
+            ReasonCode::EvaluatorAuthentication,
+            ReasonCode::EvaluatorPermission,
+            ReasonCode::EvaluatorRequest,
+            ReasonCode::OversizedInput,
+            ReasonCode::EvaluatorUnknown,
+            ReasonCode::InvalidAssessment,
+            ReasonCode::ModelResolutionChanged,
+        ] {
+            let mut run = state(3);
+            run.start_attempt("notice-question", &case, &profile)
+                .unwrap();
+            assert_eq!(
+                run.fail_attempt("notice-question", code, "Fix the permanent cause.", None)
+                    .unwrap(),
+                AttemptResolution::Exhausted
+            );
+            assert_eq!(
+                run.status("notice-question").unwrap().place,
+                CheckPlace::Recorded
+            );
+            assert!(run
+                .start_attempt("notice-question", &case, &profile)
+                .is_err());
+        }
     }
 }

@@ -1,0 +1,25 @@
+{
+  "mode": "live",
+  "case_count": 6,
+  "provider_calls": 12,
+  "wall_ms": 3390,
+  "direct_usage": {
+    "input_tokens": 3486,
+    "output_tokens": 288
+  },
+  "measuretwice_usage": {
+    "input_tokens": 3486,
+    "output_tokens": 288
+  },
+  "integration_matches": 6,
+  "proposed_reference_matches": {
+    "direct": 5,
+    "measuretwice": 5
+  },
+  "operational_errors": 0,
+  "qualification": "unvalidated",
+  "human_reviewed_labels": 0,
+  "participant_observations": 0,
+  "setup_effort": "not measured as a participant trial",
+  "currency_cost": "not measured"
+}

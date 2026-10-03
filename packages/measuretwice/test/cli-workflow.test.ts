@@ -824,43 +824,17 @@ test(
 // calibrate: the plan contract and the evaluator boundary.
 // ---------------------------------------------------------------------------
 
-test(
-  "calibrate keeps the plan contract and writes no candidate",
-  async () => {
-    const out = path.join(profilesDir, "candidate-from-cli.json");
-    const result = await projectCli([
-      "calibrate",
-      "message",
-      "--plan",
-      "calibration-plan",
-      "--out",
-      ".measuretwice/profiles/candidate-from-cli.json",
-      "--format",
-      "json",
-    ]);
-    expect(result.code).toBe(1);
-    const refusal = jsonErrorOf(result);
-    expect(refusal.code).toBe("evaluator_mismatch");
-    expect(refusal.field_path).toBe("/plan/evaluator/evaluator");
-    expect(refusal.message).toContain("scripted-test");
-    expect(refusal.message).toContain("no calibration can measure cases here");
-    // No measurement ran, so one written candidate would look complete
-    // without one stored assessment behind it.
-    expect(existsSync(out)).toBe(false);
-
-    // The explicit paths of the section refuse the same way.
-    const explicit = await projectCli([
-      "calibrate",
-      ".measuretwice/definitions/message.json",
-      "--plan",
-      ".measuretwice/calibration-plan.json",
-    ]);
-    expect(explicit.code).toBe(1);
-    expect(explicit.stderr).toContain("evaluator_mismatch");
-    expect(explicit.stdout).toBe("");
-  },
-  30_000,
-);
+test("validate-plan checks data without creating a calibration candidate", async () => {
+  const out = path.join(profilesDir, "candidate-from-cli.json");
+  const result = await projectCli(["validate-plan", "message", "--plan", "calibration-plan", "--format", "json"]);
+  expect(result.code).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(JSON.parse(result.stdout)).toMatchObject({ valid: true, measurement_performed: false, evaluator_registered: false });
+  expect(existsSync(out)).toBe(false);
+  const explicit = await projectCli(["validate-plan", ".measuretwice/definitions/message.json", "--plan", ".measuretwice/calibration-plan.json"]);
+  expect(explicit.code).toBe(0);
+  expect(explicit.stdout).toContain("No measurement ran");
+});
 
 // ---------------------------------------------------------------------------
 // evaluate: one dataset through the convention, with the stored reports.
@@ -1245,7 +1219,7 @@ test(
       script: hostileScript,
     };
     const calibrate = await projectCli([
-      "calibrate",
+      "validate-plan",
       "message",
       "--plan",
       projectFile("hostile-plan.json", JSON.stringify(hostilePlan)),

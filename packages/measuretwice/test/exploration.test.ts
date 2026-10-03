@@ -32,6 +32,7 @@ import {
 } from "../src/index.js";
 import {
   nativeCanonicalForm,
+  nativeComputeSelfHash,
   nativeContentHash,
   nativeValidateDefinition,
   nativeValidateProfile,
@@ -130,7 +131,7 @@ test("a profile value runs without files and retains the enforcement gate", asyn
   supplied.id = "caller-mutated";
   const input = { id: "one-case", input: { notice: "Notice", summary: "Summary" } };
   const report = await reviewer.run(input);
-  expect(report.aggregate.outcome).toBe("pass");
+  expect(report.aggregate.outcome).toBe("review");
   expect(report.profile.id).toBe(profile.id);
   await expect(reviewer.run(input, {
     mode: "enforcement", scope: profile.qualification.scope!, selectedProfileHash: profile.content_hash,
@@ -203,7 +204,7 @@ test("one starter profile records the binding, the starter policy, and no qualif
   );
 
   // The starter policy and the effective execution configuration.
-  expect(profile.policy.family).toBe("probability_mass_v0");
+  expect(profile.policy.family).toBe("probability_mass_v1");
   expect(profile.policy.checks).toEqual([
     { check: "message-supported", accept_cutoff: 0.8, rejection_cutoff: 0.6 },
   ]);
@@ -556,4 +557,20 @@ test("rejections name their codes and paths", async () => {
     expect(failure.fieldPath, note).toBe(fieldPath);
     expect(failure.message.length, note).toBeGreaterThan(0);
   }
+});
+
+
+test("old mass profiles are refused before evaluator execution", async () => {
+  const definition = defineChecks({ version: 1, name: "binary-migration",
+    inputs: Type.Object({ evidence: Type.String() }, { additionalProperties: false }),
+    checks: [{ id: "supported", name: "Supported", using: ["evidence"], question: "Is it supported?",
+      answers: { yes: "Supported", no: "Unsupported" }, accept: "yes" }] });
+  let calls = 0;
+  const evaluators = registerEvaluators({ id: "migration-test", adapter_version: "1",
+    async assess() { calls += 1; return { assessment: { kind: "binary" as const, probability_yes: 0.9 } }; } });
+  const old = JSON.parse(JSON.stringify(createExplorationProfile(definition, evaluators)));
+  old.policy.family = "probability_mass_v0";
+  old.content_hash = nativeComputeSelfHash("profile", JSON.stringify(old));
+  await expect(load(definition, { evaluators, profile: old })).rejects.toMatchObject({ code: "policy_mismatch" });
+  expect(calls).toBe(0);
 });

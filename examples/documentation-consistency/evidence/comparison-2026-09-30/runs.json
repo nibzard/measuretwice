@@ -1,0 +1,440 @@
+[
+  {
+    "schema_version": 1,
+    "run_id": "run-36572ab7-f2e4-4b51-b67d-f92994362067",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-comparison",
+      "content_hash": "a0ba4bd5814040993b4babb3f83a6ff8b54e5ed6e943b5fbbd1e1efb22de6e42"
+    },
+    "profile": {
+      "id": "documentation-comparison-exploration",
+      "content_hash": "eb3493c4c5b15a38804c512688be9b4de85be5230a90c7feb29d5ce0ad683ff9"
+    },
+    "case": {
+      "id": "doc-01",
+      "input_hash": "4a18eeccd667c9341ef95defaca9f2bfd092390125b3b1bd0cdbedad7235a08c"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "pass",
+        "assessment": {
+          "confidence": 0.91,
+          "distribution": [
+            {
+              "mass": 0.94,
+              "name": "supported"
+            },
+            {
+              "mass": 0,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.06,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "supported"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.2.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 1,
+          "execution_ms": 258
+        },
+        "usage": {
+          "input_tokens": 809,
+          "output_tokens": 46
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "pass"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-30T08:20:49.928Z"
+    },
+    "totals": {
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 46
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-f10054f6-a979-4359-9fea-47eac5e20a72",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-comparison",
+      "content_hash": "a0ba4bd5814040993b4babb3f83a6ff8b54e5ed6e943b5fbbd1e1efb22de6e42"
+    },
+    "profile": {
+      "id": "documentation-comparison-exploration",
+      "content_hash": "eb3493c4c5b15a38804c512688be9b4de85be5230a90c7feb29d5ce0ad683ff9"
+    },
+    "case": {
+      "id": "doc-02",
+      "input_hash": "74a35b3f6d73d5eb66a0d0ad44831c81e87d7232166d7d26f7367f6ba80c6dc9"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {
+          "confidence": 0.63,
+          "distribution": [
+            {
+              "mass": 0.23,
+              "name": "supported"
+            },
+            {
+              "mass": 0.02,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.75,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "insufficient"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.2.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 242
+        },
+        "usage": {
+          "input_tokens": 500,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "review"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-30T08:20:50.173Z"
+    },
+    "totals": {
+      "usage": {
+        "input_tokens": 500,
+        "output_tokens": 49
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-40e38466-6a1d-49f3-9a4b-478303b52d16",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-comparison",
+      "content_hash": "a0ba4bd5814040993b4babb3f83a6ff8b54e5ed6e943b5fbbd1e1efb22de6e42"
+    },
+    "profile": {
+      "id": "documentation-comparison-exploration",
+      "content_hash": "eb3493c4c5b15a38804c512688be9b4de85be5230a90c7feb29d5ce0ad683ff9"
+    },
+    "case": {
+      "id": "doc-03",
+      "input_hash": "7754c2ba48b3016dde29486f6225c88825af5589168e032f08a69383f09d67ec"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "pass",
+        "assessment": {
+          "confidence": 0.86,
+          "distribution": [
+            {
+              "mass": 0.91,
+              "name": "supported"
+            },
+            {
+              "mass": 0.01,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.08,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "supported"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.2.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 246
+        },
+        "usage": {
+          "input_tokens": 460,
+          "output_tokens": 46
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "pass"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-30T08:20:51.019Z"
+    },
+    "totals": {
+      "usage": {
+        "input_tokens": 460,
+        "output_tokens": 46
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-c0fb6543-7171-4d96-a8ed-1a1c236f2347",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-comparison",
+      "content_hash": "a0ba4bd5814040993b4babb3f83a6ff8b54e5ed6e943b5fbbd1e1efb22de6e42"
+    },
+    "profile": {
+      "id": "documentation-comparison-exploration",
+      "content_hash": "eb3493c4c5b15a38804c512688be9b4de85be5230a90c7feb29d5ce0ad683ff9"
+    },
+    "case": {
+      "id": "doc-04",
+      "input_hash": "c3d0ab9ce7ca055220dcb20348946708832858567aca22d3561c1db5869b0bf5"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "fail",
+        "assessment": {
+          "confidence": 0.97,
+          "distribution": [
+            {
+              "mass": 0,
+              "name": "supported"
+            },
+            {
+              "mass": 0.98,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.02,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "contradicted"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.2.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 0,
+          "execution_ms": 274
+        },
+        "usage": {
+          "input_tokens": 778,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "fail"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-30T08:20:51.294Z"
+    },
+    "totals": {
+      "usage": {
+        "input_tokens": 778,
+        "output_tokens": 49
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-8ca9e34b-a943-4ab7-a6ec-2874c441c3c1",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-comparison",
+      "content_hash": "a0ba4bd5814040993b4babb3f83a6ff8b54e5ed6e943b5fbbd1e1efb22de6e42"
+    },
+    "profile": {
+      "id": "documentation-comparison-exploration",
+      "content_hash": "eb3493c4c5b15a38804c512688be9b4de85be5230a90c7feb29d5ce0ad683ff9"
+    },
+    "case": {
+      "id": "doc-05",
+      "input_hash": "8ef7755392ab812afaeccd23e27a7c1bd7814cb474a2a26d020edef00466d14a"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "fail",
+        "assessment": {
+          "confidence": 1,
+          "distribution": [
+            {
+              "mass": 0,
+              "name": "supported"
+            },
+            {
+              "mass": 1,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "contradicted"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.2.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 1,
+          "execution_ms": 244
+        },
+        "usage": {
+          "input_tokens": 489,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "fail"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-30T08:20:52.119Z"
+    },
+    "totals": {
+      "usage": {
+        "input_tokens": 489,
+        "output_tokens": 49
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "run_id": "run-7965e768-7aea-406f-9c58-931f83cd790d",
+    "mode": "shadow",
+    "definition": {
+      "name": "documentation-comparison",
+      "content_hash": "a0ba4bd5814040993b4babb3f83a6ff8b54e5ed6e943b5fbbd1e1efb22de6e42"
+    },
+    "profile": {
+      "id": "documentation-comparison-exploration",
+      "content_hash": "eb3493c4c5b15a38804c512688be9b4de85be5230a90c7feb29d5ce0ad683ff9"
+    },
+    "case": {
+      "id": "doc-06",
+      "input_hash": "a2873efc65d81e73da90429b30e878069a38c4abbb112e5f3444682bfb5e65c9"
+    },
+    "checks": [
+      {
+        "check": "requirement",
+        "kind": "question",
+        "outcome": "review",
+        "assessment": {
+          "confidence": 0.92,
+          "distribution": [
+            {
+              "mass": 0.05,
+              "name": "supported"
+            },
+            {
+              "mass": 0,
+              "name": "contradicted"
+            },
+            {
+              "mass": 0.95,
+              "name": "insufficient"
+            }
+          ],
+          "kind": "categorical",
+          "label": "insufficient"
+        },
+        "applied_policy": {
+          "accept_cutoff": 0.8,
+          "rejection_cutoff": 0.6
+        },
+        "evaluator": {
+          "id": "jev",
+          "adapter_version": "0.2.0",
+          "model_resolved": "jev-1.13.0"
+        },
+        "timing": {
+          "queued_ms": 1,
+          "execution_ms": 283
+        },
+        "usage": {
+          "input_tokens": 450,
+          "output_tokens": 49
+        }
+      }
+    ],
+    "aggregate": {
+      "outcome": "review"
+    },
+    "completion": {
+      "status": "completed",
+      "completed_at": "2026-09-30T08:20:52.405Z"
+    },
+    "totals": {
+      "usage": {
+        "input_tokens": 450,
+        "output_tokens": 49
+      }
+    }
+  }
+]

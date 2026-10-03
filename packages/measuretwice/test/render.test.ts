@@ -136,7 +136,7 @@ const SUPPORTED = {
 
 /** One passing binary answer. */
 const NOTHING_NEW = {
-  assessment: { kind: "binary", value: false },
+  assessment: { kind: "binary", probability_yes: 0 },
   model_resolved: "jev-1.13.0",
   usage: { input_tokens: 800, output_tokens: 8 },
   latency_ms: 120,
@@ -251,7 +251,7 @@ function failureOf(operation: () => unknown): ValidationError {
 // ---------------------------------------------------------------------------
 
 test("the terminal summary leads with meaning, outcomes, aggregate, and next action", async () => {
-  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", value: true } }, MINOR]);
+  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", probability_yes: 1 } }, MINOR]);
   expect(report.aggregate.outcome).toBe("fail");
   const text = renderRunReport(mixed, report);
 
@@ -270,7 +270,7 @@ test("the terminal summary leads with meaning, outcomes, aggregate, and next act
 
   // The default explanations come from the check criteria and the policy.
   expect(text).toContain(
-    "The answer \"yes\": One participant recognizes the concern. Unacceptable mass 1 meets the rejection cutoff 0.6.",
+    "Reported probability of yes is 1. Unacceptable mass 1 meets the rejection cutoff 0.6.",
   );
   expect(text).toContain(
     "The answer \"minor\": No identified consequence. Review source: decision policy. Acceptable mass 0.55 is below the accept cutoff 0.8. Unacceptable mass 0.45 is below the rejection cutoff 0.6.",
@@ -317,7 +317,7 @@ test("review answers, floors, and binary passes explain their criteria", async (
   const passing = await runWith([SUPPORTED, NOTHING_NEW, MEANINGFUL]);
   const passingText = renderRunReport(mixed, passing.report, { detail: "detail" });
   expect(passingText).toContain(
-    "The answer \"no\": No message recognizes the concern. Acceptable mass 1 meets the accept cutoff 0.8.",
+    "Reported probability of yes is 0. Acceptable mass 1 meets the accept cutoff 0.8.",
   );
   expect(passingText).toContain("The answer \"meaningful\": One coordination problem. Acceptable mass 0.9 meets the accept cutoff 0.8.");
 });
@@ -432,7 +432,7 @@ test("error and skip records keep their stable reasons and the run its status", 
 });
 
 test("the recorded aggregate explanation renders as stored", async () => {
-  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", value: true } }, MINOR]);
+  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", probability_yes: 1 } }, MINOR]);
   const stored: RunReport = {
     ...report,
     aggregate: { outcome: "fail", explanation: "The host stored this explanation with the report." },
@@ -447,7 +447,7 @@ test("the recorded aggregate explanation renders as stored", async () => {
 // ---------------------------------------------------------------------------
 
 test("the detailed view exposes rules, measurements, identities, and limitations", async () => {
-  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", value: true } }, MINOR]);
+  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", probability_yes: 1 } }, MINOR]);
   const text = renderRunReport(mixed, report, { detail: "detail" });
 
   // One question record exposes its meaning, its answer, and its numbers.
@@ -485,7 +485,7 @@ test("the detailed view exposes rules, measurements, identities, and limitations
 
 test("the detailed view keys the policy terms and the shadow fields it uses", async () => {
   const { report } = await runWith(
-    [SUPPORTED, { assessment: { kind: "binary", value: true } }, MINOR],
+    [SUPPORTED, { assessment: { kind: "binary", probability_yes: 1 } }, MINOR],
     {},
     { outcome: "fail", revision: "host-policy-1" },
   );
@@ -505,7 +505,7 @@ test("the detailed view keys the policy terms and the shadow fields it uses", as
 
   // The binary check of the definition carries no distribution, and the key
   // says so beside the record that shows no distribution line.
-  expect(text).toContain("A binary question reports one answer and no distribution.");
+  expect(text).toContain("A binary assessment preserves probability when supplied. A label alone supplies no probability.");
 
   // One shadow run with one baseline states both terms.
   expect(text).toContain(
@@ -548,7 +548,7 @@ test("no rendered view echoes raw case content", async () => {
 // ---------------------------------------------------------------------------
 
 test("the Markdown views state the same content as the terminal views", async () => {
-  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", value: true } }, MINOR]);
+  const { report } = await runWith([SUPPORTED, { assessment: { kind: "binary", probability_yes: 1 } }, MINOR]);
   const summary = renderRunReportMarkdown(mixed, report);
   expect(summary).toContain("# semantic-intervention");
   expect(summary).toContain("Run `run-000001` · mode `shadow`");
@@ -658,11 +658,11 @@ test("the exploration profile summary states its readiness without measured numb
     "message-supported: evaluator scripted-test · adapter 0.1.0 · translation",
   );
   expect(detail).toContain("Policy");
-  expect(detail).toContain("family: probability_mass_v0");
+  expect(detail).toContain("family: probability_mass_v1");
   expect(detail).toContain("message-supported: accept >= 0.8 · reject >= 0.6");
   expect(detail).toContain("Execution");
   expect(detail).toContain("4 active · 16 pending · 30000 ms deadline · 2 attempts · 200 ms backoff");
-  expect(detail).not.toContain("Evidence");
+  expect(detail).toContain("Evidence method: not recorded");
   expect(detail).not.toContain("Performance");
   expect(detail).toContain("Identity");
   expect(detail).toContain(`content hash: ${profile.content_hash}`);
@@ -685,8 +685,8 @@ test("the insufficient-evidence profile renders its readiness, evidence, and cou
   expect(summary).toContain("Next: Inspect missing evidence and sampling limits in the detailed view.");
   expect(lines).toContain("Reasons: measured_evidence, insufficient_evidence");
   expect(lines).toContain("Scope: The Cassandra pilot conversation population declared in the plan.");
-  expect(summary).not.toContain("0 of 9");
-  expect(summary).not.toContain("Wilson");
+  expect(summary).toContain("0 of 9");
+  expect(summary).toContain("Wilson");
 
   // The detailed view exposes the exact rules, evaluator versions, datasets,
   // counts, and limitations of the spec's inspection levels.
@@ -694,7 +694,7 @@ test("the insufficient-evidence profile renders its readiness, evidence, and cou
   expect(detail).toContain(
     "message-supported: evaluator jev-choice · adapter 0.1.0 · translation a5065efe · model jev-1.13 (resolved jev-1.13-2026-09-01)",
   );
-  expect(detail).toContain("family: probability_mass_v0");
+  expect(detail).toContain("family: probability_mass_v1");
   expect(detail).toContain("message-supported: accept >= 0.8 · reject >= 0.7");
   expect(detail).toContain("Evidence");
   expect(detail).toContain("plan: message-supported-plan (de4bcb9a)");
@@ -756,4 +756,25 @@ test("one edited profile fails the self-hash before it renders", () => {
   expect(failure.code).toBe("hash_mismatch");
   const markdownFailure = failureOf(() => renderProfileSummaryMarkdown(edited));
   expect(markdownFailure.code).toBe("hash_mismatch");
+});
+
+test("local case inspection binds the evidence and keeps missing rationale explicit", async () => {
+  const { report } = await runWith([SUPPORTED, NOTHING_NEW, MEANINGFUL]);
+  const before = JSON.stringify(report);
+  const text = renderRunReport(mixed, report, { caseInput: CASE_INPUT.input });
+  expect(text).toContain("Supplied evidence");
+  expect(text).toContain(CASE_INPUT.input.prior_decision);
+  expect(text).toContain(mixed.checks[0]!.question);
+  expect(text).toContain("Evaluator rationale: not recorded");
+  expect(text).toContain("Assessment:");
+  expect(text).toContain("Policy:");
+  expect(JSON.stringify(report)).toBe(before);
+  const markdown = renderRunReportMarkdown(mixed, report, { caseInput: CASE_INPUT.input });
+  expect(markdown).toContain("Supplied evidence");
+});
+
+test("inspection refuses evidence from another input before rendering", async () => {
+  const { report } = await runWith([SUPPORTED, NOTHING_NEW, MEANINGFUL]);
+  expect(() => renderRunReport(mixed, report, { caseInput: { ...CASE_INPUT.input, prior_decision: "Different private source" } }))
+    .toThrow(/input hash/);
 });

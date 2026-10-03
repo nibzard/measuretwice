@@ -8,7 +8,7 @@ the test: "hand someone the check file and a report without an architecture
 lecture. They should understand the requirement, supplied evidence,
 outcome, and next step. The advanced view must let a developer trace that
 same outcome to exact measurements and an evaluated policy."
-[AGENTS.md](../../AGENTS.md#3-do-not-make-the-user-think-unnecessarily)
+[AGENTS.md](../contributing/engineering.md#3-do-not-make-the-user-think-unnecessarily)
 section 3 states the rule behind it: test the interface with someone who
 has not read the implementation.
 

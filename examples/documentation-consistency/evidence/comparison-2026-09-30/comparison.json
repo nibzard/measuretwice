@@ -1,0 +1,50 @@
+[
+  {
+    "case": "doc-01",
+    "first": "direct",
+    "direct": "pass",
+    "measuretwice": "pass",
+    "direct_label": "supported",
+    "measuretwice_label": "supported"
+  },
+  {
+    "case": "doc-02",
+    "first": "measuretwice",
+    "direct": "review",
+    "measuretwice": "review",
+    "direct_label": "insufficient",
+    "measuretwice_label": "insufficient"
+  },
+  {
+    "case": "doc-03",
+    "first": "direct",
+    "direct": "pass",
+    "measuretwice": "pass",
+    "direct_label": "supported",
+    "measuretwice_label": "supported"
+  },
+  {
+    "case": "doc-04",
+    "first": "measuretwice",
+    "direct": "fail",
+    "measuretwice": "fail",
+    "direct_label": "contradicted",
+    "measuretwice_label": "contradicted"
+  },
+  {
+    "case": "doc-05",
+    "first": "direct",
+    "direct": "fail",
+    "measuretwice": "fail",
+    "direct_label": "contradicted",
+    "measuretwice_label": "contradicted"
+  },
+  {
+    "case": "doc-06",
+    "first": "measuretwice",
+    "direct": "review",
+    "measuretwice": "review",
+    "direct_label": "insufficient",
+    "measuretwice_label": "insufficient"
+  }
+]

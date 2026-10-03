@@ -224,7 +224,7 @@ export interface ProfileInfo {
   definitionName: string;
   /** The content hash of the bound definition. */
   definitionHash: string;
-  /** The decision-rule family: probability_mass_v0 or exact. */
+  /** The decision-rule family: probability_mass_v1 or exact. */
   policyFamily: string;
   /** The qualification status of the profile. */
   qualificationStatus: string;
@@ -936,3 +936,8 @@ export function runComplete(run: RunState, completedAt?: string | null): void {
 }
 
 export type { CaseInfo, DatasetInfo, DefinitionInfo, RuleAssessment, RunState };
+
+/** Validates plan data and its definition binding without registering an evaluator. */
+export function nativeCheckPlanDefinition(planText: string, definitionText: string): void {
+  call(() => binding.checkPlanDefinition(planText, definitionText));
+}

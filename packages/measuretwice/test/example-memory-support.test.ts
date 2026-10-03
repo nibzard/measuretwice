@@ -144,7 +144,7 @@ test("the generated profile is explicitly unvalidated", () => {
   expect(result.profile.origin).toBe("exploration");
   expect(result.profile.qualification.status).toBe("unvalidated");
   expect(result.profile.qualification.reasons).toEqual(["starter_policy"]);
-  expect(result.profile.policy.family).toBe("probability_mass_v0");
+  expect(result.profile.policy.family).toBe("probability_mass_v1");
   expect(result.profile.policy.checks).toEqual([
     { check: "memory-supported", accept_cutoff: 0.8, rejection_cutoff: 0.6 },
   ]);

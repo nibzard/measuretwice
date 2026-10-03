@@ -838,7 +838,7 @@ test("adapter conformance cases stay consistent with the question fixtures", () 
     if (held[0] === "assessment") {
       const assessment = expected.assessment as Record<string, Json>;
       expect(assessment.kind, where).toBe(kind);
-      const answerKeys = ["label", "value", "level"].filter((key) => assessment[key] !== undefined);
+      const answerKeys = ["label", "value", "probability_yes", "level"].filter((key) => assessment[key] !== undefined);
       expect(answerKeys.length, `${where} expects one selected answer`).toBe(1);
       if (String(record.adapter) === "label-only-test") {
         expect(Object.keys(assessment).sort(), `${where} invents one measurement`).toEqual(
@@ -1032,7 +1032,7 @@ test("the Jev normalization group keeps its provenance and case structure", () =
     if (held[0] === "assessment") {
       const assessment = expected.assessment as Record<string, Json>;
       expect(assessment.kind, where).toBe(kind);
-      const selected = ["label", "value", "level"].filter((key) => assessment[key] !== undefined);
+      const selected = ["label", "value", "probability_yes", "level"].filter((key) => assessment[key] !== undefined);
       expect(selected.length, `${where} states no selected answer`).toBe(1);
       if (assessment.label !== undefined) expect(declared.includes(String(assessment.label)), where).toBe(true);
       if (assessment.level !== undefined) expect(declared.includes(String(assessment.level)), where).toBe(true);
@@ -1400,7 +1400,7 @@ function profileErrors(profile: Json): Err[] {
       errors.push({ code: "invalid_field_type", path: "/policy/family" });
     }
   }
-  if (isObject(profile.policy) && profile.policy.family === "probability_mass_v0") {
+  if (isObject(profile.policy) && profile.policy.family === "probability_mass_v1") {
     const checks = Array.isArray(profile.policy.checks) ? profile.policy.checks : [];
     if (checks.length === 0) {
       errors.push({ code: "missing_field", path: "/policy/checks" });

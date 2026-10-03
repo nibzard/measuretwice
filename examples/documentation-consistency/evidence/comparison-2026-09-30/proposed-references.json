@@ -1,0 +1,62 @@
+[
+  {
+    "case": "doc-01",
+    "answer": "supported",
+    "label": {
+      "author_type": "model",
+      "origin": "collected",
+      "reviewed": false,
+      "reason": "The candidate uses the contract's code point semantics."
+    }
+  },
+  {
+    "case": "doc-02",
+    "answer": "supported",
+    "label": {
+      "author_type": "model",
+      "origin": "collected",
+      "reviewed": false,
+      "reason": "The constant records both cutoffs and has no confidence floor."
+    }
+  },
+  {
+    "case": "doc-03",
+    "answer": "supported",
+    "label": {
+      "author_type": "model",
+      "origin": "collected",
+      "reviewed": false,
+      "reason": "The supplied mode excerpt explicitly states the default."
+    }
+  },
+  {
+    "case": "doc-04",
+    "answer": "contradicted",
+    "label": {
+      "author_type": "model",
+      "origin": "synthetic",
+      "reviewed": false,
+      "reason": "The inserted claim contradicts the supplied code point semantics."
+    }
+  },
+  {
+    "case": "doc-05",
+    "answer": "contradicted",
+    "label": {
+      "author_type": "model",
+      "origin": "synthetic",
+      "reviewed": false,
+      "reason": "The inserted claim reverses both cutoffs."
+    }
+  },
+  {
+    "case": "doc-06",
+    "answer": "insufficient",
+    "label": {
+      "author_type": "model",
+      "origin": "synthetic",
+      "reviewed": false,
+      "reason": "The cropped evidence lists modes but states no default."
+    }
+  }
+]

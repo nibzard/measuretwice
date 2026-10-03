@@ -31,7 +31,7 @@ export async function runFirstCheck({ detail = "summary", log = console.log } = 
     reports.push(report);
     lines.push("", `Case: ${item.id}`, `Sources: ${item.input.sources}`,
       `Candidate: ${item.input.candidate}`, `Proposed reference: ${item.reference}`,
-      "", renderRunReport(memorySupport, report, { detail }));
+      "", renderRunReport(memorySupport, report, { detail, caseInput: item.input }));
   }
   const summary = lines.join("\n");
   log(summary);

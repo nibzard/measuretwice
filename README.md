@@ -46,6 +46,10 @@ Change a candidate and run again. Scripted answers stay fixed; connect a real ev
 To try a requirement change, run `node examples/first-check/revise.mjs` after the build.
 The [revision example](examples/first-check/README.md#revise-the-requirement) adds attribution, rejects the old profile, and shows the new reports.
 
+The [semantic runner](examples/semantic-runner/README.md) registers Jev explicitly.
+It runs offline by default and documents the optional live route.
+The [review response](docs/reports/review-response.md) records software checks and open study evidence.
+
 ## Write the requirement
 
 A **check** states a requirement and the evidence it may read.

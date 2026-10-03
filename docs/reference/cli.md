@@ -67,8 +67,8 @@ object on stderr with `--format json`:
 
 | Code | Meaning |
 | --- | --- |
-| 0 | The command completed. One completed `run` or `evaluate` exits with 0, whatever outcome its report states. |
-| 1 | One failure of files, artifacts, or data. |
+| 0 | The command completed. Completed runs and evaluations exit zero by default. `run --fail-on` changes the exit for declared outcomes. |
+| 1 | A failure of files, artifacts, or data, or a completed run that matches `--fail-on`. |
 | 2 | One usage error: `unknown_command`, `unsupported_option`, `missing_argument`, `unexpected_argument`, or `invalid_argument`. |
 
 **Output artifacts:** `--out` writes one artifact as JSON with two-space
@@ -132,33 +132,23 @@ code and field path. `--mode enforcement` refuses with
 review and the CLI states no selection. Run question checks and enforcement
 through the library in your application.
 
-## `calibrate`
+## `validate-plan`
 
 ```sh
-measuretwice calibrate <definition> --plan <path> [--out <path>] [--format text|json]
+measuretwice validate-plan <definition> --plan <path> [--format text|json]
 ```
 
-Validates one calibration plan and states the evaluator boundary. This CLI
-command does not run calibration. Use the SDK for measurement and fitting.
+Validates the plan contract, its content hash, and its definition binding through Rust.
+The command performs no measurement and creates no candidate profile.
+It verifies no registered evaluator, dataset contents, split separation, or qualification claim.
+JSON output states those limits with `evaluator_registered`, `datasets_verified`, and `measurement_performed` set to false.
 
-The command reads the definition and the plan through the bounded readers,
-then crosses the same core boundary that one calibration crosses first: the
-complete plan contract, the definition binding of the plan, and the
-registered evaluator that serves it. The CLI registers no evaluator, so the
-command refuses with `evaluator_mismatch` and writes no candidate profile.
-No measurement ran, so one written candidate would look complete without one
-stored assessment behind it.
+Invalid plans retain their stable validation codes and field paths.
+An exact-only definition refuses with `policy_mismatch`. A different definition refuses with `definition_mismatch`.
 
-Run `calibrate` through the library in your application, where your code
-registers the evaluator that the plan names and states the sampling model.
-The [API reference](api.md#calibrate) records the complete operation.
-
-Failures keep the reason code and the field path of the core and add one
-boundary sentence: one plan of another definition with
-`definition_mismatch`, one edited signed plan with `hash_mismatch`, one
-broken candidate grid with its field rule, one incomplete plan with
-`missing_field`, and one unreadable plan with `unreadable_file`. An
-exact-only definition refuses with `policy_mismatch`.
+The former CLI `calibrate` command is removed because it could not perform calibration.
+Use `validate-plan` for data validation. Use the library's [calibrate operation](api.md#calibrate) for trusted measurement.
+`validate-plan` accepts no `--out` option because it produces no profile.
 
 ## `evaluate`
 
@@ -252,3 +242,21 @@ verifies the stored self-hash before it renders.
 
 `--help` and `--version` need no command. One command line with no argument
 prints the usage text and exits with 0.
+
+## Assert outcomes in continuous integration
+
+```sh
+measuretwice run definition.json --case case.json --fail-on fail,review,error,skipped --format json
+```
+
+`--fail-on` accepts distinct comma-separated outcomes: `pass`, `fail`, `review`, `error`, and `skipped`.
+The command exits 1 if any component or the aggregate matches a declared outcome.
+It still writes and prints the completed report. It emits no operational error for this assertion.
+An invalid outcome list is a usage error. An omitted option preserves the default exit behavior.
+A process exit grants no application authorization.
+
+## Execute semantic checks
+
+The CLI registers no evaluator. Use [the host runner](../../examples/semantic-runner/README.md).
+Its trusted module registers the adapter, receives credentials through the host client, and states explicit execution budgets.
+The runner accepts an injected provider boundary for offline checks. Live execution requires the runner's explicit live option.

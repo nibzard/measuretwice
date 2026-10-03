@@ -12,7 +12,8 @@
  * so the check skips that directory.
  */
 import { test, expect } from "vitest";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,15 +29,16 @@ const INCLUDED_DIRECTORIES = [
   "models",
   "providers",
 ];
-const EXCLUDED_DIRECTORIES = new Set(["research", "node_modules", "target", "dist", ".git"]);
+const EXCLUDED_DIRECTORIES = new Set(["research", "node_modules", "target", "dist", "build", "npm", ".git"]);
 
-function markdownFiles(): string[] {
-  const files = ROOT_DOCUMENTS.map((name) => path.join(repoRoot, name));
+function markdownFiles(root = repoRoot): string[] {
+  const files = ROOT_DOCUMENTS.map((name) => path.join(root, name));
   for (const directory of INCLUDED_DIRECTORIES) {
-    const stack = [path.join(repoRoot, directory)];
+    const stack = [path.join(root, directory)];
     while (stack.length > 0) {
       const current = stack.pop() as string;
       for (const entry of readdirSync(current)) {
+        if (EXCLUDED_DIRECTORIES.has(entry)) continue;
         const full = path.join(current, entry);
         if (statSync(full).isDirectory()) {
           stack.push(full);
@@ -46,8 +48,25 @@ function markdownFiles(): string[] {
       }
     }
   }
-  return files.map((file) => path.relative(repoRoot, file)).sort();
+  return files.map((file) => path.relative(root, file)).sort();
 }
+
+test("documentation discovery excludes installed dependencies and generated examples", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "measuretwice-doc-scan-"));
+  try {
+    for (const directory of INCLUDED_DIRECTORIES) mkdirSync(path.join(root, directory), { recursive: true });
+    writeFileSync(path.join(root, "docs", "controlled.md"), "# Controlled source\n");
+    for (const directory of ["node_modules", "build"]) {
+      const generated = path.join(root, "examples", "trial", directory, "package");
+      mkdirSync(generated, { recursive: true });
+      writeFileSync(path.join(generated, "README.md"), "[Vendor source](absent.ts)\n");
+    }
+    const files = markdownFiles(root);
+    expect(files).toContain(path.join("docs", "controlled.md"));
+    expect(files.some(file => file.split(path.sep).includes("node_modules"))).toBe(false);
+    expect(files.some(file => file.split(path.sep).includes("build"))).toBe(false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 /** Removes fenced code blocks. */
 function withoutFencedBlocks(markdown: string): string {

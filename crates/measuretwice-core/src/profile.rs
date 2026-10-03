@@ -21,7 +21,7 @@
 //! - A calibration profile records its complete evidence: plan, datasets,
 //!   splits, label provenance, evaluation-report references, and
 //!   statistical method.
-//! - Both cutoffs of the `probability_mass_v0` family stay above 0.5 and
+//! - Both cutoffs of the `probability_mass_v1` family stay above 0.5 and
 //!   at most 1, so one assessment cannot pass and fail together.
 //! - The stored `content_hash` equals the computed self-hash of the
 //!   artifact. An edited or corrupted copy fails with `hash_mismatch`.
@@ -202,6 +202,8 @@ impl Qualification {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PolicyFamily {
     /// Acceptance and rejection on probability mass.
+    ProbabilityMassV1,
+    /// Historical semantics. Readable for inspection; refused for execution.
     ProbabilityMassV0,
     /// Exact rules only.
     Exact,
@@ -211,6 +213,7 @@ impl PolicyFamily {
     /// Returns the contract word of this family.
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::ProbabilityMassV1 => "probability_mass_v1",
             Self::ProbabilityMassV0 => "probability_mass_v0",
             Self::Exact => "exact",
         }
@@ -219,6 +222,7 @@ impl PolicyFamily {
     /// Returns the family of one contract word, or `None` for any other text.
     pub fn from_word(word: &str) -> Option<Self> {
         match word {
+            "probability_mass_v1" => Some(Self::ProbabilityMassV1),
             "probability_mass_v0" => Some(Self::ProbabilityMassV0),
             "exact" => Some(Self::Exact),
             _ => None,
@@ -446,13 +450,13 @@ pub fn validate_profile(value: &Value) -> Result<ValidatedProfile, ValidationErr
         Some(Value::String(text)) => PolicyFamily::from_word(text).ok_or_else(|| {
             ValidationError::invalid_field_type(
                 "/policy/family",
-                "The policy family must hold probability_mass_v0 or exact.",
+                "The policy family must hold probability_mass_v1, historical probability_mass_v0, or exact.",
             )
         })?,
         Some(_) => {
             return Err(ValidationError::invalid_field_type(
                 "/policy/family",
-                "The policy family must hold probability_mass_v0 or exact.",
+                "The policy family must hold probability_mass_v1, historical probability_mass_v0, or exact.",
             ));
         }
         None => return Err(ValidationError::missing("/policy/family")),
@@ -465,10 +469,13 @@ pub fn validate_profile(value: &Value) -> Result<ValidatedProfile, ValidationErr
                 "The exact family states no numerical parameters. Keep the checks list absent.",
             ));
         }
-        (PolicyFamily::ProbabilityMassV0, None) => {
+        (PolicyFamily::ProbabilityMassV1 | PolicyFamily::ProbabilityMassV0, None) => {
             return Err(ValidationError::missing("/policy/checks"));
         }
-        (PolicyFamily::ProbabilityMassV0, Some(Value::Array(items))) => {
+        (
+            PolicyFamily::ProbabilityMassV1 | PolicyFamily::ProbabilityMassV0,
+            Some(Value::Array(items)),
+        ) => {
             let mut parsed = Vec::with_capacity(items.len());
             for (index, item) in items.iter().enumerate() {
                 let entry = parse_policy_check(item, index)?;
@@ -490,12 +497,12 @@ pub fn validate_profile(value: &Value) -> Result<ValidatedProfile, ValidationErr
             if parsed.is_empty() {
                 return Err(ValidationError::invalid_field_type(
                     "/policy/checks",
-                    "The probability_mass_v0 family must state one policy entry at least.",
+                    "The probability_mass_v1 family must state one policy entry at least.",
                 ));
             }
             parsed
         }
-        (PolicyFamily::ProbabilityMassV0, Some(_)) => {
+        (PolicyFamily::ProbabilityMassV1 | PolicyFamily::ProbabilityMassV0, Some(_)) => {
             return Err(ValidationError::invalid_field_type(
                 "/policy/checks",
                 "The policy checks field must hold one array.",
@@ -582,7 +589,7 @@ pub fn validate_profile(value: &Value) -> Result<ValidatedProfile, ValidationErr
     } else if family == PolicyFamily::Exact {
         return Err(ValidationError::invalid_field_type(
             "/policy/family",
-            "The exact family belongs to the exact origin alone. One exploration or calibration profile states its decision rule as probability_mass_v0.",
+            "The exact family belongs to the exact origin alone. One exploration or calibration profile states its decision rule as probability_mass_v1.",
         ));
     }
 
@@ -1231,6 +1238,10 @@ pub fn check_compatibility(
     let binds_definition = profile.definition_name() == definition.as_definition().name
         && profile.definition_hash() == definition_hash;
 
+    if profile.family() == PolicyFamily::ProbabilityMassV0 {
+        return Err(ValidationError::new(ReasonCode::PolicyMismatch, format!("{base}/policy/family"),
+            "The historical probability_mass_v0 family cannot execute. Regenerate the profile and repeat qualification for probability_mass_v1."));
+    }
     if definition.is_exact_only() {
         // The structural rule of the exact family comes first: one profile
         // with evaluator bindings or one numerical family never fits one
@@ -1256,7 +1267,7 @@ pub fn check_compatibility(
             return Err(ValidationError::new(
                 ReasonCode::PolicyMismatch,
                 format!("{base}/policy"),
-                "One definition with question checks takes one profile with evaluator bindings and the probability_mass_v0 family, not the exact profile.",
+                "One definition with question checks takes one profile with evaluator bindings and the probability_mass_v1 family, not the exact profile.",
             ));
         }
         check_live_bindings(profile, definition, live, base)?;
@@ -2227,7 +2238,7 @@ mod tests {
                 "preprocessing": "plain-v1"
             }],
             "policy": {
-                "family": "probability_mass_v0",
+                "family": "probability_mass_v1",
                 "checks": [{"check": "message-supported", "accept_cutoff": 0.75, "rejection_cutoff": 0.65}]
             },
             "execution": {
@@ -2240,7 +2251,7 @@ mod tests {
                 "reasons": ["starter_policy"]
             }
         });
-        signed(&mut artifact);
+        with_hash(&mut artifact);
         artifact
     }
 
@@ -2268,7 +2279,7 @@ mod tests {
                 "preprocessing": "plain-v1"
             }],
             "policy": {
-                "family": "probability_mass_v0",
+                "family": "probability_mass_v1",
                 "checks": [{"check": "message-supported", "accept_cutoff": 0.8, "rejection_cutoff": 0.7}]
             },
             "execution": {
@@ -2316,7 +2327,7 @@ mod tests {
                 "reasons": ["measured_evidence"]
             }
         });
-        signed(&mut artifact);
+        with_hash(&mut artifact);
         artifact
     }
 
@@ -2344,24 +2355,24 @@ mod tests {
                 "reasons": ["exact_rules_only"]
             }
         });
-        signed(&mut artifact);
+        with_hash(&mut artifact);
         artifact
     }
 
     /// Signs one artifact with its computed self-hash.
-    fn signed(artifact: &mut Value) {
+    fn with_hash(artifact: &mut Value) {
         let digest = hashing::compute_self_hash(Domain::Profile, artifact)
             .expect("the test artifact hashes");
         artifact["content_hash"] = Value::String(digest);
     }
 
-    /// Validates one signed artifact and signs it again after one edit.
-    fn resigned(edited: &Value) -> String {
+    /// Validates one content-hashed artifact and hashes it again after one edit.
+    fn with_updated_hash(edited: &Value) -> String {
         let mut copy = edited.clone();
         copy.as_object_mut()
             .expect("an object")
             .remove("content_hash");
-        signed(&mut copy);
+        with_hash(&mut copy);
         serde_json::to_string(&copy).expect("serializes")
     }
 
@@ -2415,7 +2426,7 @@ mod tests {
         let profile = validate_profile_str(&text).expect("the artifact validates");
         assert_eq!(profile.id(), "message-supported-exploration");
         assert_eq!(profile.origin(), ProfileOrigin::Exploration);
-        assert_eq!(profile.family(), PolicyFamily::ProbabilityMassV0);
+        assert_eq!(profile.family(), PolicyFamily::ProbabilityMassV1);
         assert_eq!(profile.qualification(), Qualification::Unvalidated);
         assert_eq!(profile.bindings().len(), 1);
         assert_eq!(profile.bindings()[0].translation_hash, HASH_A);
@@ -2574,7 +2585,7 @@ mod tests {
                 "one probability family without parameters",
                 {
                     let mut edited = base.clone();
-                    edited["policy"] = json!({"family": "probability_mass_v0"});
+                    edited["policy"] = json!({"family": "probability_mass_v1"});
                     edited
                 },
                 ReasonCode::MissingField,
@@ -2749,7 +2760,7 @@ mod tests {
             ),
         ];
         for (note, edited, code, path) in rows {
-            let text = resigned(&edited);
+            let text = with_updated_hash(&edited);
             let error = validate_profile_str(&text)
                 .err()
                 .unwrap_or_else(|| panic!("{note}: the artifact was accepted"));
@@ -2926,7 +2937,7 @@ mod tests {
                 }
             }],
             "policy": {
-                "family": "probability_mass_v0",
+                "family": "probability_mass_v1",
                 "checks": [{"check": "message-supported", "accept_cutoff": 0.8, "rejection_cutoff": 0.6}]
             },
             "execution": {
@@ -2965,7 +2976,7 @@ mod tests {
                 "reasons": ["measured_evidence"]
             }
         });
-        signed(&mut profile);
+        with_hash(&mut profile);
         Retained {
             profile: serde_json::to_string(&profile).expect("serializes"),
             plan,
@@ -3058,8 +3069,13 @@ mod tests {
         // reports two evidences for two different requirements.
         let mut edited = serde_json::from_str::<Value>(&set.profile).expect("parses");
         edited["definition"]["content_hash"] = json!(HASH_B);
-        let error = check_evidence(&resigned(&edited), &set.plan, &set.metadata, &set.records)
-            .expect_err("the swapped definition fails");
+        let error = check_evidence(
+            &with_updated_hash(&edited),
+            &set.plan,
+            &set.metadata,
+            &set.records,
+        )
+        .expect_err("the swapped definition fails");
         assert_eq!(error.code, ReasonCode::DefinitionMismatch);
         assert_eq!(error.field_path, "/definition");
     }
@@ -3103,8 +3119,13 @@ mod tests {
         let set = retained();
         let mut edited = serde_json::from_str::<Value>(&set.profile).expect("parses");
         edited["evidence"]["splits"][1]["id"] = json!("holdout-two");
-        let error = check_evidence(&resigned(&edited), &set.plan, &set.metadata, &set.records)
-            .expect_err("the absent split fails");
+        let error = check_evidence(
+            &with_updated_hash(&edited),
+            &set.plan,
+            &set.metadata,
+            &set.records,
+        )
+        .expect_err("the absent split fails");
         assert_eq!(error.code, ReasonCode::HashMismatch);
         assert_eq!(error.field_path, "/evidence/splits/1/id");
     }
@@ -3119,8 +3140,13 @@ mod tests {
             .as_array_mut()
             .expect("an array")
             .remove(1);
-        let error = check_evidence(&resigned(&edited), &set.plan, &set.metadata, &set.records)
-            .expect_err("the incomplete evidence fails");
+        let error = check_evidence(
+            &with_updated_hash(&edited),
+            &set.plan,
+            &set.metadata,
+            &set.records,
+        )
+        .expect_err("the incomplete evidence fails");
         assert_eq!(error.code, ReasonCode::MissingField);
         assert_eq!(error.field_path, "/evidence/splits");
     }
@@ -3141,8 +3167,8 @@ mod tests {
 
     #[test]
     fn one_matching_profile_passes_in_every_mode() {
-        let profile =
-            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&calibration_artifact()))
+            .expect("the artifact");
         let definition = validated(CATEGORICAL);
         let scope = "The pilot conversation population declared in the plan.";
         for request in [
@@ -3165,8 +3191,8 @@ mod tests {
 
     #[test]
     fn one_changed_definition_fails_in_every_mode_with_definition_mismatch() {
-        let profile =
-            validate_profile_str(&resigned(&exploration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&exploration_artifact()))
+            .expect("the artifact");
         // One changed wording, one changed schema, and one changed projection
         // each change the definition hash, so the profile binds another
         // revision.
@@ -3216,7 +3242,7 @@ mod tests {
         // never reaches the comparison against one question definition. The
         // definition reference decides, exactly as the wrapper does.
         let exact_profile =
-            validate_profile_str(&resigned(&exact_artifact())).expect("the artifact");
+            validate_profile_str(&with_updated_hash(&exact_artifact())).expect("the artifact");
         let error = check_compatibility(
             &exact_profile,
             &question_definition,
@@ -3230,7 +3256,8 @@ mod tests {
 
         // One numerical profile never fits one exact-only definition. The
         // structural rule fires before the definition reference.
-        let numerical = validate_profile_str(&resigned(&exploration_artifact())).expect("hashes");
+        let numerical =
+            validate_profile_str(&with_updated_hash(&exploration_artifact())).expect("hashes");
         let error = check_compatibility(&numerical, &exact_definition, &[], &shadow(), "/profile")
             .expect_err("the numerical profile fails");
         assert_eq!(error.code, ReasonCode::PolicyMismatch);
@@ -3266,7 +3293,7 @@ mod tests {
         // One policy entry that names no check of the definition.
         let mut edited = exploration_artifact();
         edited["policy"]["checks"][0]["check"] = json!("unknown-check");
-        let unknown = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let unknown = validate_profile_str(&with_updated_hash(&edited)).expect("the artifact");
         let error = check_compatibility(
             &unknown,
             &definition,
@@ -3304,7 +3331,7 @@ mod tests {
             "accept_cutoff": 0.8,
             "rejection_cutoff": 0.7
         }]);
-        let half_covered = validate_profile_str(&resigned(&bound)).expect("the artifact");
+        let half_covered = validate_profile_str(&with_updated_hash(&bound)).expect("the artifact");
         let half_live = vec![
             LiveBinding {
                 check: "message-supported".to_owned(),
@@ -3358,7 +3385,7 @@ mod tests {
             "rejection_cutoff": 0.7,
             "confidence_floor": 0.7
         }]);
-        let floored = validate_profile_str(&resigned(&bound)).expect("the artifact");
+        let floored = validate_profile_str(&with_updated_hash(&bound)).expect("the artifact");
         let live = vec![LiveBinding {
             check: "adds-information".to_owned(),
             evaluator: "jev-noul".to_owned(),
@@ -3381,8 +3408,8 @@ mod tests {
     #[test]
     fn the_evaluator_bindings_must_match_the_registry() {
         let definition = validated(CATEGORICAL);
-        let profile =
-            validate_profile_str(&resigned(&exploration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&exploration_artifact()))
+            .expect("the artifact");
 
         // No registered evaluator serves the bound check.
         let error = check_compatibility(&profile, &definition, &[], &shadow(), "/profile")
@@ -3437,7 +3464,7 @@ mod tests {
         assert_eq!(error.code, ReasonCode::PolicyMismatch);
         let mut edited = exploration_artifact();
         edited["bindings"][0]["check"] = json!("summary-length");
-        let on_rule = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let on_rule = validate_profile_str(&with_updated_hash(&edited)).expect("the artifact");
         let on_rule_live = vec![LiveBinding {
             check: "summary-length".to_owned(),
             evaluator: "jev-choice".to_owned(),
@@ -3456,7 +3483,7 @@ mod tests {
         // One profile that binds no evaluator for one question check.
         let mut edited = exploration_artifact();
         edited["bindings"] = json!([]);
-        let unbound = validate_profile_str(&resigned(&edited)).expect("validates alone");
+        let unbound = validate_profile_str(&with_updated_hash(&edited)).expect("validates alone");
         let error = check_compatibility(&unbound, &definition, &[], &shadow(), "/profile")
             .expect_err("the missing binding fails");
         assert_eq!(error.code, ReasonCode::EvaluatorMismatch);
@@ -3467,8 +3494,8 @@ mod tests {
     #[test]
     fn one_changed_translation_or_preprocessing_changes_the_binding() {
         let definition = validated(CATEGORICAL);
-        let profile =
-            validate_profile_str(&resigned(&exploration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&exploration_artifact()))
+            .expect("the artifact");
 
         // One live translated question whose hash differs.
         let reframed = vec![LiveBinding {
@@ -3522,8 +3549,8 @@ mod tests {
     #[test]
     fn one_changed_model_resolution_invalidates_the_binding() {
         let definition = validated(CATEGORICAL);
-        let profile =
-            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&calibration_artifact()))
+            .expect("the artifact");
 
         // The alias resolves to another model today.
         let drifted = vec![LiveBinding {
@@ -3547,7 +3574,7 @@ mod tests {
         // binding that records none compares nothing either.
         let mut edited = calibration_artifact();
         edited["bindings"][0]["model"] = json!({"requested": "jev-1.13"});
-        let unrecorded = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let unrecorded = validate_profile_str(&with_updated_hash(&edited)).expect("the artifact");
         check_compatibility(
             &unrecorded,
             &definition,
@@ -3561,8 +3588,8 @@ mod tests {
     #[test]
     fn one_changed_requested_model_invalidates_the_binding() {
         let definition = validated(CATEGORICAL);
-        let profile =
-            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&calibration_artifact()))
+            .expect("the artifact");
 
         // The registered adapter requests another model today.
         let drifted = vec![LiveBinding {
@@ -3600,8 +3627,8 @@ mod tests {
     #[test]
     fn enforcement_compares_the_declared_scope() {
         let definition = validated(CATEGORICAL);
-        let profile =
-            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&calibration_artifact()))
+            .expect("the artifact");
         let scope = "The pilot conversation population declared in the plan.";
 
         // One requested scope that the profile does not declare.
@@ -3633,7 +3660,7 @@ mod tests {
             .as_object_mut()
             .unwrap()
             .remove("scope");
-        let unscoped = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let unscoped = validate_profile_str(&with_updated_hash(&edited)).expect("the artifact");
         check_compatibility(
             &unscoped,
             &definition,
@@ -3657,8 +3684,8 @@ mod tests {
     #[test]
     fn enforcement_needs_one_validated_profile_in_every_other_respect() {
         let definition = validated(CATEGORICAL);
-        let exploration =
-            validate_profile_str(&resigned(&exploration_artifact())).expect("the artifact");
+        let exploration = validate_profile_str(&with_updated_hash(&exploration_artifact()))
+            .expect("the artifact");
         let error = check_compatibility(
             &exploration,
             &definition,
@@ -3682,7 +3709,7 @@ mod tests {
         // One calibration profile that fell short of the goals.
         let mut edited = calibration_artifact();
         edited["qualification"]["status"] = json!("criteria_not_met");
-        let not_met = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let not_met = validate_profile_str(&with_updated_hash(&edited)).expect("the artifact");
         let error = check_compatibility(
             &not_met,
             &definition,
@@ -3697,8 +3724,8 @@ mod tests {
     #[test]
     fn enforcement_requires_the_profile_that_the_host_selected() {
         let definition = validated(CATEGORICAL);
-        let profile =
-            validate_profile_str(&resigned(&calibration_artifact())).expect("the artifact");
+        let profile = validate_profile_str(&with_updated_hash(&calibration_artifact()))
+            .expect("the artifact");
 
         // No selection crossed: the gate refuses before any evaluator runs,
         // whatever the qualification of the artifact.
@@ -3754,7 +3781,7 @@ mod tests {
         assert_eq!(error.code, ReasonCode::ScopeMismatch);
         let mut edited = calibration_artifact();
         edited["qualification"]["status"] = json!("insufficient_evidence");
-        let weak = validate_profile_str(&resigned(&edited)).expect("the artifact");
+        let weak = validate_profile_str(&with_updated_hash(&edited)).expect("the artifact");
         let error = check_compatibility(
             &weak,
             &definition,
@@ -3792,12 +3819,12 @@ mod tests {
             ("insufficient_evidence", {
                 let mut edited = calibration_artifact();
                 edited["qualification"]["status"] = json!("insufficient_evidence");
-                resigned(&edited)
+                with_updated_hash(&edited)
             }),
             ("criteria_not_met", {
                 let mut edited = calibration_artifact();
                 edited["qualification"]["status"] = json!("criteria_not_met");
-                resigned(&edited)
+                with_updated_hash(&edited)
             }),
             (
                 "validated_for_scope",
@@ -3856,7 +3883,8 @@ mod tests {
         let mut forged = calibration_artifact();
         forged["id"] = json!("forged-validated");
         forged["evidence"]["datasets"][0]["content_hash"] = json!(HASH_B.to_owned());
-        let profile = validate_profile_str(&resigned(&forged)).expect("the forgery validates");
+        let profile =
+            validate_profile_str(&with_updated_hash(&forged)).expect("the forgery validates");
         check_compatibility(
             &profile,
             &validated(CATEGORICAL),

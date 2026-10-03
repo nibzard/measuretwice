@@ -120,13 +120,13 @@ const CONTRADICTED = {
 
 /** One passing binary answer. */
 const YES = {
-  assessment: { kind: "binary" as const, value: true },
+  assessment: { kind: "binary" as const, probability_yes: 1 },
   model_resolved: "scripted-1.4.0",
 };
 
 /** One failing binary answer. */
 const NO = {
-  assessment: { kind: "binary" as const, value: false },
+  assessment: { kind: "binary" as const, probability_yes: 0 },
   model_resolved: "scripted-1.4.0",
 };
 

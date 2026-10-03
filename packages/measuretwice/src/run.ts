@@ -24,7 +24,7 @@
  * configuration of the profile, exact rules execute in the Rust core, and
  * every question check dispatches through its registered evaluator. The
  * core validates each returned assessment, decides it under the selected
- * `probability_mass_v0` parameters of the profile, and builds the record
+ * `probability_mass_v1` parameters of the profile, and builds the record
  * with the assessment, the applied policy, the evaluator versions, the
  * timing, and the usage. One enforcement run repeats the compatibility
  * check of the core in enforcement mode first, so the declared scope, the
@@ -132,6 +132,13 @@ export interface SanitizedReason {
   readonly message: string;
   /** JSON Pointer to the rejected field, for one validation failure. */
   readonly field_path?: string;
+  /** Original cause, retry classification, and a safe repair instruction. */
+  readonly recovery?: {
+    readonly cause_code: string;
+    readonly retryable: boolean;
+    readonly remediation: "fix_credentials" | "fix_permissions" | "fix_request" | "reduce_evidence" |
+      "inspect_evaluator" | "requalify_binding" | "retry_later";
+  };
 }
 
 /** The exact rule keyword of one executed rule. */
@@ -342,7 +349,7 @@ export interface LoadOptions {
 export type ProfileOrigin = "exploration" | "calibration" | "exact";
 
 /** The decision-rule family of one profile. */
-export type PolicyFamily = "probability_mass_v0" | "exact";
+export type PolicyFamily = "probability_mass_v1" | "probability_mass_v0" | "exact";
 
 /** The qualification status of one profile. */
 export type QualificationStatus =
@@ -742,7 +749,7 @@ function synthesizeExactProfile(info: DefinitionInfo): Profile {
  *
  * The wrapper verifies the self-hash and the complete profile contract
  * through the core first, so the text is one artifact that its generator
- * signed and that no edit changed. This reader parses the validated text
+ * content-hashed and that no edit changed. This reader parses the validated text
  * and freezes it: the stored artifact keeps every field it holds.
  */
 function readProfileArtifact(text: string): Profile {

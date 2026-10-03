@@ -1,0 +1,25 @@
+{
+  "scope": "Executed live source files; orchestration serves both integrations.",
+  "files": [
+    {
+      "path": "scripts/task.mjs",
+      "lines": 26,
+      "sha256": "7ddb19d1345cfab76e19ef526e29f2e9492622b4824cca2156f3ca2a8e85e1ae"
+    },
+    {
+      "path": "scripts/prepare.mjs",
+      "lines": 51,
+      "sha256": "9c3c8aa49054a02a3da2c1de8f1f288468ba7ef756c796cf7af9a1feec9dbdaa"
+    },
+    {
+      "path": "scripts/direct.mjs",
+      "lines": 71,
+      "sha256": "36230bd8c2f407f2082fe597b1374787fa3278b85dde8e022585269e6735abf6"
+    },
+    {
+      "path": "scripts/run.mjs",
+      "lines": 115,
+      "sha256": "63d42ff7ed559e1cefc92691ad4ce70d1873b7280a880205081ba4bf23d9297a"
+    }
+  ]
+}

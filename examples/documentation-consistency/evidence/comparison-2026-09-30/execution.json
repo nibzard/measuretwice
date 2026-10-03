@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-09-30T08:20:52.665Z",
+  "model": "jev-1.13.0",
+  "sdk": "0.6.0",
+  "base_commit": "75799adeb051eb2b83ff5ff6d6f06e40ee5fe75a",
+  "worktree": "uncommitted source snapshot; source hashes are recorded",
+  "max_provider_calls": 12,
+  "deadline_ms_per_call": 30000,
+  "max_attempts": 1,
+  "policy": {
+    "accept_cutoff": 0.8,
+    "rejection_cutoff": 0.6
+  },
+  "scripts": [
+    {
+      "name": "task.mjs",
+      "sha256": "7ddb19d1345cfab76e19ef526e29f2e9492622b4824cca2156f3ca2a8e85e1ae"
+    },
+    {
+      "name": "prepare.mjs",
+      "sha256": "9c3c8aa49054a02a3da2c1de8f1f288468ba7ef756c796cf7af9a1feec9dbdaa"
+    },
+    {
+      "name": "direct.mjs",
+      "sha256": "36230bd8c2f407f2082fe597b1374787fa3278b85dde8e022585269e6735abf6"
+    },
+    {
+      "name": "run.mjs",
+      "sha256": "63d42ff7ed559e1cefc92691ad4ce70d1873b7280a880205081ba4bf23d9297a"
+    }
+  ]
+}

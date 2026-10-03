@@ -422,7 +422,7 @@ provider, reads one credential, or ships one SDK type.
 `labelRuleChecks` resolves the accept and review sets of one validated
 definition, with scale acceptance expanded over the declared order, and
 `decideLabelOnly` maps one selected answer to pass, review, or fail from
-those sets alone. The rule is separate from the `probability_mass_v0`
+those sets alone. The rule is separate from the `probability_mass_v1`
 family on purpose: it reads no confidence and no cutoff, one confidence
 value cannot change its outcome, and it changes no check meaning, so
 replacing one evaluator with another preserves the definition and its
@@ -479,8 +479,8 @@ record, or into one operational failure that names the defect, and
 takes the Jev boundary as one function that matches `client.systemOne`
 structurally and imports no SDK package, so the public package keeps
 `typebox` as its only runtime dependency and the host keeps the client and
-the credential. Noul confidence never crosses and no binary distribution
-is derived; one fractional score position stays unrounded while the
+the credential. Noul probability crosses as `probability_yes`. The adapter applies no
+binary decision cutoff; one fractional score position stays unrounded while the
 nearest level names the answer, with one tie selecting the higher level.
 The operational record keeps the resolved model, the per-request usage,
 and the adapter-measured latency, and the sanitized provider errors keep
@@ -503,7 +503,7 @@ checks in `tests/repo/fixtures.test.ts` and the Rust integration tests of
 semantic run path that schedules these executions is task T034, below.
 
 Decided in T027: the v0 decision policy is one Rust module and no wrapper
-rule. `measuretwice_core::policy` owns the `probability_mass_v0` family
+rule. `measuretwice_core::policy` owns the `probability_mass_v1` family
 over the same `AppliedPolicy` record that the run report stores, so the
 numerical parameters keep one shape everywhere. `policy::decide` runs one
 fixed order: the policy fit and its parameter ranges, the assessment
@@ -511,9 +511,8 @@ contract, one declared review label of one Choice answer, the optional
 confidence floor, then the two cutoffs with acceptance first. The
 acceptable and the unacceptable mass come from the accept and review sets
 of the check and the reported distribution, with scale acceptance
-expanded over the declared order. One binary answer derives exact
-zero-one masses from its value and the accepted answer, because Noul
-reports no distribution. One categorical or ordered answer without one
+expanded over the declared order. One binary probability supplies the masses of yes and no. A label-only
+binary assessment produces review because it supplies no probability. One categorical or ordered answer without one
 distribution fails with `missing_field`, because one reported label,
 level, position, or ordinal mean is no mass. One confidence floor
 abstains on Choice and Score answers only: one reported confidence below
@@ -723,7 +722,7 @@ queue, the same total deadline, the same retries, and the same terminal
 report. One question attempt dispatches through `dispatchAssessment` with
 the projected inputs of its `using` list, then crosses one new boundary,
 `decideQuestionCheck`: the core validates the assessment against its
-check, decides it under the `probability_mass_v0` parameters that the
+check, decides it under the `probability_mass_v1` parameters that the
 bound profile records, and builds the complete question record with the
 assessment, the applied policy, the evaluator versions (the binding
 identity plus the model version that served the call), the timing (the
@@ -790,7 +789,7 @@ attempt counts with the timing and the usage, the identities with the
 complete content hashes, and the limitations of the view. The default
 explanations come from the check criteria and the executed policy alone:
 the selected answer with its authored description and the cutoff
-arithmetic of the `probability_mass_v0` family, the executed parameters
+arithmetic of the `probability_mass_v1` family, the executed parameters
 of one exact rule, or the stable reason of one error or skip record. One
 cutoff sentence renders only when the recorded masses support it, so one
 record outside the decision table renders with the general sentence of
@@ -936,7 +935,7 @@ reference answer, level, or review marker on one rule check fail with
 One reference whose acceptance meaning disagrees with its stated expected
 outcome is no failure: the record keeps every field as written, and the
 `LabelReview` of the validated dataset flags it. The acceptance meaning
-comes from the same answer sets the `probability_mass_v0` policy reads, so
+comes from the same answer sets the `probability_mass_v1` policy reads, so
 a reference and an assessment answer from one meaning. One review marker
 states one ambiguous reference, so it implies one review outcome whatever
 answer the record also states. The finding kinds are
@@ -999,7 +998,7 @@ evaluated cases, and returns one metric set per check plus the
 The reference of one case resolves through `reference_outcome`: the stated
 expected outcome wins, otherwise the acceptance meaning of the answer, the
 level, or the review marker applies, read from the same answer sets the
-`probability_mass_v0` policy reads; `overall_reference_outcome` takes the
+`probability_mass_v1` policy reads; `overall_reference_outcome` takes the
 stated overall outcome or aggregates the check references. The six rates of
 `common.schema.json` each carry their numerator and their denominator, and
 one zero denominator keeps the value absent, because unavailable is one
@@ -1310,7 +1309,7 @@ because the host owns the storage and the contracts require the complete
 evidence set. Every rate of every scope, the bounds of the complete check
 set, the measured sample counts with the stated minimums of the plan, and
 the statement of every important slice cross into `performance` unchanged.
-The artifact is signed with the core
+The artifact is content-hashed with the core
 self-hash, validated through the complete contract, and loaded once through
 the public boundary before it returns, so the host receives one profile
 that binds as generated. No feasible candidate is one valid result: the
@@ -1348,7 +1347,7 @@ reports live in host storage that it reads none of.
 The retention rule crossed with the same change. The profile contract gained
 the optional `performance.sample_minimums`, which records the plan's stated
 minimum sample counts beside the measured counts, and the shared profile
-fixtures state it with re-signed artifacts. Every calibration result carries
+fixtures state it with artifacts with recomputed hashes. Every calibration result carries
 one standing statement that one folder version control ignores holds no
 required copy of the qualification evidence, the detailed profile view states
 the same rule beside the recorded report references, and the package README
@@ -1412,7 +1411,7 @@ Decided in T054: the CLI is one entry module and one file module.
 `parseCliArguments` maps one command line into one typed invocation of the
 six commands that MVP_SPEC.md section 11 specifies, with per-command option
 tables, enum validation, required options (`--case` for run, `--plan` for
-calibrate, `--cases` for evaluate), and positional arity. `runCli` returns
+validate-plan, `--cases` for evaluate), and positional arity. `runCli` returns
 the exit code: 0 for one completed command, 1 for one failure of files,
 artifacts, or data, and 2 for one usage error. Command results print to
 stdout and diagnostics print to stderr, so machine-readable output stays
@@ -1422,9 +1421,8 @@ code, the message, and the field path; the text mode prints one line with
 the code. The entry executes only when Node runs the module as the program,
 compared through one resolved real path, so one import stays free of side
 effects and one installed bin symlink works. T055 implements the
-`validate`, `run`, and `inspect` handlers; the `calibrate`, `evaluate`,
-and `compare` commands report `not_implemented` with exit code 1 after one
-accepted parse, and the help text states that limit.
+`validate`, `run`, and `inspect` handlers. The later tasks below add
+plan validation, evaluation, and comparison.
 
 `packages/measuretwice/src/cli-files.ts` owns the bounded validated reads.
 `resolveCliPath` maps one bare identifier into the `.measuretwice` folder of
@@ -1486,7 +1484,7 @@ accepted. The package README documents the trusted application script
 that serializes the result of `defineChecks` into
 `.measuretwice/definitions/`, because the CLI loads no TypeScript source.
 
-Decided in T056: the CLI implements the `calibrate`, `evaluate`, and
+Decided in T056: the CLI implements the `validate-plan`, `evaluate`, and
 `compare` commands of MVP_SPEC.md section 11 in the entry module, so the
 CLI stays one entry module and one file module. `evaluate` reads the
 definition, the optional profile, and the dataset through the bounded
@@ -1508,23 +1506,13 @@ option that writes the comparison artifact. The command states no cost
 inputs, so no comparison computes one cost and the limitation of the core
 names the fact.
 
-`calibrate` keeps the boundary of T055 and states it through the core. It
-reads the definition and the plan through the bounded readers, then calls
-the calibration binding check of the native boundary with one empty
-registered set, so the core validates the complete plan contract, checks
-the definition binding of the plan, and refuses with `evaluator_mismatch`
-and its own field path — the same code and path that one definition with
-one question check meets on `run` — and the CLI appends one boundary
-sentence that names what the host must do in its own code. The exact-only
-refusal (`policy_mismatch`) and one plan of another definition
-(`definition_mismatch`) cross the same way. The command writes no
-candidate profile on any path, because no measurement ran: one written
-candidate without one stored assessment behind it would look complete.
-The candidate output path and the report preservation of one completed
-calibration stay with the library operation, which measures through the
-evaluator that the plan names; the sampling model, the dataset locations,
-and the evaluation-report references are host statements that the CLI
-invents no defaults for.
+`validate-plan` reads the definition and the plan through the bounded readers.
+The core validates the plan contract and its definition binding.
+The command reports that no evaluator or dataset was verified.
+It performs no measurement and writes no candidate profile.
+The trusted runner in `examples/semantic-runner` registers Jev explicitly.
+The CLI loads data only. `run --fail-on` can assert declared report outcomes.
+Neither route grants application authorization.
 
 Decided in T060: the development checks of `.measuretwice` are executable
 repository artifacts, not prose. Both draft definitions compile against

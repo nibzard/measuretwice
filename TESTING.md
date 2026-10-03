@@ -1,7 +1,7 @@
 # Testing measuretwice
 
 This guide records the test suites, the commands, and the rules that keep
-the checks deterministic. [AGENTS.md](AGENTS.md) section 6 states the
+the checks deterministic. [engineering rules](docs/contributing/engineering.md) section 6 states the
 general test rules. [DEVELOPING.md](DEVELOPING.md) records the workspace
 layout.
 
@@ -156,7 +156,7 @@ the workflow requirement, and this documentation together.
 
 ## Red, green, refactor
 
-Use this cycle for every behavioral change, as AGENTS.md section 6 requires.
+Use this cycle for every behavioral change, as the engineering rules in `docs/contributing/engineering.md` section 6 requires.
 
 1. State the expected behavior and the failure cases in the task record.
 2. Write the smallest test that fails for the stated reason.
@@ -448,7 +448,7 @@ of the table above keeps them green.
 ## Formal models
 
 The TLA+ models and their records live in [models/](models/README.md).
-AGENTS.md section 7 requires them for critical state behavior. The
+The engineering rules in `docs/contributing/engineering.md` section 7 requires them for critical state behavior. The
 execution-state model and the profile-qualification model are published.
 
 - The repository check `tests/repo/models.test.ts` verifies that each

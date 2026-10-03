@@ -292,7 +292,7 @@ function choice(label: string, distribution: readonly Mass[], latency_ms: number
 
 /** Builds one binary control. */
 function noul(value: boolean, latency_ms: number): TestEvaluatorControl {
-  return { answer: { assessment: { kind: "binary", value }, latency_ms } };
+  return { answer: { assessment: { kind: "binary", probability_yes: value ? 1 : 0 }, latency_ms } };
 }
 
 /** Builds one ordered control. */

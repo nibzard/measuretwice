@@ -420,7 +420,7 @@ test("one calibration qualifies the frozen candidate and returns the artifact", 
   expect(profile.id).toBe("message-supported-calibrated");
   expect(profile.qualification.status).toBe("validated_for_scope");
   expect(profile.qualification.reasons).toEqual(["measured_evidence"]);
-  expect(profile.policy.family).toBe("probability_mass_v0");
+  expect(profile.policy.family).toBe("probability_mass_v1");
   expect(profile.policy.checks).toEqual([
     { check: "message-supported", accept_cutoff: 0.6, rejection_cutoff: 0.6 },
   ]);

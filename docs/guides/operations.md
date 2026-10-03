@@ -119,9 +119,8 @@ Three limits refuse large input instead of truncating it:
 
 Bound your inputs in the definition schema, because that refusal names the
 field and costs no attempt. One adapter rejection inside one run is one
-execution failure: with one attempt configured, the record states
-`evaluator_error` and the message that names `oversized_input`; with retries
-configured, the final record states `retries_exhausted` and keeps the last code and sanitized cause.
+execution failure. The record states `oversized_input`, keeps one attempt, and supplies `recovery.remediation: "reduce_evidence"`.
+It makes no provider call and performs no retry.
 The combined message stays within 500 Unicode characters. A final ellipsis marks truncation.
 Set `max_attempts` to 1 when you prefer the direct code.
 
@@ -133,7 +132,7 @@ the shared queue. The reason code alone names the class:
 
 | Class | Codes | Behavior |
 | --- | --- | --- |
-| Retryable | `evaluator_error`, `evaluator_timeout` | The check retries while attempts remain. |
+| Retryable | `evaluator_error`, `evaluator_timeout`, `evaluator_rate_limit` | The check retries while attempts remain. |
 | Permanent | `invalid_assessment` | The check records its error at the failing attempt, whatever attempts remain. |
 
 One answer outside the contract of its check is one defect of the adapter
@@ -406,3 +405,26 @@ Read the complete eight-row table of
    no report carries one.
 7. No code path delivers, permits, or approves anything because one report
    passed.
+
+## Use structured recovery
+
+New operational records include `reason.recovery` when a repair classification is available.
+`cause_code` retains the original failure, including when `reason.code` becomes `retries_exhausted`.
+`retryable` states whether another attempt can help. The execution budget still controls automatic attempts.
+`remediation` gives a stable repair instruction. The host controls repair and credentials.
+Historical records can lack recovery fields. Do not infer a cause from missing fields.
+
+| Cause | Retryable | Remediation |
+| --- | --- | --- |
+| `evaluator_authentication` | No | `fix_credentials` |
+| `evaluator_permission` | No | `fix_permissions` |
+| `evaluator_request` | No | `fix_request` |
+| `oversized_input` | No | `reduce_evidence` |
+| `evaluator_unknown`, `invalid_assessment` | No | `inspect_evaluator` |
+| `model_resolution_changed` | No | `requalify_binding` |
+| `evaluator_rate_limit`, `evaluator_error`, `evaluator_timeout` | Yes | `retry_later` |
+
+Jev maps authentication, permission, request, rate-limit, and server statuses separately.
+A connection failure is transient. An unknown Jev failure stops for inspection.
+Legacy host adapters can still report `evaluator_error` for a transient failure.
+No recovery field contains a raw provider response or credential.

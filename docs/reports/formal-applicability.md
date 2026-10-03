@@ -5,7 +5,7 @@ executed verification of the two published TLA+ models against the
 implemented state behavior, the correspondence it confirmed, the
 correspondence it found limited, and the decision it owes the release audit.
 
-[AGENTS.md](../../AGENTS.md#7-use-tla-for-critical-state-behavior) section 7
+[AGENTS.md](../contributing/engineering.md#7-use-tla-for-critical-state-behavior) section 7
 requires each model to map to the code and to name the behavior it omits.
 [MVP_SPEC.md](../../MVP_SPEC.md#5-typescript-integration-and-shared-rust-core)
 sections 5, 8, and 12 define the two boundaries that the models cover.
@@ -266,3 +266,18 @@ The callback cannot change the run state or make partial assessments eligible fo
 Regression tests cover failed and cancelled reports, retained usage, and revision forwarding.
 These callbacks provide inspection and persistence. They do not provide verified resumption.
 The existing model bounds and omissions remain unchanged.
+
+## Review response applicability
+
+The review response adds permanent provider causes and structured recovery data.
+The wrapper selects the existing permanent branch for these causes.
+The Rust failure boundary also routes permanent causes to that branch if offered through the retry method.
+No new transition or state variable is required. The execution model already includes both failure branches.
+Recovery payload validation, provider status mapping, and diagnostic rendering remain outside the model.
+
+The new mass family preserves binary probability. Historical mass profiles remain readable but cannot execute.
+The qualification model represents this refusal through its existing compatibility condition.
+It does not model probability arithmetic or contract parsing.
+
+All three bounded model checks completed without an error during this work.
+See [the verification record](review-response.md#formal-checks) for counts, configurations, and limitations.

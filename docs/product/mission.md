@@ -60,5 +60,6 @@ The [acceptance audit](../reports/mission-audit.md) maps each mission task to it
 Use [the human study procedure](../guides/usability.md) to test the experience with a new developer.
 Human usability, direct-integration effort, and representative qualification evidence remain unmeasured.
 These require participants and data; implementation alone cannot establish them.
+The [review response plan](review-plan.md) separates correctness fixes from workflow validation and states their completion evidence.
 
 Read [MVP_SPEC.md](../../MVP_SPEC.md) for the product contract and technical acceptance criteria.

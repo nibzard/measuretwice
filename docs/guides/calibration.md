@@ -305,7 +305,7 @@ The procedure runs in one fixed order:
 
 The result holds five parts:
 
-- `profile` is the signed candidate artifact. It loads as generated.
+- `profile` is the content-hashed candidate artifact. It loads as generated.
 - `fitting` is the fitting report. It states every enumerated candidate and
   its constraints. It is development evidence alone.
 - `qualification` is the frozen validation. It is absent when no feasible

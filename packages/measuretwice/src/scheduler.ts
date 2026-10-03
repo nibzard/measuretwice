@@ -157,6 +157,12 @@ export type ScheduledResolution =
       readonly failure: {
         readonly code:
           | "evaluator_error"
+          | "evaluator_authentication"
+          | "evaluator_permission"
+          | "evaluator_request"
+          | "evaluator_rate_limit"
+          | "evaluator_unknown"
+          | "oversized_input"
           | "evaluator_timeout"
           | "invalid_assessment"
           | "model_resolution_changed";
@@ -204,6 +210,7 @@ export type SchedulerEvent =
 const RETRYABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
   "evaluator_error",
   "evaluator_timeout",
+  "evaluator_rate_limit",
 ]);
 
 /**

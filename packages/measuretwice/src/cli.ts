@@ -1,54 +1,11 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The measuretwice command-line interface: command parsing, help text,
- * output formats, exit behavior, and the dispatch of the commands.
- *
- * The CLI consumes explicit JSON data files and the `.measuretwice`
- * convention of MVP_SPEC.md section 11. It loads no YAML and executes no
- * TypeScript source. The bounded validated readers live in
- * `cli-files.ts`; this module owns the surface and the commands:
- *
- * - `parseCliArguments` parses one command, its options, and its artifact
- *   paths into one typed invocation. One bare identifier resolves inside
- *   the convention folder of its kind. Usage failures exit with code 2 and
- *   one stable reason code.
- * - `runCli` executes one parsed invocation and returns the exit code.
- *   Command results print to stdout. Diagnostics print to stderr, so
- *   machine-readable output stays separate. With `--format json`, one
- *   failure prints one JSON error object on stderr.
- * - Exit codes: 0 for one completed command, 1 for one failure of files,
- *   artifacts, or data, 2 for one usage error. One completed `run` exits
- *   with code 0, whatever outcome its report states, because one report
- *   outcome is no command failure.
- * - The CLI reads no credential option and no credential variable. The
- *   host keeps its credentials in its own mechanism.
- *
- * The six commands of MVP_SPEC.md section 11 run in this module.
- * `validate` states the meaning that the Rust core established for one
- * exported definition, with no evaluator and no provider call. `run`
- * assesses one case through the same `load` and `run` path as the library,
- * renders the report through the shared renderer, and writes the artifact
- * with `--out`. `evaluate` runs one dataset through the same path, measures
- * the outcomes against the reference labels in the Rust core, and writes
- * the evaluation report artifact with `--out`. `compare` compares two
- * stored evaluation reports on their matching cases and writes the
- * comparison artifact with `--out`. `inspect` renders one profile through
- * the shared renderer, and its JSON form prints the stored artifact.
- * `calibrate` reads the plan and crosses the same core boundary that one
- * calibration crosses first, then states the evaluator boundary.
- *
- * The CLI registers no evaluator adapter, because one loaded file installs
- * no evaluator and the CLI executes no host code. One definition with one
- * question check therefore refuses `run` and `evaluate` with
- * `evaluator_mismatch` before any work starts, and `calibrate` refuses
- * every plan with the same code after the core checked its contract and
- * its definition binding, because one calibration measures through the
- * evaluator that the plan names. Enforcement needs one host-selected
- * profile hash, so the CLI refuses `--mode enforcement` with
- * `profile_not_selected`. Every command keeps the stable code and the field
- * path of the core and adds one boundary sentence that names what the host
- * must do in its own code.
+ * Data-only CLI. Definitions and plans cannot install evaluators or execute host code.
+ * Exact checks run in Rust. Semantic checks run through the documented host runner.
+ * Plan validation checks data and its definition binding; it performs no measurement.
+ * Completed runs exit zero unless --fail-on selects a recorded outcome.
+ * Operational and usage failures retain stable codes and distinct output streams.
  */
 import { realpathSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
@@ -80,7 +37,7 @@ import type {
   EvaluationRate,
   EvaluationReport,
 } from "./evaluate.js";
-import { nativeCheckCalibrationBinding } from "./native.js";
+import { nativeCheckPlanDefinition, nativeValidatePlan } from "./native.js";
 import { renderProfileSummary, renderRunReport } from "./render.js";
 import {
   load,
@@ -90,7 +47,7 @@ import {
 } from "./run.js";
 
 /** The help text of the CLI. It documents every command and rule of the surface. */
-export const USAGE = `measuretwice — semantic checks with measured reliability
+export const USAGE = `measuretwice — inspectable checks
 
 Usage:
   measuretwice <command> [options]
@@ -101,8 +58,8 @@ Commands:
   validate <definition>              Check one exported JSON definition.
   run <definition>                   Assess one case.
                                      Options: --case, --profile, --mode.
-  calibrate <definition>             Check one calibration plan and state the
-                                     evaluator boundary. Options: --plan, --out.
+  validate-plan <definition>         Validate one calibration plan and definition binding.
+                                     Options: --plan.
   evaluate <definition>              Assess one dataset.
                                      Options: --profile, --cases, --metadata,
                                      --purpose, --out.
@@ -141,15 +98,16 @@ Options:
   --cases <path>            One .jsonl dataset records file.
   --metadata <path>         One dataset metadata file. Default: the records
                             path with .json.
-  --plan <path>             One calibration plan. Required for calibrate.
+  --plan <path>             One calibration plan. Required for validate-plan.
   --profile <path>          One profile file.
   --out <path>              One output path for one written artifact. The
                             run command writes its report artifact there,
                             evaluate its evaluation report, and compare its
                             comparison artifact. One failed write leaves no
-                            artifact and prints no result. calibrate writes
-                            no candidate, because it refuses one calibration
-                            before any measurement.
+                            artifact and prints no result. validate-plan writes
+                            no profile because it performs no measurement.
+  --fail-on <outcomes>       For run, exit 1 when a component or aggregate matches
+                            declared comma-separated outcomes. Reports still print.
   --help                    Print this help text.
   --version                 Print the package and contract schema versions.
 
@@ -158,10 +116,10 @@ Evaluators and modes:
   evaluator adapter, because one loaded file installs no evaluator and the
   CLI executes no host code. One definition with one question check refuses
   run and evaluate with evaluator_mismatch before any work starts. Run
-  question checks through the library in your application. One calibration
-  measures through the evaluator that its plan names, so calibrate checks
-  the plan contract and the definition binding, then refuses with the same
-  code and writes no candidate profile. Enforcement selects one profile
+  question checks through the trusted application script in
+  examples/semantic-runner/run.mjs. validate-plan checks plan data and its
+  definition binding. It verifies no evaluator or dataset and writes no
+  profile. Enforcement selects one profile
   through host review, and the CLI states no selection, so --mode
   enforcement refuses with profile_not_selected.
 
@@ -169,8 +127,9 @@ Output and exit codes:
   Command results print to stdout. Diagnostics print to stderr. With
   --format json, one failure prints one JSON error object on stderr.
   Exit 0: the command completed. One completed run or evaluation exits with
-  code 0, whatever outcome its report states. Exit 1: one failure of files,
-  artifacts, or data. Exit 2: one usage error.
+  code 0 by default. With --fail-on, matching run outcomes exit 1 after
+  report output. Exit 1 also means a file, artifact, or data failure.
+  Exit 2: one usage error.
 
 Credentials:
   The CLI reads no credential option and no credential variable. Keep
@@ -182,7 +141,7 @@ for the host: compare states no cost inputs, so no comparison computes one.
 `;
 
 /** The commands that MVP_SPEC.md section 11 specifies. */
-export type CliCommand = "validate" | "run" | "calibrate" | "evaluate" | "compare" | "inspect";
+export type CliCommand = "validate" | "run" | "validate-plan" | "evaluate" | "compare" | "inspect";
 
 /** The output formats of one command. */
 export type CliFormat = "text" | "json";
@@ -201,6 +160,7 @@ export type CliInvocation =
   | { readonly command: "validate"; readonly definition: string; readonly format: CliFormat }
   | {
       readonly command: "run";
+      readonly failOn?: readonly string[];
       readonly definition: string;
       readonly case: string;
       readonly profile?: string;
@@ -209,10 +169,9 @@ export type CliInvocation =
       readonly format: CliFormat;
     }
   | {
-      readonly command: "calibrate";
+      readonly command: "validate-plan";
       readonly definition: string;
       readonly plan: string;
-      readonly out?: string;
       readonly format: CliFormat;
     }
   | {
@@ -238,6 +197,15 @@ export type CliInvocation =
       readonly detail: CliDetail;
       readonly format: CliFormat;
     };
+
+/** Parses declared outcomes that make a completed run exit with code 1. */
+function parseFailOn(text: string): readonly string[] {
+  const outcomes = text.split(",");
+  if (outcomes.some(value => !["pass", "fail", "review", "error", "skipped"].includes(value)) || new Set(outcomes).size !== outcomes.length) {
+    throw new CliFailure("invalid_field_type", "The --fail-on option requires distinct outcomes: pass, fail, review, error, skipped.", { exit: 2, fieldPath: "/run/fail-on" });
+  }
+  return outcomes;
+}
 
 /** The options of `parseCliArguments`. */
 export interface ParseOptions {
@@ -276,15 +244,15 @@ const COMMAND_SPECS: Record<CliCommand, CommandSpec> = {
   },
   run: {
     positionals: [{ name: "definition", kind: "definition" }],
-    stringOptions: ["profile", "case", "mode", "out"],
+    stringOptions: ["profile", "case", "mode", "out", "fail-on"],
     requiredOptions: [
       { name: "case", purpose: "Pass one case file through --case." },
     ],
     enums: { format: FORMAT_VALUES, mode: ["shadow", "enforcement"] },
   },
-  calibrate: {
+  "validate-plan": {
     positionals: [{ name: "definition", kind: "definition" }],
-    stringOptions: ["plan", "out"],
+    stringOptions: ["plan"],
     requiredOptions: [
       {
         name: "plan",
@@ -322,7 +290,7 @@ const COMMAND_SPECS: Record<CliCommand, CommandSpec> = {
 };
 
 const KNOWN_COMMANDS: readonly CliCommand[] = [
-  "calibrate",
+  "validate-plan",
   "compare",
   "evaluate",
   "inspect",
@@ -412,16 +380,14 @@ export function parseCliArguments(
           : { profile: resolveCliPath("profile", values.options.profile, options.cwd) }),
         mode: enumValue(command, spec, values, "mode", "shadow") as CliRunMode,
         ...(values.options.out === undefined ? {} : { out: stringValue(values, "out") }),
+        ...(values.options["fail-on"] === undefined ? {} : { failOn: parseFailOn(values.options["fail-on"]) }),
         format,
       };
-    case "calibrate":
+    case "validate-plan":
       return {
         command,
         definition: resolved[0] as string,
         plan: resolveCliPath("plan", stringValue(values, "plan"), options.cwd),
-        ...(values.options.out === undefined
-          ? {}
-          : { out: stringValue(values, "out") }),
         format,
       };
     case "evaluate": {
@@ -646,8 +612,8 @@ async function dispatch(
       return validateCommand(invocation, context);
     case "run":
       return runCommand(invocation, context);
-    case "calibrate":
-      return calibrateCommand(invocation);
+    case "validate-plan":
+      return validatePlanCommand(invocation, context);
     case "evaluate":
       return evaluateCommand(invocation, context);
     case "compare":
@@ -816,10 +782,6 @@ async function validateCommand(
 const EVALUATOR_NOTE =
   "The CLI registers no evaluator adapter, because one loaded file installs no evaluator and the CLI executes no host code. Run question checks through the library in your application.";
 
-/** The note that the CLI adds to one refusal of the calibrate command. */
-const CALIBRATE_NOTE =
-  "The CLI registers no evaluator adapter, because one loaded file installs no evaluator and the CLI executes no host code, so no calibration can measure cases here. Run calibrate through the library in your application, where your code registers the evaluator of the plan and states the sampling model.";
-
 /** The note that the CLI adds to one enforcement refusal of the run path. */
 const SELECTION_NOTE =
   "The CLI states no host profile selection. Run enforcement through the library in your application, where your code states the reviewed profile hash.";
@@ -918,46 +880,27 @@ async function runCommand(
       ? JSON.stringify(report, null, 2)
       : renderRunReport(definition.artifact, report);
   context.io.writeOut(`${text}\n`);
-  return 0;
+  return invocation.failOn?.some(outcome => report.aggregate.outcome === outcome || report.checks.some(check => check.outcome === outcome)) ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------
-// calibrate: the plan contract, the definition binding, and the boundary.
+// validate-plan: the plan contract and the definition binding.
 // ---------------------------------------------------------------------------
 
-/**
- * Checks one calibration plan against one loaded definition and states the
- * evaluator boundary of the CLI.
- *
- * The command reads the definition and the plan through the bounded readers,
- * then crosses the same core boundary that one calibration crosses before it
- * reads one dataset or measures one case: the complete plan contract, the
- * definition binding of the plan, and the registered evaluator that serves
- * it. The CLI registers no evaluator, so the last check refuses every plan
- * here with the core's own code and field path, and the command writes no
- * candidate profile: no measurement ran, so one written candidate would look
- * complete without one stored assessment behind it.
- */
-async function calibrateCommand(
-  invocation: Extract<CliInvocation, { readonly command: "calibrate" }>,
+/** Validates plan data and its definition binding without execution. */
+async function validatePlanCommand(
+  invocation: Extract<CliInvocation, { readonly command: "validate-plan" }>,
+  context: CommandContext,
 ): Promise<number> {
   const definition = await readDefinitionFile(invocation.definition);
   const plan = await readPlanFile(invocation.plan);
-  try {
-    // One calibration measures through the evaluator that the plan names, so
-    // the binding check runs with the empty registered set of the CLI.
-    throughCore(() => nativeCheckCalibrationBinding(plan.text, definition.text, "[]"));
-  } catch (error) {
-    throw withCliBoundary(error, CALIBRATE_NOTE);
-  }
-  // One plan always names one evaluator and the registered set of the CLI
-  // stays empty, so the check above refused the calibration. This refusal
-  // keeps the command honest if that boundary ever changes.
-  throw new CliFailure(
-    "evaluator_mismatch",
-    `The plan names one evaluator that the CLI cannot register. ${CALIBRATE_NOTE}`,
-    { fieldPath: "/plan/evaluator/evaluator", exit: 1 },
-  );
+  throughCore(() => nativeCheckPlanDefinition(plan.text, definition.text));
+  const info = throughCore(() => nativeValidatePlan(plan.text));
+  const summary = { plan: info.id, content_hash: info.contentHash, valid: true,
+    evaluator_registered: false, datasets_verified: false, measurement_performed: false };
+  context.io.writeOut(`${invocation.format === "json" ? JSON.stringify(summary, null, 2) :
+    `${info.id} · valid plan and definition binding\nEvaluator and datasets are unverified. No measurement ran.`}\n`);
+  return 0;
 }
 
 // ---------------------------------------------------------------------------

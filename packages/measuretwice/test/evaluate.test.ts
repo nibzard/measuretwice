@@ -135,14 +135,14 @@ const INCOMPLETE = {
 
 /** One failing binary answer. */
 const NO = {
-  assessment: { kind: "binary" as const, value: false },
+  assessment: { kind: "binary" as const, probability_yes: 0 },
   model_resolved: "scripted-1.4.0",
   latency_ms: 110,
 };
 
 /** One passing binary answer. */
 const YES = {
-  assessment: { kind: "binary" as const, value: true },
+  assessment: { kind: "binary" as const, probability_yes: 1 },
   model_resolved: "scripted-1.4.0",
   latency_ms: 120,
 };
@@ -680,10 +680,12 @@ test("one evaluation with provider errors keeps every failure visible", async ()
     {
       code: "retries_exhausted",
       message: expect.stringContaining("evaluator_timeout"),
+      recovery: { cause_code: "evaluator_timeout", retryable: true, remediation: "retry_later" },
     },
     {
       code: "retries_exhausted",
       message: expect.stringContaining("evaluator_timeout"),
+      recovery: { cause_code: "evaluator_timeout", retryable: true, remediation: "retry_later" },
     },
   ]);
   expect(report.operational?.attempts).toBe(4);

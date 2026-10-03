@@ -1,0 +1,22 @@
+[
+  {
+    "path": "contracts/v0/hashing.md",
+    "sha256": "6f8ac50dddd904b28815b67ad72b2476aa1f775314c651a95694596b23a07878"
+  },
+  {
+    "path": "docs/reference/artifacts.md",
+    "sha256": "3083bf4968cc424d71ae13ea72a5b250eb1b095b00bb09500a9d1f20e70df30a"
+  },
+  {
+    "path": "docs/reference/api.md",
+    "sha256": "d4e9be33613671071ec21407ece6796c33a1df7cd6a04ae93595d3e0e40f0a1b"
+  },
+  {
+    "path": "packages/measuretwice/src/exploration.ts",
+    "sha256": "20d9a5abad0dbf8dfcf23abb5a57564b6a21df2b29854eda715cfeb9d06d3ec8"
+  },
+  {
+    "path": "packages/measuretwice/src/cli.ts",
+    "sha256": "27a1020f10999b29d73cd4302f7662dc4ec7c79da99b161dc170327f44d00c82"
+  }
+]

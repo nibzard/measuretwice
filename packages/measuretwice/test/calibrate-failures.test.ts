@@ -485,7 +485,7 @@ function foldComponents(components: readonly string[]): "pass" | "fail" | "revie
  * Replays the measured cases of one split under one candidate, from the
  * stored assessments of the run reports alone.
  *
- * The replay states the published decision rule of the `probability_mass_v0`
+ * The replay states the published decision rule of the `probability_mass_v1`
  * family and the published aggregate fold, so the recounted rates below are
  * one independent implementation of the published meanings, not one copy of
  * the core code.

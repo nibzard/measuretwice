@@ -256,7 +256,7 @@ impl FitReport {
 /// Returns the policy that one candidate applies to every question check.
 ///
 /// One candidate of the plan grid states one parameter set of the
-/// `probability_mass_v0` family. The profile records the same set for every
+/// `probability_mass_v1` family. The profile records the same set for every
 /// question check of the calibrated definition.
 pub const fn applied_policy(candidate: Candidate) -> AppliedPolicy {
     AppliedPolicy {

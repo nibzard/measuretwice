@@ -1,7 +1,7 @@
 # Formal models
 
 This directory holds the Temporal Logic of Actions (TLA+) models and
-their records. [AGENTS.md](../AGENTS.md) section 7 requires a model
+their records. [Engineering rules](../docs/contributing/engineering.md) section 7 requires a model
 before critical state behavior is implemented. [MVP_SPEC.md](../MVP_SPEC.md)
 section 5 names the execution state boundary as the first one.
 

@@ -675,3 +675,27 @@ Related contracts published after this freeze:
 - The cross-language conformance fixtures that pin these contracts, in
   [fixtures/](../fixtures/README.md). Published on 23 September 2026. They are
   mandatory for the TypeScript SDK and for the later Python SDK.
+
+## Binary probability migration
+
+The current policy family is `probability_mass_v1`.
+Binary assessments state either `probability_yes` or a boolean `value`.
+The probability must be finite and between zero and one.
+Do not include `value` or `distribution` beside `probability_yes`.
+A boolean can accompany a reported distribution over yes and no.
+A boolean alone supplies no probability and produces review under the mass policy.
+
+Profiles with `probability_mass_v0` remain readable for historical inspection but are rejected for execution. Regenerate exploration profiles and repeat fitting and qualification for calibrated profiles.
+Do not change a family name and reuse old evidence.
+Jev adapter version `0.2.0` preserves probability without selecting a label.
+The translation version stays unchanged because the provider question is unchanged.
+Historical reports and experiment records remain historical evidence. Their original policy meaning does not change.
+
+## Structured operational recovery
+
+The reason registry adds `evaluator_authentication`, `evaluator_permission`, `evaluator_request`,
+`evaluator_rate_limit`, and `evaluator_unknown`.
+The optional `recovery` object records `cause_code`, `retryable`, and `remediation`.
+Rust validates these fields against the cause. Exhausted retries retain their last operational cause.
+Existing records without this object retain their original shape.
+See [the operations reference](../docs/guides/operations.md#use-structured-recovery) for retry and repair meanings.

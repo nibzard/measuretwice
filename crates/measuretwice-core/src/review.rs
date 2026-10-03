@@ -965,11 +965,13 @@ mod tests {
                 code: ReasonCode::EvaluatorError,
                 message: "The adapter reported a network failure.".to_owned(),
                 field_path: None,
+                recovery: None,
             }),
             Outcome::Skipped => Some(crate::report::SanitizedReason {
                 code: ReasonCode::QueueFull,
                 message: "The pending-work limit stopped the check.".to_owned(),
                 field_path: None,
+                recovery: None,
             }),
             _ => None,
         };

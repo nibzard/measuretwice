@@ -47,27 +47,54 @@
       "description": "Date and time in UTC, in RFC 3339 format."
     },
     "outcome": {
-      "enum": ["pass", "fail", "review", "error", "skipped"],
+      "enum": [
+        "pass",
+        "fail",
+        "review",
+        "error",
+        "skipped"
+      ],
       "description": "Outcome of one check. Pass meets the acceptance meaning. Fail meets an unacceptable meaning. Review needs a human decision. Error reports an execution or validation failure. Skipped reports that the check was not attempted."
     },
     "aggregate_outcome": {
-      "enum": ["pass", "fail", "review", "error"],
+      "enum": [
+        "pass",
+        "fail",
+        "review",
+        "error"
+      ],
       "description": "Aggregate outcome of one case. Order of severity: fail, then error, then review or skipped, then pass. Skipped checks surface as review in the aggregate."
     },
     "completion_status": {
-      "enum": ["completed", "cancelled", "deadline_exceeded"],
+      "enum": [
+        "completed",
+        "cancelled",
+        "deadline_exceeded"
+      ],
       "description": "Execution status of one run. Independent of the aggregate outcome. A terminal report is immutable."
     },
     "run_mode": {
-      "enum": ["shadow", "enforcement"],
+      "enum": [
+        "shadow",
+        "enforcement"
+      ],
       "description": "Shadow records the outcome next to the existing decision. Enforcement returns a report that the host uses to decide."
     },
     "qualification_status": {
-      "enum": ["unvalidated", "insufficient_evidence", "criteria_not_met", "validated_for_scope"],
+      "enum": [
+        "unvalidated",
+        "insufficient_evidence",
+        "criteria_not_met",
+        "validated_for_scope"
+      ],
       "description": "Qualification of one profile for its declared scope. A qualification flag is not an authenticated approval."
     },
     "answer_kind": {
-      "enum": ["categorical", "binary", "ordered"],
+      "enum": [
+        "categorical",
+        "binary",
+        "ordered"
+      ],
       "description": "Kind of assessed answer. Categorical covers named answers. Binary covers explicit yes and no answers. Ordered covers a descriptive scale."
     },
     "metric_name": {
@@ -91,9 +118,14 @@
     "sanitized_reason": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
-        "code": {"$ref": "#/$defs/reason_code"},
+        "code": {
+          "$ref": "#/$defs/reason_code"
+        },
         "message": {
           "type": "string",
           "minLength": 1,
@@ -104,24 +136,70 @@
           "type": "string",
           "maxLength": 500,
           "description": "JSON Pointer to the rejected field, when the reason is a validation failure."
+        },
+        "recovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cause_code",
+            "retryable",
+            "remediation"
+          ],
+          "properties": {
+            "cause_code": {
+              "$ref": "#/$defs/reason_code"
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "remediation": {
+              "enum": [
+                "fix_credentials",
+                "fix_permissions",
+                "fix_request",
+                "reduce_evidence",
+                "inspect_evaluator",
+                "requalify_binding",
+                "retry_later"
+              ]
+            }
+          }
         }
       }
     },
     "usage": {
       "type": "object",
-      "additionalProperties": {"type": "number"},
+      "additionalProperties": {
+        "type": "number"
+      },
       "description": "Usage amounts reported by one evaluator execution. The adapter contract lists the supported fields. An absent field was not reported."
     },
     "rate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["metric", "numerator", "denominator", "value"],
+      "required": [
+        "metric",
+        "numerator",
+        "denominator",
+        "value"
+      ],
       "properties": {
-        "metric": {"$ref": "#/$defs/metric_name"},
-        "numerator": {"type": "integer", "minimum": 0},
-        "denominator": {"type": "integer", "minimum": 0},
+        "metric": {
+          "$ref": "#/$defs/metric_name"
+        },
+        "numerator": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 0
+        },
         "value": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 1,
           "description": "Null when the denominator is zero. A zero denominator produces no value."
@@ -131,20 +209,34 @@
     "artifact_reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "content_hash"],
+      "required": [
+        "name",
+        "content_hash"
+      ],
       "properties": {
-        "name": {"$ref": "#/$defs/artifact_id"},
-        "content_hash": {"$ref": "#/$defs/content_hash"}
+        "name": {
+          "$ref": "#/$defs/artifact_id"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/content_hash"
+        }
       },
       "description": "Reference to another artifact by stable name and canonical content hash."
     },
     "profile_reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "content_hash"],
+      "required": [
+        "id",
+        "content_hash"
+      ],
       "properties": {
-        "id": {"$ref": "#/$defs/artifact_id"},
-        "content_hash": {"$ref": "#/$defs/content_hash"}
+        "id": {
+          "$ref": "#/$defs/artifact_id"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/content_hash"
+        }
       },
       "description": "Reference to one profile by identifier and content hash."
     }

@@ -176,14 +176,13 @@ test("parseCliArguments resolves every artifact path of every command", () => {
     format: "text",
   });
   expect(
-    parseCliArguments(["calibrate", "d.json", "--plan", "calibration-plan", "--out", "p.json"], {
+    parseCliArguments(["validate-plan", "d.json", "--plan", "calibration-plan"], {
       cwd,
     }),
   ).toEqual({
-    command: "calibrate",
+    command: "validate-plan",
     definition: "d.json",
     plan: path.join(cwd, ".measuretwice", "calibration-plan.json"),
-    out: "p.json",
     format: "text",
   });
   expect(
@@ -257,7 +256,7 @@ test("usage failures exit with code 2 and one stable reason code", async () => {
   expect(noCase.err).toContain("missing_argument");
   expect(noCase.err).toContain("--case");
 
-  const noPlan = await cli(["calibrate", "d.json"]);
+  const noPlan = await cli(["validate-plan", "d.json"]);
   expect(noPlan.code).toBe(2);
   expect(noPlan.err).toContain("--plan");
 
@@ -313,7 +312,7 @@ test("one credential option is one unsupported option and leaks no value", async
 });
 
 test("the usage text documents commands, paths, formats, exit codes, and credentials", () => {
-  for (const command of ["validate", "run", "calibrate", "evaluate", "compare", "inspect"]) {
+  for (const command of ["validate", "run", "validate-plan", "evaluate", "compare", "inspect"]) {
     expect(USAGE).toContain(command);
   }
   expect(USAGE).toContain(".measuretwice");
@@ -665,7 +664,7 @@ test("inspect adds the bindings, policy, execution, and evidence on request", as
   expect(result.out).toContain("Bindings");
   expect(result.out).toContain("evaluator label-only-test · adapter 0.1.0");
   expect(result.out).toContain("Policy");
-  expect(result.out).toContain("family: probability_mass_v0");
+  expect(result.out).toContain("family: probability_mass_v1");
   expect(result.out).toContain("accept >= 0.8 · reject >= 0.6");
   expect(result.out).toContain("Execution");
   expect(result.out).toContain("30000 ms deadline · 2 attempts · 200 ms backoff");
@@ -747,39 +746,20 @@ async function planFile(
   return tempFile("plan.json", text);
 }
 
-test("calibrate refuses one plan with the evaluator boundary and writes no candidate", async () => {
-  const out = path.join(tmpdir(), "measuretwice-cli-absent-candidate.json");
-  const plan = await planFile();
-  const result = await cli([
-    "calibrate",
-    categoricalPath,
-    "--plan",
-    plan,
-    "--out",
-    out,
-    "--format",
-    "json",
-  ]);
-  expect(result.code).toBe(1);
-  expect(result.out).toBe("");
-  const diagnostic = JSON.parse(result.err) as {
-    error: { code: string; message: string; field_path: string };
-  };
-  expect(diagnostic.error.code).toBe("evaluator_mismatch");
-  expect(diagnostic.error.field_path).toBe("/plan/evaluator/evaluator");
-  expect(diagnostic.error.message).toContain("scripted-test");
-  expect(diagnostic.error.message).toContain("no calibration can measure cases here");
-  expect(diagnostic.error.message).toContain("registers the evaluator of the plan");
-  expect(existsSync(out)).toBe(false);
+test("validate-plan checks data and states the unverified execution boundary", async () => {
+  const result = await cli(["validate-plan", categoricalPath, "--plan", await planFile(), "--format", "json"]);
+  expect(result.code).toBe(0);
+  expect(result.err).toBe("");
+  expect(JSON.parse(result.out)).toMatchObject({ valid: true, evaluator_registered: false, datasets_verified: false, measurement_performed: false });
 });
 
 test("calibrate keeps the refusals of the plan contract and the definition binding", async () => {
-  const exactOnly = await cli(["calibrate", exactRulesPath, "--plan", await planFile()]);
+  const exactOnly = await cli(["validate-plan", exactRulesPath, "--plan", await planFile()]);
   expect(exactOnly.code).toBe(1);
   expect(exactOnly.err).toContain("policy_mismatch");
   expect(exactOnly.err).toContain("An exact-only definition takes no calibration plan");
 
-  const foreign = await cli(["calibrate", orderedPath, "--plan", await planFile()]);
+  const foreign = await cli(["validate-plan", orderedPath, "--plan", await planFile()]);
   expect(foreign.code).toBe(1);
   expect(foreign.err).toContain("definition_mismatch");
   expect(foreign.err).toContain("Bind the plan of this revision");
@@ -790,14 +770,14 @@ test("calibrate keeps the refusals of the plan contract and the definition bindi
     "edited-plan.json",
     JSON.stringify({ ...artifact, intended_population: "edited population" }),
   );
-  const drifted = await cli(["calibrate", categoricalPath, "--plan", edited]);
+  const drifted = await cli(["validate-plan", categoricalPath, "--plan", edited]);
   expect(drifted.code).toBe(1);
   expect(drifted.err).toContain("hash_mismatch");
 
   const brokenGrid = await planFile({
     candidate_grid: { accept_cutoffs: [0.3], rejection_cutoffs: [0.6] },
   });
-  const invalid = await cli(["calibrate", categoricalPath, "--plan", brokenGrid]);
+  const invalid = await cli(["validate-plan", categoricalPath, "--plan", brokenGrid]);
   expect(invalid.code).toBe(1);
   expect(invalid.err).toContain("invalid_field_type");
   expect(invalid.err).toContain("The cutoff must stay above 0.5");
@@ -806,12 +786,12 @@ test("calibrate keeps the refusals of the plan contract and the definition bindi
     "incomplete-plan.json",
     JSON.stringify({ schema_version: 1, id: "message-supported-plan" }),
   );
-  const missing = await cli(["calibrate", categoricalPath, "--plan", incomplete]);
+  const missing = await cli(["validate-plan", categoricalPath, "--plan", incomplete]);
   expect(missing.code).toBe(1);
   expect(missing.err).toContain("missing_field");
 
   const unreadable = await cli([
-    "calibrate",
+    "validate-plan",
     categoricalPath,
     "--plan",
     path.join(tmpdir(), "measuretwice-absent-plan.json"),
@@ -1369,4 +1349,21 @@ test("the compiled entry point runs one case and writes the report", async () =>
   expect(stdout).toContain("Overall: PASS");
   const written = JSON.parse(readFileSync(out, "utf8")) as { case: { id: string } };
   expect(written.case.id).toBe("child-1");
+});
+
+
+test("run outcome assertions change the exit after writing the report", async () => {
+  const casePath = tempFile("assertion-case.json", JSON.stringify({ id: "long", input: { summary: "delivery limit " + "x".repeat(90), notice: "Notice" } }));
+  const out = path.join(tmpdir(), `measuretwice-assertion-${Date.now()}.json`);
+  const result = await cli(["run", exactRulesPath, "--case", casePath, "--fail-on", "fail,review,error,skipped", "--out", out, "--format", "json"]);
+  expect(result.code).toBe(1);
+  expect(result.err).toBe("");
+  expect(JSON.parse(result.out).aggregate.outcome).toBe("fail");
+  expect(JSON.parse(readFileSync(out, "utf8")).aggregate.outcome).toBe("fail");
+});
+
+test("run refuses undeclared outcome assertions as a usage error", async () => {
+  const result = await cli(["run", exactRulesPath, "--case", "case.json", "--fail-on", "reject"]);
+  expect(result.code).toBe(2);
+  expect(result.err).toContain("fail-on");
 });

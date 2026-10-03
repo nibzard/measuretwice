@@ -327,7 +327,7 @@ function choice(answer: ChoiceAnswer, latencyMs: number): { readonly answer: Eva
 
 /** Builds one binary answer control. */
 function noul(value: boolean, latencyMs: number): { readonly answer: EvaluatorExecution } {
-  return { answer: { assessment: { kind: "binary", value }, latency_ms: latencyMs } };
+  return { answer: { assessment: { kind: "binary", probability_yes: value ? 1 : 0 }, latency_ms: latencyMs } };
 }
 
 /** Builds one ordered answer control. */

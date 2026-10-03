@@ -13,9 +13,9 @@
   },
   "rules": {
     "choice": "The selected label crosses as label, the probabilities over every declared label become the distribution in the declared order, and one reported confidence crosses as confidence.",
-    "noul": "The noul value is the probability of yes. One half or more selects yes; less selects no. Noul defines no confidence, so one confidence field in one response is consumed by nothing and the assessment holds no confidence and no derived distribution.",
+    "noul": "The probability of yes crosses as probability_yes without thresholding. Noul supplies no confidence.",
     "score": "The position crosses unrounded, the nearest level names the answer, and the distribution maps the level indices to the declared level names in the declared order. The legend is one echo of the sent descriptions and is consumed by nothing.",
-    "tie": "One tie selects the answer with the greater position: one Noul value of one half selects yes, and one Score position halfway between two levels selects the higher level.",
+    "tie": "Score ties select the higher level. Noul probability crosses without a selected answer.",
     "operational_record": "The record keeps the response model as model_resolved, the per-request token usage as usage, and the adapter-measured call time as latency_ms. No response field states latency, so the adapter measures it. No per-question usage exists, so usage stays at request level.",
     "never_invented": [
       "noul confidence",
@@ -89,7 +89,7 @@
       }
     },
     {
-      "note": "One Noul answer of 0.93 selects yes. The assessment holds the binary value only: Noul defines no confidence and the adapter derives no distribution.",
+      "note": "One Noul answer of 0.93 preserves probability_yes. The adapter applies no cutoff and supplies no correctness confidence.",
       "origin": "provider-fixture",
       "provider_case": "noul-clear-yes",
       "check": "evidence-supports-claim",
@@ -125,12 +125,12 @@
       "expected": {
         "assessment": {
           "kind": "binary",
-          "value": true
+          "probability_yes": 0.93
         }
       }
     },
     {
-      "note": "One Noul answer of 0.49 selects no. The split stays visible only through the recorded value and the policy that reads it; the assessment invents no distribution.",
+      "note": "One Noul answer of 0.49 preserves probability_yes. The policy receives the original probability and its complement.",
       "origin": "provider-fixture",
       "provider_case": "noul-uncertain",
       "check": "evidence-supports-claim",
@@ -166,7 +166,7 @@
       "expected": {
         "assessment": {
           "kind": "binary",
-          "value": false
+          "probability_yes": 0.49
         }
       }
     },
@@ -466,7 +466,7 @@
       "expected": {
         "assessment": {
           "kind": "binary",
-          "value": true
+          "probability_yes": 0.97
         }
       }
     },
@@ -605,7 +605,7 @@
       "expected": {
         "assessment": {
           "kind": "binary",
-          "value": true
+          "probability_yes": 0.91
         }
       }
     },
@@ -649,7 +649,7 @@
       "expected": {
         "assessment": {
           "kind": "binary",
-          "value": true
+          "probability_yes": 0.86
         }
       }
     },
@@ -691,7 +691,7 @@
       "expected": {
         "assessment": {
           "kind": "binary",
-          "value": true
+          "probability_yes": 0.88
         }
       }
     },

@@ -18,7 +18,7 @@
  * and the executed policy of the record. Jev produces no bespoke textual
  * rationale, so the renderer invents none: it states the selected answer,
  * its authored description, and the cutoff arithmetic of the
- * `probability_mass_v0` family, or the executed parameters of one exact
+ * `probability_mass_v1` family, or the executed parameters of one exact
  * rule. Evidence references render as evaluator-selected support, because
  * the Rust core validates every reference against the `using` list of its
  * check. Supplied case content never renders, because the report holds
@@ -43,6 +43,7 @@ import { jsonText as strictJsonText } from "./json-boundary.js";
 import {
   NativeFailure,
   nativeValidateDefinition,
+  nativeValidateCase,
   nativeValidateProfile,
   nativeVerifySelfHash,
 } from "./native.js";
@@ -63,6 +64,8 @@ export type RenderDetail = "summary" | "detail";
 export interface RenderOptions {
   /** The inspection level. The default is the summary view. */
   readonly detail?: RenderDetail;
+  /** Run views only. Host-supplied input, verified against the recorded input hash. Never stored in the report. */
+  readonly caseInput?: Readonly<Record<string, JSONValue>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,8 +236,8 @@ interface Masses {
  *
  * The sets mirror the Rust policy: the acceptable mass covers the accepted
  * answers or levels, the unacceptable mass covers every declared answer or
- * level that is neither accepted nor review, and one binary value derives
- * exact zero-one masses. The function returns no value when the record
+ * level that is neither accepted nor review. A binary probability supplies
+ * yes mass and its complement supplies no mass. The function returns no value when the record
  * states no distribution, because one selected label, level, or position
  * is no mass.
  */
@@ -243,11 +246,15 @@ function massesOf(check: CheckDefinition, record: RunCheckRecord): Masses | unde
   if (!isRecord(assessment)) {
     return undefined;
   }
-  if (assessment.kind === "binary") {
-    const accepted = acceptSetOf(check).includes("yes");
-    const value = assessment.value === true;
-    const acceptable = accepted === value ? 1 : 0;
-    return { acceptable, unacceptable: 1 - acceptable };
+  if (assessment.kind === "binary" && typeof assessment.probability_yes === "number") {
+    const p = assessment.probability_yes;
+    const accepted = acceptSetOf(check);
+    const review = reviewSetOf(check);
+    return {
+      acceptable: (accepted.includes("yes") ? p : 0) + (accepted.includes("no") ? 1 - p : 0),
+      unacceptable: (!accepted.includes("yes") && !review.includes("yes") ? p : 0) +
+        (!accepted.includes("no") && !review.includes("no") ? 1 - p : 0),
+    };
   }
   const distribution = assessment.distribution;
   if (!Array.isArray(distribution)) {
@@ -368,6 +375,9 @@ function evidenceOf(
 
 /** Builds the criteria sentence of one question record from its selected answer. */
 function criteriaSentence(check: CheckDefinition, record: RunCheckRecord): string {
+  if (typeof record.assessment?.probability_yes === "number") {
+    return `Reported probability of yes is ${num(record.assessment.probability_yes)}.`;
+  }
   const selected = selectedAnswerOf(record);
   if (selected === undefined) {
     return "";
@@ -451,6 +461,9 @@ function questionExplanation(check: CheckDefinition, record: RunCheckRecord): st
         `Review source: decision policy. Acceptable mass ${num(masses.acceptable)} is below the accept cutoff ${num(policy.accept_cutoff)}. ` +
         `Unacceptable mass ${num(masses.unacceptable)} is below the rejection cutoff ${num(policy.rejection_cutoff)}.`,
       );
+    }
+    if (kind === "binary" && masses === undefined) {
+      return join(criteria, "The evaluator supplied only a label. The mass policy requires probability information. Review source: decision policy.");
     }
     return join(criteria, "The answer did not support an automatic decision.");
   }
@@ -677,6 +690,8 @@ function checkDetailLines(check: CheckDefinition, record: RunCheckRecord): strin
   if (isRecord(assessment)) {
     if (typeof assessment.label === "string") {
       push(`answer: ${assessment.label} (categorical)`);
+    } else if (typeof assessment.probability_yes === "number") {
+      push(`probability of yes: ${num(assessment.probability_yes)} (binary)`);
     } else if (typeof assessment.value === "boolean") {
       push(`answer: ${assessment.value ? "yes" : "no"} (binary)`);
     } else if (typeof assessment.level === "string") {
@@ -797,7 +812,7 @@ function reportKeyLines(binding: ReportBinding, report: RunReport): string[] {
       Object.keys(check.answers).every((key) => key === "yes" || key === "no"),
   );
   if (hasPolicy && binary) {
-    lines.push("A binary question reports one answer and no distribution.");
+    lines.push("A binary assessment preserves probability when supplied. A label alone supplies no probability.");
   }
   if (report.mode === "shadow") {
     lines.push(
@@ -929,6 +944,32 @@ function renderReportMarkdown(
 // Public report renderers.
 // ---------------------------------------------------------------------------
 
+/** Builds a local inspection view from the exact recorded case input. */
+function caseInspection(definition: Definition, report: RunReport, options?: RenderOptions): string | undefined {
+  if (options?.caseInput === undefined) return undefined;
+  const input = options.caseInput;
+  const validated = throughCore(() => nativeValidateCase(jsonText(definition, "/definition"),
+    jsonText({ id: report.case.id, input }, "/case")));
+  if (validated.inputHash !== report.case.input_hash) {
+    throw new ValidationError("hash_mismatch", "The supplied evidence has another input hash than the report.", "/case/input");
+  }
+  const lines = ["Supplied evidence (local inspection; absent from the stored report)"];
+  for (const check of definition.checks) {
+    const record = report.checks.find(record => record.check === check.id);
+    if (record === undefined) continue;
+    lines.push("", `Requirement: ${check.name}`, `Question: ${check.question ?? "Exact rule"}`);
+    for (const name of check.using) lines.push(`Input ${name}: ${JSON.stringify(input[name])}`);
+    lines.push(`Assessment: ${JSON.stringify(record.assessment ?? null)}`,
+      `Policy: ${JSON.stringify(record.applied_policy ?? record.applied_rule ?? null)}`,
+      `Outcome: ${record.outcome}`, "Evaluator rationale: not recorded",
+      `Next inspection: ${explainCheck(check, record)}`);
+    if (record.reason?.recovery !== undefined) {
+      lines.push(`Recovery: ${record.reason.recovery.remediation} (retryable: ${record.reason.recovery.retryable})`);
+    }
+  }
+  return lines.join("\n");
+}
+
 /**
  * Renders one run report as terminal text.
  *
@@ -952,7 +993,9 @@ export function renderRunReport(
 ): string {
   const detail = detailOf(options);
   const binding = bindReport(definition, report);
-  return renderReportTerminal(binding, report, detail);
+  const inspection = caseInspection(definition, report, options);
+  const rendered = renderReportTerminal(binding, report, detail);
+  return inspection === undefined ? rendered : `${rendered}\n\n${inspection}`;
 }
 
 /**
@@ -974,7 +1017,9 @@ export function renderRunReportMarkdown(
 ): string {
   const detail = detailOf(options);
   const binding = bindReport(definition, report);
-  return renderReportMarkdown(binding, report, detail);
+  const inspection = caseInspection(definition, report, options);
+  const rendered = renderReportMarkdown(binding, report, detail);
+  return inspection === undefined ? rendered : `${rendered}\n\n\`\`\`\`text\n${inspection}\n\`\`\`\``;
 }
 
 // ---------------------------------------------------------------------------
@@ -1011,6 +1056,17 @@ function profileSummaryLines(profile: Profile): string[] {
   lines.push(`Reasons: ${reasons === "" ? "(none recorded)" : reasons}`);
   lines.push(`Definition: ${profile.definition.name} (${profile.definition.content_hash.slice(0, 8)})`);
   if (profile.origin !== "exact") {
+    lines.push("Calibration: policy fitting; provider probability is not measured correctness.");
+    lines.push(`Declared reference provenance: ${profile.evidence?.label_provenance ?? "not recorded"}`);
+    lines.push(`Evidence method: ${profile.evidence?.statistical_method ?? "not recorded"}`);
+    for (const metric of profile.performance?.metrics ?? []) {
+      lines.push(`Observed ${metric.metric} (${metric.scope}): ${metric.numerator} of ${metric.denominator}`);
+    }
+    if (profile.performance?.intervals?.some(interval => interval.sampling === "grouped_cases")) {
+      lines.push("Grouped intervals estimate groups containing an event. They do not estimate the case error rate.");
+    }
+    for (const limitation of profile.performance?.slice_limitations ?? []) lines.push(`Limit: ${limitation}`);
+    lines.push("Declared provenance and content hashes do not authenticate human approval.");
     lines.push(`Next: ${PROFILE_NEXT_ACTION[profile.qualification.status]}`);
   }
   return lines;
@@ -1107,7 +1163,7 @@ function performanceLines(profile: Profile): string[] | undefined {
   }
   for (const interval of performance.intervals ?? []) {
     lines.push(
-      `  ${interval.metric} (${interval.scope}): ${num(interval.lower)} to ${num(interval.upper)} · ${interval.method} · confidence ${num(interval.confidence_level)}`,
+      `  ${interval.metric} (${interval.scope}): ${num(interval.lower)} to ${num(interval.upper)} · ${interval.method} · confidence ${num(interval.confidence_level)} · ${interval.event_draws ?? "unknown"} event draws of ${interval.draws ?? "unknown"} ${interval.sampling === "grouped_cases" ? "groups" : interval.sampling === "independent_cases" ? "cases" : "unspecified units"}`,
     );
   }
   const counts = Object.entries(performance.sample_counts ?? {});

@@ -10,17 +10,36 @@
  * The checks run the assembly script, so `npm run build` must run first.
  * They read local files only, so they stay offline and deterministic.
  */
-import { test, expect } from "vitest";
+import { test, expect, afterAll } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, symlinkSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const crateDir = path.join(repoRoot, "crates", "measuretwice-node");
+const packagingRoot = mkdtempSync(path.join(tmpdir(), "measuretwice-packaging-"));
+const crateDir = path.join(packagingRoot, "crates", "measuretwice-node");
 const publicDir = path.join(repoRoot, "packages", "measuretwice");
-const stageDir = path.join(repoRoot, "build", "package", "measuretwice");
+const stageDir = path.join(packagingRoot, "build", "package", "measuretwice");
+
+// Packaging writes only to this suite's workspace. Dependency files stay read-only.
+for (const relative of ["scripts", "contracts", "LICENSE", "package.json"]) {
+  cpSync(path.join(repoRoot, relative), path.join(packagingRoot, relative), { recursive: true });
+}
+mkdirSync(crateDir, { recursive: true });
+for (const name of readdirSync(path.join(repoRoot, "crates", "measuretwice-node"))) {
+  if (["package.json", "index.js", "index.d.ts"].includes(name) || name.endsWith(".node")) {
+    cpSync(path.join(repoRoot, "crates", "measuretwice-node", name), path.join(crateDir, name));
+  }
+}
+const packagedPublicDir = path.join(packagingRoot, "packages", "measuretwice");
+mkdirSync(packagedPublicDir, { recursive: true });
+for (const name of ["package.json", "dist", "binding.cjs", "binding.d.cts", "LICENSE", "README.md"]) {
+  cpSync(path.join(publicDir, name), path.join(packagedPublicDir, name), { recursive: true });
+}
+symlinkSync(path.join(repoRoot, "node_modules"), path.join(packagingRoot, "node_modules"), "junction");
+afterAll(() => rmSync(packagingRoot, { recursive: true, force: true }));
 
 /**
  * The declared target matrix. The table is the expectation of this check,
@@ -88,7 +107,7 @@ function packedFiles(directory: string): string[] {
   // the continuous-integration runners hold no spaces, so the plain join
   // of the shell stays safe there.
   const stdout = execFileSync("npm", ["pack", "--dry-run", "--json", directory], {
-    cwd: repoRoot,
+    cwd: packagingRoot,
     encoding: "utf8",
     shell: process.platform === "win32",
   });
@@ -104,8 +123,8 @@ function assemblePackages(): void {
   }
   execFileSync(
     process.execPath,
-    [path.join(repoRoot, "scripts", "build-packages.mjs")],
-    { cwd: repoRoot, encoding: "utf8" },
+    [path.join(packagingRoot, "scripts", "build-packages.mjs")],
+    { cwd: packagingRoot, encoding: "utf8" },
   );
   assembled = true;
 }
@@ -283,8 +302,8 @@ test("one collected artifact set displaces the local development binary", () => 
     writeFileSync(path.join(artifacts, `index.${abi}.node`), "collected-release-binary");
     execFileSync(
       process.execPath,
-      [path.join(repoRoot, "scripts", "build-packages.mjs"), "--artifacts", artifacts],
-      { cwd: repoRoot, encoding: "utf8" },
+      [path.join(packagingRoot, "scripts", "build-packages.mjs"), "--artifacts", artifacts],
+      { cwd: packagingRoot, encoding: "utf8" },
     );
     const assembled = readFileSync(path.join(crateDir, "npm", abi, `index.${abi}.node`), "utf8");
     expect(assembled).toBe("collected-release-binary");
@@ -292,8 +311,8 @@ test("one collected artifact set displaces the local development binary", () => 
     rmSync(artifacts, { recursive: true, force: true });
     // Restore the assembly from the local build outputs, so the checks that
     // read the assembled state stay unaffected.
-    execFileSync(process.execPath, [path.join(repoRoot, "scripts", "build-packages.mjs")], {
-      cwd: repoRoot,
+    execFileSync(process.execPath, [path.join(packagingRoot, "scripts", "build-packages.mjs")], {
+      cwd: packagingRoot,
       encoding: "utf8",
     });
   }

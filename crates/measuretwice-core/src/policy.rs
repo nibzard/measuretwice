@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//! The `probability_mass_v0` decision policy family.
+//! The `probability_mass_v1` decision policy family.
 //!
 //! One policy of this family decides one question outcome from the
 //! probability mass that the assessment reports on the acceptable and the
@@ -22,9 +22,8 @@
 //!   levels. The reported level and position name and place the answer.
 //!   They are not mass, and one ordinal mean cannot replace the
 //!   distribution.
-//! - One binary assessment derives the masses from its value and the
-//!   accepted answer, exactly zero or one, because Noul reports one value
-//!   and no distribution.
+//! - A binary probability supplies yes mass and its complement supplies no mass.
+//!   A label-only binary assessment reviews without invented probability.
 //!
 //! One optional confidence floor abstains where the answer kind supports
 //! confidence. One reported confidence below the floor reviews, and one
@@ -49,7 +48,7 @@ use crate::report::{AppliedPolicy, Outcome};
 use serde_json::Value;
 
 /// The family name of the contracts, as `profile.schema.json` states it.
-pub const FAMILY: &str = "probability_mass_v0";
+pub const FAMILY: &str = "probability_mass_v1";
 
 /// The JSON Pointer base that [`decide`] reports parameter failures under.
 ///
@@ -61,7 +60,7 @@ const PARAMETER_BASE: &str = "/applied_policy";
 /// The probability mass of one assessment on the two decisive answer sets.
 ///
 /// The two masses are measurement inputs read from one distribution, or the
-/// zero-one masses derived from one binary value. Their sum stays at or
+/// masses derived from the probability of yes. Their sum stays at or
 /// below one, because the review mass belongs to neither set.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Masses {
@@ -132,7 +131,7 @@ pub fn validate_policy(
     Ok(())
 }
 
-/// Decides one question outcome under the `probability_mass_v0` family.
+/// Decides one question outcome under the `probability_mass_v1` family.
 ///
 /// The order is fixed. The policy parameters and their fit come first, then
 /// the assessment contract, then one declared review label of one
@@ -190,6 +189,12 @@ pub fn decide(
         }
     }
 
+    if kind == CheckKind::Binary
+        && !map.contains_key("probability_yes")
+        && !map.contains_key("distribution")
+    {
+        return Ok(Outcome::Review);
+    }
     let reported = compute_masses(check, kind, assessment)?;
     if reported.acceptable >= policy.accept_cutoff {
         Ok(Outcome::Pass)
@@ -321,19 +326,22 @@ fn compute_masses(
     let sets = answer_sets(check);
     match kind {
         CheckKind::Binary => {
-            // One binary assessment derives its masses from its value and
-            // the accepted answer. Noul reports one value and no
-            // distribution, so the masses are exactly zero or one. One
-            // distribution that another evaluator reports is not read.
-            let value = map
-                .get("value")
-                .and_then(Value::as_bool)
-                .expect("validation checked the value");
-            let selected = if value { "yes" } else { "no" };
-            Ok(Masses {
-                acceptable: member(&sets.acceptable, selected),
-                unacceptable: member(&sets.unacceptable, selected),
-            })
+            if let Some(p) = map.get("probability_yes").and_then(Value::as_f64) {
+                return Ok(Masses {
+                    acceptable: p * member(&sets.acceptable, "yes")
+                        + (1.0 - p) * member(&sets.acceptable, "no"),
+                    unacceptable: p * member(&sets.unacceptable, "yes")
+                        + (1.0 - p) * member(&sets.unacceptable, "no"),
+                });
+            }
+            if let Some(Value::Array(entries)) = map.get("distribution") {
+                return Ok(Masses {
+                    acceptable: mass_over(entries, &sets.acceptable),
+                    unacceptable: mass_over(entries, &sets.unacceptable),
+                });
+            }
+            Err(ValidationError::new(ReasonCode::MissingField, "/assessment/probability_yes",
+                "The binary assessment supplies only a label. A mass policy requires probability information."))
         }
         CheckKind::Categorical | CheckKind::Ordered => {
             // One categorical or ordered assessment states its distribution.
@@ -344,7 +352,7 @@ fn compute_masses(
                 return Err(ValidationError::new(
                     ReasonCode::MissingField,
                     "/assessment/distribution",
-                    "The assessment states no distribution, and the probability_mass_v0 family decides on reported mass. One level, one position, and one ordinal mean cannot replace it.",
+                    "The assessment states no distribution, and the probability_mass_v1 family decides on reported mass. One level, one position, and one ordinal mean cannot replace it.",
                 ));
             };
             Ok(Masses {
@@ -707,16 +715,16 @@ mod tests {
                 policy(0.75, 0.65),
                 Outcome::Pass,
             ),
-            // One binary value derives exact zero-one masses.
+            // Synthetic binary probabilities at the endpoints decide without rounding.
             (
                 "adds-information",
-                json!({"kind": "binary", "value": false}),
+                json!({"kind": "binary", "probability_yes": 0.0}),
                 policy(0.9, 0.9),
                 Outcome::Pass,
             ),
             (
                 "adds-information",
-                json!({"kind": "binary", "value": true}),
+                json!({"kind": "binary", "probability_yes": 1.0}),
                 policy(0.9, 0.9),
                 Outcome::Fail,
             ),
@@ -725,13 +733,13 @@ mod tests {
             // unacceptable.
             (
                 "risk-accepted",
-                json!({"kind": "binary", "value": true}),
+                json!({"kind": "binary", "probability_yes": 1.0}),
                 policy(0.9, 0.9),
                 Outcome::Review,
             ),
             (
                 "risk-accepted",
-                json!({"kind": "binary", "value": false}),
+                json!({"kind": "binary", "probability_yes": 0.0}),
                 policy(0.9, 0.9),
                 Outcome::Pass,
             ),
@@ -1083,32 +1091,115 @@ mod tests {
     }
 
     #[test]
-    fn noul_values_derive_exact_zero_one_masses() {
+    fn binary_distributions_supply_measurements_without_label_certainty() {
         let definition = definition();
-        for (value, acceptable, unacceptable) in [(false, 1.0, 0.0), (true, 0.0, 1.0)] {
-            let reported = masses(
+        let measured = json!({"kind": "binary", "value": false,
+            "distribution": [{"name": "yes", "mass": 0.49}, {"name": "no", "mass": 0.51}]});
+        assert_eq!(
+            masses(&definition, "adds-information", &measured).unwrap(),
+            Masses {
+                acceptable: 0.51,
+                unacceptable: 0.49
+            }
+        );
+        assert_eq!(
+            decide(
                 &definition,
                 "adds-information",
-                &json!({"kind": "binary", "value": value}),
+                &measured,
+                &policy(0.8, 0.6)
             )
-            .unwrap_or_else(|error| panic!("the value derives mass: {error}"));
-            assert_eq!(reported.acceptable, acceptable, "value {value}");
-            assert_eq!(reported.unacceptable, unacceptable, "value {value}");
-        }
+            .unwrap(),
+            Outcome::Review
+        );
+    }
 
-        // One distribution on one binary assessment is not read, because
-        // the family derives the binary masses from the value.
-        let with_distribution = json!({
-            "kind": "binary",
-            "value": false,
-            "distribution": [
-                {"name": "yes", "mass": 0.9},
-                {"name": "no", "mass": 0.1}
-            ]
-        });
-        let reported = masses(&definition, "adds-information", &with_distribution)
-            .unwrap_or_else(|error| panic!("the value derives mass: {error}"));
-        assert_eq!(reported.acceptable, 1.0);
-        assert_eq!(reported.unacceptable, 0.0);
+    #[test]
+    fn binary_probability_preserves_uncertainty_and_label_only_reviews() {
+        let definition = definition();
+        for (probability, expected) in [
+            (0.0, Outcome::Pass),
+            (0.2, Outcome::Pass),
+            (0.49, Outcome::Review),
+            (0.5, Outcome::Review),
+            (0.51, Outcome::Review),
+            (0.6, Outcome::Fail),
+            (0.99, Outcome::Fail),
+            (1.0, Outcome::Fail),
+        ] {
+            let measured = json!({"kind": "binary", "probability_yes": probability});
+            assert_eq!(
+                decide(
+                    &definition,
+                    "adds-information",
+                    &measured,
+                    &policy(0.8, 0.6)
+                )
+                .unwrap(),
+                expected
+            );
+            let categorical = json!({"kind": "categorical", "label": "contradicted",
+                "distribution": [{"name": "supported", "mass": 1.0 - probability},
+                                 {"name": "contradicted", "mass": probability}]});
+            assert_eq!(
+                masses(&definition, "adds-information", &measured).unwrap(),
+                masses(&definition, "message-supported", &categorical).unwrap()
+            );
+        }
+        assert_eq!(
+            decide(
+                &definition,
+                "adds-information",
+                &json!({"kind": "binary", "value": false}),
+                &policy(0.8, 0.6)
+            )
+            .unwrap(),
+            Outcome::Review
+        );
+        assert!(masses(
+            &definition,
+            "adds-information",
+            &json!({"kind": "binary", "value": false})
+        )
+        .is_err());
+    }
+    #[test]
+    fn yes_acceptance_uses_probability_and_rejects_ambiguous_measurements() {
+        let mut artifact = serde_json::to_value(definition().as_definition()).unwrap();
+        artifact["checks"][1]["accept"] = json!("yes");
+        let definition = crate::definition::validate_definition_str(&artifact.to_string()).unwrap();
+        for (p, outcome) in [
+            (0.0, Outcome::Fail),
+            (0.49, Outcome::Review),
+            (0.5, Outcome::Review),
+            (0.51, Outcome::Review),
+            (0.8, Outcome::Pass),
+            (1.0, Outcome::Pass),
+        ] {
+            assert_eq!(
+                decide(
+                    &definition,
+                    "adds-information",
+                    &json!({"kind":"binary", "probability_yes":p}),
+                    &policy(0.8, 0.6)
+                )
+                .unwrap(),
+                outcome
+            );
+        }
+        for invalid in [
+            json!({"kind":"binary", "probability_yes":-0.1}),
+            json!({"kind":"binary", "probability_yes":1.1}),
+            json!({"kind":"binary", "probability_yes":"0.9"}),
+            json!({"kind":"binary", "probability_yes":null}),
+            json!({"kind":"binary", "probability_yes":0.9,"value":true}),
+            json!({"kind":"binary", "probability_yes":0.9,"distribution":[{"name":"yes","mass":0.9},{"name":"no","mass":0.1}]}),
+            json!({"kind":"binary", "value":"true"}),
+        ] {
+            assert!(
+                assessment::validate_assessment(&definition, "adds-information", &invalid).is_err(),
+                "{invalid}"
+            );
+        }
     }
 }

@@ -8,7 +8,7 @@
  * inside the bounds of one exploration profile. They pin the report
  * records (outcome, raw assessment, applied policy, evaluator versions,
  * timing, usage, attempts), the projected requests that the evaluators
- * receive, the decision table of the `probability_mass_v0` family, the
+ * receive, the decision table of the `probability_mass_v1` family, the
  * bounded retries and the permanent failures, the queue saturation skip,
  * the total deadline, the caller cancellation, and the immutable terminal
  * report. They read local files only, so they stay offline and
@@ -129,7 +129,7 @@ const SUPPORTED = {
 
 /** One passing binary answer: the conversation acknowledged nothing. */
 const NOTHING_NEW = {
-  assessment: { kind: "binary", value: false },
+  assessment: { kind: "binary", probability_yes: 0 },
   model_resolved: "jev-1.13.0",
   usage: { input_tokens: 800, output_tokens: 8 },
   latency_ms: 120,
@@ -348,7 +348,7 @@ test("identical inputs, clocks, and scripts give identical reports", async () =>
 });
 
 // ---------------------------------------------------------------------------
-// The decision table of the probability_mass_v0 family.
+// The decision table of the probability_mass_v1 family.
 // ---------------------------------------------------------------------------
 
 /** Runs the mixed definition with one scripted answer per question check. */
@@ -374,7 +374,7 @@ test("reported mass decides pass, fail, and review per answer shape", async () =
     await decideWith(
       [
         SUPPORTED,
-        { assessment: { kind: "binary", value: true } },
+        { assessment: { kind: "binary", probability_yes: 1 } },
         {
           assessment: {
             kind: "ordered",

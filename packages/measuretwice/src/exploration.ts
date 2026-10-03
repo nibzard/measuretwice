@@ -23,7 +23,7 @@
  * measured; the binding records the requested alias alone, and one later run
  * that states one resolution compares it.
  *
- * The generator owns no validation of its own. It signs the artifact with
+ * The generator owns no validation of its own. It hashes the artifact with
  * the core self-hash, then runs the complete profile contract and the shadow
  * compatibility check of the core over the result, so the returned profile
  * is one artifact that `load` accepts. The returned value is frozen and
@@ -131,7 +131,7 @@ const EXPLORATION_SCOPE =
 // ---------------------------------------------------------------------------
 
 /**
- * Generates one signed exploration profile from one validated definition and
+ * Generates one content-hashed exploration profile from one validated definition and
  * the registered evaluators.
  *
  * The returned artifact binds one evaluator per question check, records the
@@ -249,7 +249,7 @@ export function createExplorationProfile(
       `Development exploration of the definition ${info.name}. Not a measured population, and starter thresholds carry no qualification evidence.`,
     definition: { name: info.name, content_hash: info.definitionHash },
     bindings,
-    policy: { family: "probability_mass_v0", checks: policyChecks },
+    policy: { family: "probability_mass_v1", checks: policyChecks },
     execution,
     qualification: {
       status: "unvalidated",

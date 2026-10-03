@@ -225,7 +225,7 @@ const registry = registerEvaluators(evaluator);
 **Inputs:** one options object. `call` is the Jev call boundary,
 structurally the `systemOne` operation of the pinned `@typesafe-ai/sdk`.
 `model` is one versioned identifier; the default is `jev-1.13.0`. `id`
-defaults to `jev`. `adapter_version` defaults to `0.1.0`. `now` overrides the
+defaults to `jev`. `adapter_version` defaults to `0.2.0`. `now` overrides the
 clock for tests.
 
 **Output:** one evaluator with one `translate` operation. The adapter
@@ -243,12 +243,11 @@ the budget is rejected before the provider call with `oversized_input`, and
 nothing is truncated. Supplied messages are untrusted evidence. Embedded
 instructions stay one string value and reach no permission and no tool.
 
-**Failure behavior:** provider failures map to `evaluator_error` with one
-sanitized message that keeps the class, the status, and the request
-identifier, without one echoed body. One attempt above its budget records
-`evaluator_timeout`. One answer outside the pinned SDK shape records
-`invalid_assessment` or `evaluator_error`. The operational record keeps the
-model version that answered and the usage of the request.
+**Failure behavior:** provider failures retain sanitized operational codes.
+Authentication, permission, invalid requests, and unknown failures do not retry.
+Timeouts, connection failures, rate limits, and server failures can retry.
+Malformed answers record `invalid_assessment`. Records retain the resolved model and usage.
+See [operational recovery](../guides/operations.md) for codes and repair actions.
 
 The verified provider contract, the pinned SDK version, and the answer
 shapes are recorded in
@@ -358,7 +357,7 @@ import { createScriptedEvaluator, type TestEvaluatorControl } from "measuretwice
 const steps: readonly TestEvaluatorControl[] = [
   {
     // One valid answer. The assessment kind matches the check shape:
-    // categorical with `label`, binary with `value`, ordered with `level`.
+    // categorical with `label`, binary with `probability_yes` or a label-only `value`, ordered with `level`.
     answer: {
       assessment: {
         kind: "categorical",
@@ -420,7 +419,7 @@ settings: `id` (default: the definition name plus `-exploration`), one
 evaluator, `starter` and `starterChecks` policy parameters, and `execution`
 overrides.
 
-**Output:** one signed profile artifact that `load` accepts. The profile
+**Output:** one content-hashed profile artifact that `load` accepts. The profile
 binds one evaluator per question check, records the translated question of
 each adapter that exposes one, and stays `unvalidated` with reason
 `starter_policy`. The value is frozen and holds no credential and no case
@@ -748,7 +747,7 @@ calibration measures it. An optional `onRun` sink receives every terminal report
 It includes failed, cancelled, and timed-out runs. Both sinks are awaited.
 A throwing sink refuses the operation. Neither sink enables automatic resumption.
 
-**Output:** one `Calibration`. `profile` is the signed candidate artifact,
+**Output:** one `Calibration`. `profile` is the content-hashed candidate artifact,
 loadable as generated. `fitting` is the fitting report of the bounded search.
 `qualification` is the frozen validation on the independent split, or
 `undefined` when no feasible candidate exists. `runs` holds one run report
@@ -1102,3 +1101,30 @@ contractVersion(); // 1
 Returns the portable contract schema version that the Rust core implements.
 The v0 contracts use version 1. The function reads the native boundary and
 changes nothing.
+
+## Binary measurement migration
+
+Jev adapter `0.2.0` returns `{ kind: "binary", probability_yes: p }`.
+The `probability_mass_v1` policy preserves uncertainty. A label-only binary assessment produces review.
+Regenerate profiles and repeat qualification before relying on changed binary behavior.
+See [the contract migration](../../contracts/README.md#binary-probability-migration) for the compatibility rules.
+
+## Inspect local evidence
+
+Pass `caseInput` to `renderRunReport` or `renderRunReportMarkdown` to display the case beside its judgment.
+The host resolves private evidence and supplies the original input locally.
+The renderer validates the input and checks its hash against the report before displaying it.
+A mismatch throws `hash_mismatch`. Invalid input retains its validation error.
+The view shows only each check's authorized inputs. It states when evaluator rationale is not recorded.
+The option adds no data to the report and performs no file or network access.
+Input limits are the same as case validation. Output can contain private content because the host explicitly supplies it.
+
+```ts
+import { renderRunReport, type Definition, type RunReport, type JSONValue } from "measuretwice";
+
+export function inspectCase(definition: Definition, report: RunReport, input: Readonly<Record<string, JSONValue>>): string {
+  return renderRunReport(definition, report, { caseInput: input });
+}
+```
+
+Use [structured recovery](../guides/operations.md#use-structured-recovery) to inspect operational failures.

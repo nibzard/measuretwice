@@ -806,7 +806,7 @@ test("one evidence state above the Jev budget records one error and makes no cal
   const broken = recordOf(report, "claim-covered");
   expect(broken).toMatchObject({
     outcome: "error",
-    reason: { code: "evaluator_error" },
+    reason: { code: "oversized_input" },
   });
   expect(broken.reason?.message).toContain("oversized_input");
   expect(broken.reason?.message).toContain("truncates nothing");
@@ -1661,7 +1661,7 @@ test("the shared fixtures run through the exact, Jev-fixture, and label-only ada
   expect(jevRecord.assessment).toEqual(providerFixture.expected.assessment);
   expect(jevRecord.evaluator).toEqual({
     id: "jev",
-    adapter_version: "0.1.0",
+    adapter_version: "0.2.0",
     model_resolved: "jev-1.13.0",
   });
   expect(jevRecord.outcome).toBe("pass");

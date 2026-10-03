@@ -207,7 +207,7 @@ host keeps the client, the credential, and the endpoint.
 | Answer | Assessment | Rules |
 | --- | --- | --- |
 | Choice | `categorical` | `choice` crosses as `label`. `probabilities` becomes the `distribution` over every declared label, in the declared order. `confidence` crosses as `confidence`. |
-| Noul | `binary` | `noul` is the probability of yes. One half or more selects yes; less selects no. No confidence crosses, because Noul defines none. No distribution is derived: the v0 policy derives the masses from the value, as MVP_SPEC.md section 6 states. |
+| Noul | `binary` | `noul` crosses as `probability_yes` without thresholding. No confidence crosses, because Noul defines none. Rust derives yes and no masses from the probability and its complement. |
 | Score | `ordered` | `score` crosses as `position` without rounding. The nearest level becomes `level`; one tie between two levels selects the higher level. `probabilities` maps the level indices to the declared level names, in the declared order. `confidence` crosses as `confidence`. The `legend` is one echo of the sent descriptions and is consumed by nothing. |
 
 Verified details behind the rules:
@@ -242,7 +242,10 @@ Failure mapping:
 | One response or answer outside the recorded shapes, one undeclared label or level index, one value outside its range, one incomplete usage object, one missing model identifier, one unknown answer type | `invalid_assessment` | Names the defect. |
 | `APIUserAbortError`, one aborted signal before or after one answer | `evaluator_timeout` | States the abort. One answer that arrives after one abort is dropped. |
 | `APITimeoutError`, one spent attempt deadline | `evaluator_timeout` | States the timeout. |
-| Every other thrown error | `evaluator_error` | The class name, the numeric `status`, and the string `requestId`. |
+| Authentication, permission, or invalid request | `evaluator_authentication`, `evaluator_permission`, `evaluator_request` | Safe class, status, and request identifier. No retry. |
+| Rate limit | `evaluator_rate_limit` | Safe class, status, and request identifier. Retry within the host budget. |
+| Server or connection failure | `evaluator_error` | Safe class, status, and request identifier. Retry within the host budget. |
+| Unknown cause | `evaluator_unknown` | Safe class, status, and request identifier. Stop for inspection. |
 
 The adapter sanitizes provider error text by construction: it reads the
 class name, the status, and the request identifier, and it reads no message,

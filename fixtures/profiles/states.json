@@ -27,7 +27,7 @@
         }
       ],
       "policy": {
-        "family": "probability_mass_v0",
+        "family": "probability_mass_v1",
         "checks": [
           {
             "check": "message-supported",
@@ -50,7 +50,7 @@
           "starter_policy"
         ]
       },
-      "content_hash": "84b0ebd8eeb9c3f172a25472cdc79a03a8614df6f96f0409a579087b29adf1cc"
+      "content_hash": "6fff2aa9065c871da44b6ed1774d666a8ce889880239d3635e4ab85e7ec34602"
     },
     {
       "schema_version": 1,
@@ -106,7 +106,7 @@
         }
       ],
       "policy": {
-        "family": "probability_mass_v0",
+        "family": "probability_mass_v1",
         "checks": [
           {
             "check": "message-supported",
@@ -196,7 +196,7 @@
           "measured_evidence"
         ]
       },
-      "content_hash": "e696f33a1606190b2bb041a80e3113c7bd2aeb6a30b6d6529c85d29033de396d"
+      "content_hash": "7fd785cfae7aba62bcbb777acb0b2da5b7d25a6b9f2cefff4d1ad56c086d855c"
     },
     {
       "schema_version": 1,
@@ -223,7 +223,7 @@
         }
       ],
       "policy": {
-        "family": "probability_mass_v0",
+        "family": "probability_mass_v1",
         "checks": [
           {
             "check": "message-supported",
@@ -297,7 +297,7 @@
           "insufficient_evidence"
         ]
       },
-      "content_hash": "b110d32d3a489f99800b2473c1329d60b28a197f90b3f0895531a3ee458b4233"
+      "content_hash": "d07e6890ad294e3f58427e4763a04ca910a780728c5fd1ce029debc269ac5791"
     },
     {
       "schema_version": 1,
@@ -324,7 +324,7 @@
         }
       ],
       "policy": {
-        "family": "probability_mass_v0",
+        "family": "probability_mass_v1",
         "checks": [
           {
             "check": "message-supported",
@@ -408,7 +408,7 @@
           "criteria_not_met"
         ]
       },
-      "content_hash": "3d454998fe2012bbb58ed2e32c5b83f22e0d31e458a6bf69ebc40f3b3f7e8985"
+      "content_hash": "70ebb89ee28c4519129eefb60eb0ba5911a8741edf720e0718c90721914f0c95"
     }
   ],
   "invalid": [
@@ -439,7 +439,7 @@
           }
         ],
         "policy": {
-          "family": "probability_mass_v0",
+          "family": "probability_mass_v1",
           "checks": [
             {
               "check": "message-supported",
@@ -544,7 +544,7 @@
           }
         ],
         "policy": {
-          "family": "probability_mass_v0",
+          "family": "probability_mass_v1",
           "checks": [
             {
               "check": "message-supported",
@@ -600,7 +600,7 @@
           }
         ],
         "policy": {
-          "family": "probability_mass_v0",
+          "family": "probability_mass_v1",
           "checks": [
             {
               "check": "message-supported",
@@ -811,7 +811,7 @@
       "against_definition": "categorical-question.json",
       "mode": "enforcement",
       "requested_scope": "The Cassandra pilot conversation population declared in the plan.",
-      "selected_hash": "e696f33a1606190b2bb041a80e3113c7bd2aeb6a30b6d6529c85d29033de396d",
+      "selected_hash": "7fd785cfae7aba62bcbb777acb0b2da5b7d25a6b9f2cefff4d1ad56c086d855c",
       "live": [
         {
           "check": "message-supported",
@@ -827,7 +827,7 @@
       "against_definition": "categorical-question.json",
       "mode": "enforcement",
       "requested_scope": "The Cassandra pilot conversation population declared in the plan.",
-      "selected_hash": "e696f33a1606190b2bb041a80e3113c7bd2aeb6a30b6d6529c85d29033de396d",
+      "selected_hash": "7fd785cfae7aba62bcbb777acb0b2da5b7d25a6b9f2cefff4d1ad56c086d855c",
       "live": [
         {
           "check": "message-supported",
@@ -847,7 +847,7 @@
       "against_definition": "categorical-question.json",
       "mode": "enforcement",
       "requested_scope": "The Cassandra pilot conversation population declared in the plan.",
-      "selected_hash": "3d454998fe2012bbb58ed2e32c5b83f22e0d31e458a6bf69ebc40f3b3f7e8985",
+      "selected_hash": "70ebb89ee28c4519129eefb60eb0ba5911a8741edf720e0718c90721914f0c95",
       "live": [
         {
           "check": "message-supported",

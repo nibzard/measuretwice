@@ -293,7 +293,7 @@ test("one changed translation changes the evaluator binding while the definition
         },
       ],
       policy: {
-        family: "probability_mass_v0",
+        family: "probability_mass_v1",
         checks: [{ check: categorical.check, accept_cutoff: 0.75, rejection_cutoff: 0.65 }],
       },
       execution: { max_active: 4, max_pending: 16, deadline_ms: 30000, max_attempts: 2, backoff_ms: 200 },

@@ -6,7 +6,7 @@ that now hold it in the ordinary suites.
 
 [MVP_SPEC.md](../../MVP_SPEC.md#12-runtime-boundaries) section 12 states
 the runtime boundaries and
-[AGENTS.md](../../AGENTS.md#10-make-failures-explicit) section 10 states
+[AGENTS.md](../contributing/engineering.md#10-make-failures-explicit) section 10 states
 the failure rules behind them. The acceptance criteria of
 [MVP_SPEC.md](../../MVP_SPEC.md#15-acceptance-criteria) section 15 name
 the behaviors under test: cancellation, deadlines, retries, concurrency,

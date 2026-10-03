@@ -41,7 +41,7 @@
  * two phases of one calibration.
  *
  * The result holds one candidate profile and the reports behind it. The
- * profile is one artifact of the frozen profile contract, signed with the
+ * profile is one artifact of the frozen profile contract, content-hashed with the
  * core self-hash, validated through the complete contract and the shadow
  * compatibility check, and loaded once through the public `load` before it
  * returns, so the host receives one artifact that binds as generated. Its
@@ -519,7 +519,7 @@ export interface QualificationReport {
 
 /** The complete result of one calibration. */
 export interface Calibration {
-  /** The candidate profile artifact. Frozen, signed, and loadable as generated. */
+  /** The candidate profile artifact. Frozen, content-hashed, and loadable as generated. */
   readonly profile: Profile;
   /** The fitting report: the search over the development assessments. */
   readonly fitting: FittingReport;
@@ -1109,13 +1109,13 @@ export interface CandidateInput {
 }
 
 /**
- * Builds, signs, and proves one candidate profile.
+ * Builds, hashes, and validates one candidate profile.
  *
  * The artifact copies the evaluator bindings of the measurement profile
  * with the resolved model version, applies the frozen candidate to every
  * question check, records the complete evidence the profile contract
  * requires, and states the qualification the evidence established. The core
- * signs it with the profile self-hash and validates the complete contract.
+ * hashes it with the profile self-hash and validates the complete contract.
  * One load through the public boundary then proves the artifact binds to
  * the definition and the live evaluators as generated, so the host receives
  * one profile that `load` accepts.
@@ -1138,7 +1138,7 @@ export async function candidateProfile(input: CandidateInput): Promise<Profile> 
     },
     bindings,
     policy: {
-      family: "probability_mass_v0",
+      family: "probability_mass_v1",
       checks: (input.measurement.policy.checks ?? []).map((entry) => ({
         check: entry.check,
         accept_cutoff: input.candidate.accept_cutoff,
@@ -1179,7 +1179,7 @@ export async function candidateProfile(input: CandidateInput): Promise<Profile> 
   const profile: Profile = { ...artifact, content_hash: contentHash };
   const profileText = JSON.stringify(profile);
 
-  // The core validates the signed artifact, then the public boundary proves
+  // The core validates the content-hashed artifact, then the public boundary proves
   // it loads: the complete contract, the stored self-hash, and the shadow
   // compatibility of every binding.
   const validated = throughCore(() => nativeValidateProfile(profileText));

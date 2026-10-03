@@ -2096,11 +2096,13 @@ fn outcome_record(index: usize, outcome: report::Outcome) -> report::CheckRecord
             code: ReasonCode::EvaluatorError,
             message: "The adapter reported a network failure.".to_owned(),
             field_path: None,
+            recovery: None,
         }),
         report::Outcome::Skipped => Some(report::SanitizedReason {
             code: ReasonCode::QueueFull,
             message: "The pending-work limit stopped this check.".to_owned(),
             field_path: None,
+            recovery: None,
         }),
         _ => None,
     };
@@ -2879,7 +2881,7 @@ fn assessment_samples_validate_against_their_checks() {
 // ---------------------------------------------------------------------------
 
 /// Decides one sample of the assessments group under one policy of the
-/// `probability_mass_v0` family. The `assessments` map of the sample's kind
+/// `probability_mass_v1` family. The `assessments` map of the sample's kind
 /// holds one acceptable and one unacceptable answer, so the cutoffs decide.
 fn sample_policy() -> measuretwice_core::report::AppliedPolicy {
     measuretwice_core::report::AppliedPolicy {
@@ -2917,8 +2919,8 @@ fn assessment_samples_decide_under_the_probability_mass_family() {
         // The binary check accepts no, and the value selects yes.
         (
             "A binary assessment holds a value and nothing else.",
-            "fail",
-            Outcome::Fail,
+            "review",
+            Outcome::Review,
         ),
         // The distribution puts 0.9 on the levels from at_least upward.
         (

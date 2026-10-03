@@ -5,9 +5,13 @@
   "description": "Typed measurement returned by one evaluator execution. An absent optional field was not measured. Never invent a missing measurement. The run report records the binding identity next to the assessment.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind"],
+  "required": [
+    "kind"
+  ],
   "properties": {
-    "kind": {"$ref": "common.schema.json#/$defs/answer_kind"},
+    "kind": {
+      "$ref": "common.schema.json#/$defs/answer_kind"
+    },
     "label": {
       "type": "string",
       "minLength": 1,
@@ -35,7 +39,10 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "mass"],
+        "required": [
+          "name",
+          "mass"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -43,7 +50,11 @@
             "maxLength": 64,
             "description": "Answer label or scale level."
           },
-          "mass": {"type": "number", "minimum": 0, "maximum": 1}
+          "mass": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
         }
       },
       "description": "Probability mass by answer or level, when the evaluator reports it. Names must match the check answers or levels. Masses must sum to one. A distribution is a measurement input, not a calibrated probability of correctness."
@@ -59,9 +70,14 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["input", "reference"],
+        "required": [
+          "input",
+          "reference"
+        ],
         "properties": {
-          "input": {"$ref": "common.schema.json#/$defs/input_name"},
+          "input": {
+            "$ref": "common.schema.json#/$defs/input_name"
+          },
           "reference": {
             "type": "string",
             "minLength": 1,
@@ -71,52 +87,152 @@
         }
       },
       "description": "Evidence selected by the evaluator. Each input must be in the using list of the check. Absent when the evaluator returns none."
+    },
+    "probability_yes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Reported probability of yes. Binary only. Excludes value and distribution."
     }
   },
   "allOf": [
     {
       "if": {
-        "properties": {"kind": {"const": "categorical"}},
-        "required": ["kind"]
+        "properties": {
+          "kind": {
+            "const": "categorical"
+          }
+        },
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["label"],
+        "required": [
+          "label"
+        ],
         "not": {
           "anyOf": [
-            {"required": ["value"]},
-            {"required": ["level"]},
-            {"required": ["position"]}
+            {
+              "required": [
+                "value"
+              ]
+            },
+            {
+              "required": [
+                "level"
+              ]
+            },
+            {
+              "required": [
+                "position"
+              ]
+            },
+            {
+              "required": [
+                "probability_yes"
+              ]
+            }
           ]
         }
       }
     },
     {
       "if": {
-        "properties": {"kind": {"const": "binary"}},
-        "required": ["kind"]
+        "properties": {
+          "kind": {
+            "const": "binary"
+          }
+        },
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["value"],
         "not": {
           "anyOf": [
-            {"required": ["label"]},
-            {"required": ["level"]},
-            {"required": ["position"]}
+            {
+              "required": [
+                "label"
+              ]
+            },
+            {
+              "required": [
+                "level"
+              ]
+            },
+            {
+              "required": [
+                "position"
+              ]
+            }
           ]
-        }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "value"
+            ],
+            "not": {
+              "required": [
+                "probability_yes"
+              ]
+            }
+          },
+          {
+            "required": [
+              "probability_yes"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "value"
+                  ]
+                },
+                {
+                  "required": [
+                    "distribution"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
       "if": {
-        "properties": {"kind": {"const": "ordered"}},
-        "required": ["kind"]
+        "properties": {
+          "kind": {
+            "const": "ordered"
+          }
+        },
+        "required": [
+          "kind"
+        ]
       },
       "then": {
-        "required": ["level"],
+        "required": [
+          "level"
+        ],
         "not": {
           "anyOf": [
-            {"required": ["label"]},
-            {"required": ["value"]}
+            {
+              "required": [
+                "label"
+              ]
+            },
+            {
+              "required": [
+                "value"
+              ]
+            },
+            {
+              "required": [
+                "probability_yes"
+              ]
+            }
           ]
         }
       }

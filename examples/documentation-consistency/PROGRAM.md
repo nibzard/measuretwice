@@ -5,6 +5,9 @@ Read [the brief](BRIEF.md) for the broader experiment.
 
 Read [the results record](RESULTS.md) for two executed live development revisions on repository excerpts.
 
+The [integration comparator](comparison/README.md) runs current-source cases through measuretwice and a separate direct evaluator path.
+Its [engineering trial](evidence/comparison-2026-09-30/CONCLUSION.md) includes a blind review sheet and preserves unreviewed reference provenance.
+
 ## Goal and required primitives
 
 Detect disagreement between a documented default and its authoritative contract.

@@ -437,7 +437,7 @@ function controlsOf(answers: ScenarioAnswers): Readonly<Record<string, { readonl
     },
     "unrequested-work": {
       answer: {
-        assessment: { kind: "binary", value: answers.unrequested },
+        assessment: { kind: "binary", probability_yes: answers.unrequested ? 1 : 0 },
         latency_ms: 90,
       },
     },

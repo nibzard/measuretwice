@@ -1773,7 +1773,7 @@ mod tests {
         (metadata, records, grouped)
     }
 
-    /// One prior calibration profile over the shared artifacts, signed
+    /// One prior calibration profile over the shared artifacts, content-hashed
     /// with its computed self-hash. `status` states its qualification.
     fn prior_profile(
         definition: &ValidatedDefinition,
@@ -1806,7 +1806,7 @@ mod tests {
                 }
             }],
             "policy": {
-                "family": "probability_mass_v0",
+                "family": "probability_mass_v1",
                 "checks": [{
                     "check": "message-supported",
                     "accept_cutoff": 0.6,
@@ -1855,7 +1855,7 @@ mod tests {
     }
 
     /// Signs one edited profile artifact with its computed self-hash.
-    fn signed(mut artifact: Value) -> Value {
+    fn with_hash(mut artifact: Value) -> Value {
         artifact
             .as_object_mut()
             .expect("one object")
@@ -2185,7 +2185,7 @@ mod tests {
         // live preprocessing changed.
         let mut prior: Value = serde_json::from_str(&input.prior_profile).expect("one profile");
         prior["bindings"][0]["preprocessing"] = json!("plain-v1");
-        input.prior_profile = serde_json::to_string(&signed(prior)).expect("serializes");
+        input.prior_profile = serde_json::to_string(&with_hash(prior)).expect("serializes");
         input.live[0].preprocessing = Some("plain-v2".to_owned());
         let error = check(&input).expect_err("the preprocessing changed");
         assert_eq!(error.code, ReasonCode::EvaluatorMismatch);
@@ -2282,7 +2282,7 @@ mod tests {
         let (_, _, grouped) = loaded("conversation-b");
         let mut unfinished = prior_profile(&definition, &plan, &grouped, "criteria_not_met");
         unfinished["qualification"]["reasons"] = json!(["criteria_not_met"]);
-        unfinished = signed(unfinished);
+        unfinished = with_hash(unfinished);
         input.prior_profile = serde_json::to_string(&unfinished).expect("serializes");
         input.runs = stored_runs(&unfinished, &definition);
         let mut fitting: Value =
@@ -2304,7 +2304,7 @@ mod tests {
             .remove("evidence");
         exploration["qualification"] =
             json!({"status": "unvalidated", "reasons": ["starter_policy"]});
-        input.prior_profile = serde_json::to_string(&signed(exploration)).expect("serializes");
+        input.prior_profile = serde_json::to_string(&with_hash(exploration)).expect("serializes");
         let error = check(&input).expect_err("an exploration profile is no prior");
         assert_eq!(error.code, ReasonCode::InvalidFieldType);
         assert_eq!(error.field_path, "/prior/origin");

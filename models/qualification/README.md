@@ -114,7 +114,7 @@ run step that breaks one.
 
 No progress property is checked. The model has no terminal phase. The
 lifecycle is ongoing: a demoted profile can requalify, and the host can
-select again. AGENTS.md section 7 requires progress checks only when a
+select again. The engineering rules in `docs/contributing/engineering.md` section 7 requires progress checks only when a
 concrete progress risk exists. Termination of a single run belongs to
 the [execution model](../execution/README.md). The specification
 therefore carries no fairness assumption.

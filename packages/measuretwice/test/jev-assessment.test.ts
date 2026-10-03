@@ -330,7 +330,7 @@ test("one requested model override reaches the boundary", async () => {
 // The normalization rules, directly.
 // ---------------------------------------------------------------------------
 
-test("one Noul value of one half selects yes and one tie between levels selects the higher level", () => {
+test("Noul preserves one half and one Score tie selects the higher level", () => {
   const binary: ValidatedQuestion = {
     kind: "binary",
     question: "Does the evidence support the claim?",
@@ -349,7 +349,7 @@ test("one Noul value of one half selects yes and one tie between levels selects 
   if (!("assessment" in tie)) {
     throw new Error("expected one assessment execution");
   }
-  expect(tie.assessment).toEqual({ kind: "binary", value: true });
+  expect(tie.assessment).toEqual({ kind: "binary", probability_yes: 0.5 });
   expect("confidence" in tie.assessment).toBe(false);
 
   const ordered: ValidatedQuestion = {
@@ -468,7 +468,7 @@ test("provider errors map to sanitized failures that keep the operational reason
   const rate = mapJevError(
     providerError("RateLimitError", hostile, { status: 429, requestId: "req-4711" }),
   );
-  expect(rate.code).toBe("evaluator_error");
+  expect(rate.code).toBe("evaluator_rate_limit");
   expect(rate.message).toContain("RateLimitError");
   expect(rate.message).toContain("429");
   expect(rate.message).toContain("req-4711");
@@ -490,7 +490,7 @@ test("provider errors map to sanitized failures that keep the operational reason
   expect(plainAbort.code).toBe("evaluator_timeout");
 
   const notAnError = mapJevError("the connection melted");
-  expect(notAnError.code).toBe("evaluator_error");
+  expect(notAnError.code).toBe("evaluator_unknown");
   expect(notAnError.message).toContain("an unknown error value");
 
   // One overlong request identifier is bounded, and control characters
@@ -602,11 +602,20 @@ test("the normalization invents no measurement the response does not state", asy
     throw new Error("expected one assessment execution");
   }
   // The hostile confidence field of the response is consumed by nothing.
-  expect(Object.keys(result.assessment)).toEqual(["kind", "value"]);
+  expect(Object.keys(result.assessment)).toEqual(["kind", "probability_yes"]);
   const text = JSON.stringify(result);
   for (const absent of ["confidence", "distribution", "position", "evidence", "legend"]) {
     expect(text, absent).not.toContain(`"${absent}"`);
   }
   // The recorded usage is the response usage, not one derived amount.
   expect(result.usage).toEqual(noul.response.usage);
+});
+
+
+test.each([0, 0.49, 0.5, 0.51, 0.99, 1])("Noul preserves probability %s without an early decision", (probability) => {
+  const result = normalizeJevExecution({ model: JEV_DEFAULT_MODEL,
+    usage: { input_tokens: 1, output_tokens: 1 },
+    answers: { check: { type: "noul", noul: probability } } },
+    { kind: "binary", question: "Is it supported?", answers: { yes: "Supported", no: "Unsupported" } }, "check", 0);
+  expect(result).toHaveProperty("assessment", { kind: "binary", probability_yes: probability });
 });

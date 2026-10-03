@@ -300,7 +300,7 @@ pub struct DecidedQuestion {
 /// The definition text must pass the definition contract. The assessment
 /// text must pass the strict gate and the assessment contract of its check.
 /// The policy text states `{ accept_cutoff, rejection_cutoff,
-/// confidence_floor? }` of the `probability_mass_v0` family, exactly as the
+/// confidence_floor? }` of the `probability_mass_v1` family, exactly as the
 /// bound profile records it for the check. The measurements text states
 /// `{ evaluator?, timing?, usage? }`. The boundary decides through the core
 /// policy, builds the question record with the assessment, the applied
@@ -344,7 +344,7 @@ pub struct ProfileInfo {
     pub definition_name: String,
     /// The content hash of the bound definition.
     pub definition_hash: String,
-    /// The decision-rule family: probability_mass_v0 or exact.
+    /// The decision-rule family: probability_mass_v1 or exact.
     pub policy_family: String,
     /// The qualification status of the profile.
     pub qualification_status: String,
@@ -1287,17 +1287,18 @@ fn split_identity(text: &str, prefix: &str) -> Result<splits::SplitIdentity, nap
     })
 }
 
-/// Checks one validated plan against the loaded definition and the
-/// registered evaluators, before any data is read.
-///
-/// The definition text holds the loaded definition and the registered text
-/// one array of the evaluators the host registered (`evaluator`,
-/// `adapter_version`). The core runs the two binding checks of the plan
-/// boundary that need no data: the plan binds the loaded definition, and one
-/// registered evaluator serves the plan with the recorded adapter version.
-/// One exact-only definition takes no plan, and one foreign definition hash
-/// fails `definition_mismatch`, so one wrapper refuses one plan that cannot
-/// measure before it reads one dataset.
+/// Validates the plan and its definition binding without registering an evaluator.
+#[napi]
+pub fn check_plan_definition(
+    plan_text: String,
+    definition_text: String,
+) -> Result<(), napi::Error> {
+    let definition = lift(definition::validate_definition_str(&definition_text))?;
+    let plan = lift(plan::validate_plan_str(&plan_text))?;
+    lift(plan::check_plan_definition(&plan, &definition, "/plan"))
+}
+
+/// Checks the plan definition and registered evaluator before measuring data.
 #[napi]
 pub fn check_calibration_binding(
     plan_text: String,
@@ -1963,9 +1964,9 @@ impl RunState {
 
     /// Resolves one in-flight attempt with an operational failure.
     ///
-    /// The code must name one operational failure: evaluator_error,
-    /// evaluator_timeout, invalid_assessment, or model_resolution_changed.
-    /// With attempts left, the check returns to the queue. Without attempts
+    /// The code must name an operational failure from the reason registry.
+    /// Permanent causes do not retry. Transient causes can return to the queue.
+    /// Without attempts
     /// left, it records one error outcome. The optional measurements text
     /// states `{ evaluator?, timing?, usage? }`, parsed under the same
     /// contract as `decideQuestionCheck`, so the failed attempt's reported
@@ -1981,7 +1982,7 @@ impl RunState {
         let code = ReasonCode::from_registry(&code).ok_or_else(|| {
             failure(ValidationError::invalid_field_type(
                 "/code",
-                "An attempt failure must carry one operational reason code: evaluator_error, evaluator_timeout, invalid_assessment, or model_resolution_changed.",
+                "An attempt failure must carry an operational reason code from the reason registry.",
             ))
         })?;
         let measurements = parse_measurements(measurements_text)?;
@@ -2006,9 +2007,8 @@ impl RunState {
     ///
     /// The wrapper states that the failure is permanent: the check records
     /// its error outcome at the failing attempt, whatever attempts remain,
-    /// and no retry starts. The code must name one operational failure:
-    /// evaluator_error, evaluator_timeout, invalid_assessment, or
-    /// model_resolution_changed. The optional measurements text follows the
+    /// and no retry starts. The code must name an operational failure.
+    /// The optional measurements text follows the
     /// rules of `failAttempt`.
     #[napi]
     pub fn fail_permanent(
@@ -2021,7 +2021,7 @@ impl RunState {
         let code = ReasonCode::from_registry(&code).ok_or_else(|| {
             failure(ValidationError::invalid_field_type(
                 "/code",
-                "An attempt failure must carry one operational reason code: evaluator_error, evaluator_timeout, invalid_assessment, or model_resolution_changed.",
+                "An attempt failure must carry an operational reason code from the reason registry.",
             ))
         })?;
         let measurements = parse_measurements(measurements_text)?;

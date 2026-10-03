@@ -1,0 +1,30 @@
+{
+  "scope": "Local compiled files used by the live trial; captured after execution without another build.",
+  "node": "v24.18.0",
+  "artifacts": [
+    {
+      "path": "packages/measuretwice/binding.cjs",
+      "sha256": "27559e19a8afbb28e9a699860e987623234458666acd1bdd452fb12be49c4d0b"
+    },
+    {
+      "path": "packages/measuretwice/dist/jev.js",
+      "sha256": "3c09ced653ad4168aab08c54b1c91d6335e140c6498b4ebe564e0f829005e3bb"
+    },
+    {
+      "path": "packages/measuretwice/dist/jev-assessment.js",
+      "sha256": "f20a74d54cdef362c798046757649fbb26eb4c8e6a9a051894e6711c2c506443"
+    },
+    {
+      "path": "packages/measuretwice/dist/run.js",
+      "sha256": "be7c8b7103b60ddfb6b3add14c3f51a9cd946f5fa31fb68984185f439da38cd0"
+    },
+    {
+      "path": "packages/measuretwice/dist/scheduler.js",
+      "sha256": "1b2242a55cfd9b20309409be09cf1a20fa936920f57d0007231bc01e1901840e"
+    },
+    {
+      "path": "packages/measuretwice/index.linux-x64-gnu.node",
+      "sha256": "d04338b28234d5f07555d6df10f842ae459c5ddc9e12cf98f34c03669930b254"
+    }
+  ]
+}

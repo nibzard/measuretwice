@@ -52,6 +52,17 @@ pub enum ReasonCode {
     // Execution reasons, reported in check records.
     /// The evaluator reported an operational failure.
     EvaluatorError,
+    /// Provider cause: evaluator_authentication.
+    EvaluatorAuthentication,
+    /// Provider cause: evaluator_permission.
+    EvaluatorPermission,
+    /// Provider cause: evaluator_request.
+    EvaluatorRequest,
+    /// Provider cause: evaluator_rate_limit.
+    EvaluatorRateLimit,
+    /// Provider cause: evaluator_unknown.
+    EvaluatorUnknown,
+
     /// One attempt exceeded its attempt budget.
     EvaluatorTimeout,
     /// The evaluator response did not match the assessment contract.
@@ -130,6 +141,12 @@ impl ReasonCode {
             Self::OversizedInput => "oversized_input",
             Self::UnsupportedFormat => "unsupported_format",
             Self::EvaluatorError => "evaluator_error",
+            Self::EvaluatorAuthentication => "evaluator_authentication",
+            Self::EvaluatorPermission => "evaluator_permission",
+            Self::EvaluatorRequest => "evaluator_request",
+            Self::EvaluatorRateLimit => "evaluator_rate_limit",
+            Self::EvaluatorUnknown => "evaluator_unknown",
+
             Self::EvaluatorTimeout => "evaluator_timeout",
             Self::InvalidAssessment => "invalid_assessment",
             Self::RetriesExhausted => "retries_exhausted",

@@ -305,9 +305,9 @@ The first semantic evaluator lives in the TypeScript adapter and uses the offici
 
 Record the complete translated question, adapter version, and translation hash in the profile. Jev Noul has no separate confidence field. Score returns a position along its levels and a distribution; its mean alone can hide a split between very different levels.
 
-The initial profile family uses probability mass on acceptable and unacceptable answers or levels. For Noul, derive the masses from its yes value and the check's accepted answer. For Score, sum the distribution over the acceptable named levels. Do not silently round a fractional score or equate an ordinal mean with a correctness probability.
+The initial profile family uses probability mass on acceptable and unacceptable answers or levels. For Noul, preserve `probability_yes` and derive yes and no masses from `p` and `1 - p`. Label-only binary assessments produce review. For Score, sum the distribution over the acceptable named levels. Do not silently round a fractional score or equate an ordinal mean with a correctness probability.
 
-Calibration chooses separate acceptance and rejection cutoffs from a documented, bounded candidate grid. For this v0 policy family both cutoffs must exceed 0.5, preventing simultaneous acceptance and rejection; otherwise the result is review. An explicitly review-labeled Choice answer remains review. Optional Choice/Score confidence floors may add abstention and must be recorded and evaluated. Provider distributions are measurement inputs, not automatically calibrated probabilities of correctness.
+Calibration chooses separate acceptance and rejection cutoffs from a documented, bounded candidate grid. For the `probability_mass_v1` policy family both cutoffs must exceed 0.5, preventing simultaneous acceptance and rejection; otherwise the result is review. An explicitly review-labeled Choice answer remains review. Optional Choice/Score confidence floors may add abstention and must be recorded and evaluated. Provider distributions are measurement inputs, not automatically calibrated probabilities of correctness.
 
 Other evaluator implementations can later use a generative model, structured/function calling, or a bounded tool workflow. Function calling is an output mechanism, not a new standard of evidence. No confidence score is required by the generic interface; label-only evaluators need their own evaluated decision rule. v0 ships Jev and deterministic rules only, plus a test adapter proving the core does not depend on Jev response shapes.
 
@@ -470,15 +470,17 @@ The following commands assume that the application has exported the definition t
 
 ```bash
 measuretwice validate .measuretwice/definitions/intervention.json
-measuretwice calibrate .measuretwice/definitions/intervention.json --plan .measuretwice/calibration-plan.json --out .measuretwice/profiles/candidate.json
+measuretwice validate-plan .measuretwice/definitions/intervention.json --plan .measuretwice/calibration-plan.json
 measuretwice run .measuretwice/definitions/intervention.json --profile .measuretwice/profiles/candidate.json --case example.json --mode shadow
 measuretwice evaluate .measuretwice/definitions/intervention.json --profile .measuretwice/profiles/candidate.json --cases .measuretwice/cases/holdout.jsonl --out .measuretwice/reports/candidate.json
 measuretwice compare .measuretwice/reports/baseline.json .measuretwice/reports/candidate.json
 measuretwice inspect .measuretwice/profiles/candidate.json
 ```
 
-The calibration plan references fitting and validation datasets and registered evaluator configuration. The same operations exist in the library.
-`calibrate` performs frozen-candidate validation. A later `evaluate` can assess independent data; it does not silently change profile qualification.
+The data-only CLI validates plan data and definition bindings. It registers no evaluator and performs no calibration.
+Run semantic checks and calibration through trusted host code. Exact-rule execution remains available through the CLI.
+The plan references fitting and validation datasets and host-registered evaluators.
+The library `calibrate` operation performs frozen-candidate validation. A later `evaluate` can assess independent data; it does not silently change profile qualification.
 `inspect` starts with a readable summary and offers numerical details. Reports are JSON with terminal/Markdown renderers.
 
 A starter example includes an explicitly unvalidated exploration profile. A calibration tutorial follows the first shadow run.

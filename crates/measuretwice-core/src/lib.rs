@@ -52,7 +52,7 @@ pub mod json;
 pub mod metrics;
 /// The versioned calibration plan contract.
 pub mod plan;
-/// The `probability_mass_v0` decision policy family for question checks.
+/// The `probability_mass_v1` decision policy family for question checks.
 pub mod policy;
 /// Profile validation and evaluator compatibility.
 pub mod profile;

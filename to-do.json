@@ -14,7 +14,12 @@
     "research/02-use-case-examples.md",
     "research/03-checks-yaml-architecture.md",
     "research/04-positioning-response.md",
-    "research/05-formal-verification-extension.md"
+    "research/05-formal-verification-extension.md",
+    "docs/product/review-plan.md",
+    "docs/product/workflow-study.md",
+    "docs/reports/review-response.md",
+    "docs/contributing/engineering.md",
+    "examples/documentation-consistency/evidence/comparison-2026-09-30/CONCLUSION.md"
   ],
   "tasks": [
     {
@@ -3353,6 +3358,172 @@
         "TESTING.md",
         "packages/measuretwice/src/cli-files.ts",
         "tests/repo/fixtures.test.ts"
+      ]
+    },
+    {
+      "id": "T091",
+      "title": "Preserve binary probability through policy",
+      "priority": 1,
+      "status": "done",
+      "depends_on": [],
+      "steps": [
+        "Test probability boundaries and cross-representation equivalence.",
+        "Reject historical policy execution before evaluator calls.",
+        "Update schemas, adapter identity, fixtures, examples, and migration guidance."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Implemented and verified by the final npm run check. Formal checks passed. See docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:15:55.318Z"
+    },
+    {
+      "id": "T092",
+      "title": "Preserve operational causes and recovery",
+      "priority": 2,
+      "status": "done",
+      "depends_on": [],
+      "steps": [
+        "Stop permanent provider failures after one attempt.",
+        "Retain structured cause, classification, and remediation after exhausted retries.",
+        "Verify bounded scheduling and formal applicability."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Implemented and verified by the final npm run check. Formal checks passed. See docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:15:55.318Z"
+    },
+    {
+      "id": "T093",
+      "title": "Make CLI commands perform their named tasks",
+      "priority": 2,
+      "status": "blocked",
+      "depends_on": [
+        "T092"
+      ],
+      "steps": [
+        "Validate plan data without attempting calibration.",
+        "Provide one trusted semantic runner and declared outcome assertions.",
+        "Record fresh-agent task attempts before claiming natural agent use."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Software changes and local checks are complete. Remaining acceptance evidence is external or empirical. See docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:15:55.318Z",
+      "blockers": [
+        "A fresh agent must attempt the documented semantic task. The current session cannot establish fresh-agent usability."
+      ]
+    },
+    {
+      "id": "T094",
+      "title": "Isolate packaging verification workspaces",
+      "priority": 2,
+      "status": "blocked",
+      "depends_on": [],
+      "steps": [
+        "Keep generated transactions outside the source scan.",
+        "Run twenty concurrent scanner and packaging checks on each supported operating system.",
+        "Report unavailable platform checks separately."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Software changes and local checks are complete. Remaining acceptance evidence is external or empirical. See docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:15:55.318Z",
+      "blockers": [
+        "Concurrent repetitions on macOS and Windows need those environments. Twenty Linux repetitions passed."
+      ]
+    },
+    {
+      "id": "T095",
+      "title": "Inspect local evidence and qualification basis",
+      "priority": 3,
+      "status": "blocked",
+      "depends_on": [
+        "T091"
+      ],
+      "steps": [
+        "Bind local evidence to its recorded input hash before display.",
+        "Show assessments, policy decisions, missing rationale, and qualification denominators.",
+        "Observe participant diagnosis before claiming easier inspection."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Software changes and local checks are complete. Remaining acceptance evidence is external or empirical. See docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:15:55.318Z",
+      "blockers": [
+        "Participant diagnosis observations need the selected task, reviewed expectations, and participants."
+      ]
+    },
+    {
+      "id": "T096",
+      "title": "Compare real judgment workflow effort",
+      "priority": 3,
+      "status": "blocked",
+      "depends_on": [
+        "T091",
+        "T092",
+        "T093",
+        "T094",
+        "T095"
+      ],
+      "steps": [
+        "Select an actual recurring task and reviewed cases.",
+        "Declare targets, participant criteria, model pins, budgets, and task order.",
+        "Observe humans and fresh agents using both integrations."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "A six-case current-source comparison, independent direct evaluator path, twelve separate live calls, and blind review sheet are implemented. Outcomes are development observations. Human labels and participant effort remain unmeasured. See examples/documentation-consistency/evidence/comparison-2026-09-30/CONCLUSION.md.",
+      "updated_at": "2026-09-30T08:33:45.872Z",
+      "blockers": [
+        "The owner must supply the recurring task, human participants, reviewed cases, study targets, and live-call budget."
+      ]
+    },
+    {
+      "id": "T097",
+      "title": "Exercise a second real evaluator integration",
+      "priority": 3,
+      "status": "blocked",
+      "depends_on": [
+        "T096"
+      ],
+      "steps": [
+        "Select an evaluator for an observed task or capability mismatch.",
+        "Keep provider measurements and capability limits explicit.",
+        "Run contract and authorized live checks without inventing probability."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Acceptance evidence and implementation status are recorded in docs/product/review-plan.md and docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:07:18.325Z",
+      "blockers": [
+        "The owner must select a second provider and a live-call budget after the workflow findings."
+      ]
+    },
+    {
+      "id": "T098",
+      "title": "Route contributor instructions by task",
+      "priority": 3,
+      "status": "blocked",
+      "depends_on": [],
+      "steps": [
+        "Keep essential rules in AGENTS.md and preserve full engineering rules in a linked document.",
+        "Repair instruction links and verify documentation.",
+        "Measure contributor effort in future agent observations."
+      ],
+      "tags": [
+        "review-response"
+      ],
+      "details": "Software changes and local checks are complete. Remaining acceptance evidence is external or empirical. See docs/reports/review-response.md.",
+      "updated_at": "2026-09-27T20:15:55.318Z",
+      "blockers": [
+        "Contributor effort needs future fresh-agent observations. Routing and document checks passed."
       ]
     }
   ]

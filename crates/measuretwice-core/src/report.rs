@@ -92,7 +92,7 @@ const CHECK_RECORD_FIELDS: &[&str] = &[
 ];
 
 /// Fields of one sanitized reason, from `common.schema.json`.
-const REASON_FIELDS: &[&str] = &["code", "message", "field_path"];
+const REASON_FIELDS: &[&str] = &["code", "message", "field_path", "recovery"];
 
 /// Fields of one applied rule record, from the schema file.
 const APPLIED_RULE_FIELDS: &[&str] = &["rule", "input", "parameters"];
@@ -115,6 +115,7 @@ const ASSESSMENT_FIELDS: &[&str] = &[
     "kind",
     "label",
     "value",
+    "probability_yes",
     "level",
     "position",
     "distribution",
@@ -372,6 +373,41 @@ pub fn aggregate(outcomes: &[Outcome]) -> Result<AggregateOutcome, ValidationErr
 /// The message bound of a sanitized reason, counted in Unicode scalar values.
 pub(crate) const MAX_REASON_MESSAGE_CHARACTERS: usize = 500;
 
+/// Safe recovery facts for an operational failure. No provider body is retained.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Recovery {
+    /// The original operational cause, including after exhausted retries.
+    pub cause_code: ReasonCode,
+    /// Whether a fresh attempt can help after the cause is resolved.
+    pub retryable: bool,
+    /// Stable repair instruction. The host decides whether to perform it.
+    pub remediation: String,
+}
+
+impl Recovery {
+    /// Maps a stable cause to its retry classification and repair.
+    pub fn for_code(code: ReasonCode) -> Option<Self> {
+        let (retryable, remediation) = match code {
+            ReasonCode::EvaluatorAuthentication => (false, "fix_credentials"),
+            ReasonCode::EvaluatorPermission => (false, "fix_permissions"),
+            ReasonCode::EvaluatorRequest => (false, "fix_request"),
+            ReasonCode::EvaluatorUnknown => (false, "inspect_evaluator"),
+            ReasonCode::OversizedInput => (false, "reduce_evidence"),
+            ReasonCode::InvalidAssessment => (false, "inspect_evaluator"),
+            ReasonCode::ModelResolutionChanged => (false, "requalify_binding"),
+            ReasonCode::EvaluatorRateLimit
+            | ReasonCode::EvaluatorError
+            | ReasonCode::EvaluatorTimeout => (true, "retry_later"),
+            _ => return None,
+        };
+        Some(Self {
+            cause_code: code,
+            retryable,
+            remediation: remediation.into(),
+        })
+    }
+}
+
 /// One sanitized reason, as `common.schema.json` defines it.
 ///
 /// The code comes from the stable registry. The message is a short cause
@@ -386,6 +422,9 @@ pub struct SanitizedReason {
     /// failure.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field_path: Option<String>,
+    /// Safe operational cause and repair, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<Recovery>,
 }
 
 impl SanitizedReason {
@@ -407,6 +446,7 @@ impl SanitizedReason {
             code,
             message,
             field_path: None,
+            recovery: Recovery::for_code(code),
         })
     }
 
@@ -419,6 +459,7 @@ impl SanitizedReason {
             code: error.code,
             message: error.message.clone(),
             field_path: (!error.field_path.is_empty()).then(|| error.field_path.clone()),
+            recovery: Recovery::for_code(error.code),
         }
     }
 
@@ -443,6 +484,17 @@ impl SanitizedReason {
                 ));
             }
         }
+        if let Some(recovery) = &self.recovery {
+            if Recovery::for_code(recovery.cause_code).as_ref() != Some(recovery)
+                || (self.code != ReasonCode::RetriesExhausted && self.code != recovery.cause_code)
+            {
+                return Err(ValidationError::invalid_field_type(
+                    format!("{base}/recovery"),
+                    "The recovery fields must match the recorded operational cause.",
+                ));
+            }
+        }
+
         Ok(())
     }
 }
@@ -1833,10 +1885,49 @@ pub(crate) fn parse_reason(value: &Value, base: &str) -> Result<SanitizedReason,
             ));
         }
     };
+    let recovery = match map.get("recovery") {
+        None => None,
+        Some(value) => {
+            let details = expect_object(value, &format!("{base}/recovery"))?;
+            reject_unknown_fields(
+                details,
+                &["cause_code", "retryable", "remediation"],
+                &format!("{base}/recovery"),
+            )?;
+            let cause = details
+                .get("cause_code")
+                .and_then(Value::as_str)
+                .and_then(ReasonCode::from_registry)
+                .ok_or_else(|| {
+                    ValidationError::invalid_field_type(
+                        format!("{base}/recovery/cause_code"),
+                        "The recovery cause must name an operational failure.",
+                    )
+                })?;
+            let expected = Recovery::for_code(cause).ok_or_else(|| {
+                ValidationError::invalid_field_type(
+                    format!("{base}/recovery/cause_code"),
+                    "The recovery cause must name an operational failure.",
+                )
+            })?;
+            if details.get("retryable").and_then(Value::as_bool) != Some(expected.retryable)
+                || details.get("remediation").and_then(Value::as_str)
+                    != Some(expected.remediation.as_str())
+                || (code != ReasonCode::RetriesExhausted && code != cause)
+            {
+                return Err(ValidationError::invalid_field_type(
+                    format!("{base}/recovery"),
+                    "The recovery fields must match the recorded operational cause.",
+                ));
+            }
+            Some(expected)
+        }
+    };
     Ok(SanitizedReason {
         code,
         message,
         field_path,
+        recovery,
     })
 }
 
@@ -2099,12 +2190,27 @@ pub(crate) fn check_assessment(value: &Value, base: &str) -> Result<(), Validati
         level.is_some(),
         map.get("position").is_some(),
     );
+    let has_probability = map.contains_key("probability_yes");
+    if let Some(probability) = map.get("probability_yes") {
+        if !matches!(probability.as_f64(), Some(p) if p.is_finite() && (0.0..=1.0).contains(&p)) {
+            return Err(ValidationError::invalid_field_type(
+                format!("{base}/probability_yes"),
+                "The probability of yes must be between zero and one.",
+            ));
+        }
+    }
+    if map.contains_key("value") && !has_value {
+        return Err(ValidationError::invalid_field_type(
+            format!("{base}/value"),
+            "The binary value must be a boolean.",
+        ));
+    }
     match kind {
         "categorical" => {
             if !has_label {
                 return Err(ValidationError::missing(format!("{base}/label")));
             }
-            if has_value || has_level || has_position {
+            if has_value || has_probability || has_level || has_position {
                 return Err(ValidationError::invalid_field_type(
                     base,
                     "A categorical assessment holds a label and no value, level, or position.",
@@ -2112,13 +2218,17 @@ pub(crate) fn check_assessment(value: &Value, base: &str) -> Result<(), Validati
             }
         }
         "binary" => {
-            if !has_value {
-                return Err(ValidationError::missing(format!("{base}/value")));
+            if !has_value && !has_probability {
+                return Err(ValidationError::missing(format!("{base}/probability_yes")));
+            }
+            if has_probability && (has_value || map.contains_key("distribution")) {
+                return Err(ValidationError::invalid_field_type(base,
+                    "A binary assessment states probability_yes or a value, without duplicate probability information."));
             }
             if has_label || has_level || has_position {
                 return Err(ValidationError::invalid_field_type(
                     base,
-                    "A binary assessment holds a value and no label, level, or position.",
+                    "A binary assessment holds probability_yes or a value, with no label, level, or position.",
                 ));
             }
         }
@@ -2126,7 +2236,7 @@ pub(crate) fn check_assessment(value: &Value, base: &str) -> Result<(), Validati
             if !has_level {
                 return Err(ValidationError::missing(format!("{base}/level")));
             }
-            if has_label || has_value {
+            if has_label || has_value || has_probability {
                 return Err(ValidationError::invalid_field_type(
                     base,
                     "An ordered assessment holds a level and no label or value.",
@@ -2337,11 +2447,13 @@ mod tests {
                 code: ReasonCode::EvaluatorError,
                 message: "The adapter reported a network failure.".to_owned(),
                 field_path: None,
+                recovery: None,
             }),
             Outcome::Skipped => Some(SanitizedReason {
                 code: ReasonCode::QueueFull,
                 message: "The pending-work limit stopped this check.".to_owned(),
                 field_path: None,
+                recovery: None,
             }),
             _ => None,
         };
@@ -3383,7 +3495,8 @@ mod tests {
             serialized,
             json!({
                 "code": "evaluator_error",
-                "message": "The adapter reported a network failure."
+                "message": "The adapter reported a network failure.",
+                "recovery": {"cause_code":"evaluator_error","retryable":true,"remediation":"retry_later"}
             })
         );
         // A registry code with a pointer survives a conversion.
@@ -3571,7 +3684,7 @@ mod tests {
             (
                 json!({"kind": "binary", "label": "yes"}),
                 ReasonCode::MissingField,
-                "/assessment/value",
+                "/assessment/probability_yes",
             ),
             (
                 json!({"kind": "ordered", "position": 1.5}),

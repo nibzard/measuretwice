@@ -59,7 +59,7 @@ test("BigInt case values fail before evaluator execution", async () => {
     adapter_version: "1",
     async assess() {
       calls += 1;
-      return { assessment: { kind: "binary", value: true } };
+      return { assessment: { kind: "binary", probability_yes: 1 } };
     },
   });
   const reviewer = await load(definition, {
@@ -72,13 +72,13 @@ test("BigInt case values fail before evaluator execution", async () => {
 });
 
 test.each([
-  [{ assessment: { kind: "binary", value: true, extra: undefined } }, "invalid_assessment"],
-  [{ assessment: { kind: "binary", value: true, extra: Number.NaN } }, "invalid_assessment"],
+  [{ assessment: { kind: "binary", probability_yes: 1, extra: undefined } }, "invalid_assessment"],
+  [{ assessment: { kind: "binary", probability_yes: 1, extra: Number.NaN } }, "invalid_assessment"],
   [{ assessment: { kind: "binary", value: "wrong" } }, "invalid_assessment"],
   [{ assessment: [] }, "evaluator_error"],
   [{}, "evaluator_error"],
   [{ failure: { code: "wrong", message: "Invalid code." } }, "evaluator_error"],
-  [{ assessment: { kind: "binary", value: true }, failure: { code: "evaluator_error", message: "Conflicting result." } }, "evaluator_error"],
+  [{ assessment: { kind: "binary", probability_yes: 1 }, failure: { code: "evaluator_error", message: "Conflicting result." } }, "evaluator_error"],
 ])("malformed answers retain valid execution measurements: %j", async (answer, code) => {
   const evaluators = registerEvaluators({
     id: "regression-test",
@@ -118,7 +118,7 @@ test.each([2 ** 63, -(2 ** 63), Number(1000000000000000128n), 1e21, Number.MAX_V
       adapter_version: "1",
       async assess(request) {
         seen.push(request.inputs.count);
-        return { assessment: { kind: "binary", value: true } };
+        return { assessment: { kind: "binary", probability_yes: 1 } };
       },
     });
     const reviewer = await load(definition, {
@@ -138,7 +138,7 @@ test("registration captures methods and preserves their host receiver", async ()
     id: "identity-test", adapter_version: "1.0.0", answer: false,
     async assess(_request: EvaluatorRequest) {
       original += 1;
-      return { assessment: { kind: "binary" as const, value: this.answer } };
+      return { assessment: { kind: "binary" as const, probability_yes: this.answer ? 1 : 0 } };
     },
   };
   const evaluators = registerEvaluators(host);
@@ -147,7 +147,7 @@ test("registration captures methods and preserves their host receiver", async ()
   });
   host.assess = async () => {
     replacement += 1;
-    return { assessment: { kind: "binary", value: true } };
+    return { assessment: { kind: "binary", probability_yes: 1 } };
   };
   const report = await reviewer.run({ id: "case-1", input: { count: 2 } });
   expect(report.aggregate.outcome).toBe("fail");
@@ -170,7 +170,7 @@ test("registration captures the translation method", async () => {
       original += 1;
       return { question, content_hash: nativeContentHash("translation", JSON.stringify(question)) };
     },
-    async assess() { return { assessment: { kind: "binary" as const, value: true } }; },
+    async assess() { return { assessment: { kind: "binary" as const, probability_yes: 1 } }; },
   };
   const evaluators = registerEvaluators(host);
   const profile = createExplorationProfile(definition, evaluators);
@@ -190,7 +190,7 @@ test.each(["id", "preprocessing", "requested", "resolved"])(
       model: { requested: "model-1", resolved: "model-1" },
       async assess() {
         calls += 1;
-        return { assessment: { kind: "binary" as const, value: true }, model_resolved: "model-1" };
+        return { assessment: { kind: "binary" as const, probability_yes: 1 }, model_resolved: "model-1" };
       },
     };
     const evaluators = registerEvaluators(host);

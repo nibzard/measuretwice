@@ -476,7 +476,7 @@ test("evidence at the state budget passes and one byte above is rejected without
   const oversizedBoundary = boundary(ANSWERS);
   const oversizedResults = await dispatchAll(oversized, oversizedBoundary, oversizedTime);
   const failure = failureOf(oversizedResults.get("decision-conflict")!);
-  expect(failure.code).toBe("evaluator_error");
+  expect(failure.code).toBe("oversized_input");
   expect(failure.message).toContain("oversized_input");
   expect(failure.message).toContain("(at /inputs)");
   expect(failure.message).toContain(String(JEV_STATE_BUDGET_BYTES));

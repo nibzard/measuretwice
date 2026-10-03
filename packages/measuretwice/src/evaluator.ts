@@ -60,7 +60,7 @@ const IDENTIFIER_LIMIT = 64;
 const MESSAGE_LIMIT = 500;
 
 /** The operational failure codes that one evaluator may report. */
-const FAILURE_CODES = ["evaluator_error", "evaluator_timeout", "invalid_assessment"] as const;
+const FAILURE_CODES = ["evaluator_error", "evaluator_timeout", "invalid_assessment", "oversized_input", "evaluator_authentication", "evaluator_permission", "evaluator_request", "evaluator_rate_limit", "evaluator_unknown"] as const;
 
 // ---------------------------------------------------------------------------
 // The execution contract types.
@@ -142,6 +142,8 @@ export interface Assessment {
   readonly label?: string;
   /** The selected answer of one binary question. Present when the kind is binary. */
   readonly value?: boolean;
+  /** The reported probability of yes. Binary only; excludes value and distribution. */
+  readonly probability_yes?: number;
   /** The selected scale level. Present when the kind is ordered. */
   readonly level?: string;
   /** The reported position along the ordered levels. Fractional values stay unrounded. */
@@ -155,7 +157,7 @@ export interface Assessment {
 }
 
 /** The stable codes of one operational failure of one evaluator execution. */
-export type EvaluatorFailureCode = "evaluator_error" | "evaluator_timeout" | "invalid_assessment";
+export type EvaluatorFailureCode = (typeof FAILURE_CODES)[number];
 
 /**
  * One operational failure of one evaluator execution.
@@ -592,10 +594,10 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
       // One adapter that rejects its own request before one provider call
       // throws one validation error with one stable registry code, such as
       // `oversized_input` for evidence above the provider limit. The
-      // execution contract keeps its three operational codes, so the
-      // stable code and its field path ride inside the message.
+      // execution contract keeps the permanent cause as a stable code.
+      // The field path stays inside the bounded message.
       return failure(
-        "evaluator_error",
+        cause.code === "oversized_input" ? "oversized_input" : "evaluator_request",
         `${cause.code}${cause.fieldPath === "" ? "" : ` (at ${cause.fieldPath})`}: ${cause.message}`,
       );
     }
@@ -635,7 +637,7 @@ export async function dispatchAssessment(dispatch: EvaluatorDispatch): Promise<E
     }
     return measuredFailure(
       "evaluator_error",
-      "The evaluator reported one failure outside the failure contract. Report code evaluator_error, evaluator_timeout, or invalid_assessment with one nonempty message.",
+      "The evaluator reported one failure outside the failure contract. Use a supported operational failure code and a nonempty message.",
     );
   }
   if (assessment === undefined) {

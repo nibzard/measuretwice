@@ -467,7 +467,7 @@ test("question decisions cross the boundary with their complete records", () => 
   const binary = nativeDecideQuestionCheck(
     fixtureText("definitions/valid/binary-question.json"),
     "adds-information",
-    JSON.stringify({ kind: "binary", value: false }),
+    JSON.stringify({ kind: "binary", probability_yes: 0 }),
     JSON.stringify({ accept_cutoff: 0.9, rejection_cutoff: 0.9 }),
     "{}",
   );

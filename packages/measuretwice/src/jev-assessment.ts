@@ -17,8 +17,7 @@
  *   `confidence`. Confidence is one provider measurement, never one
  *   probability of correctness.
  * - One Noul answer becomes one `binary` assessment. The `noul` value is the
- *   probability of yes, so it selects the answer: one half or more selects
- *   yes, and less selects no. Noul defines no confidence field, so one
+ *   probability of yes and crosses without a decision. Noul defines no confidence field, so one
  *   response that carries one anyway changes nothing: the value is not
  *   consumed and `confidence` stays absent.
  * - One Score answer becomes one `ordered` assessment. The reported position
@@ -58,8 +57,8 @@
  * declared answer, one distribution with one undeclared name, one value
  * outside its documented range, one incomplete usage object, or one missing
  * model identifier becomes one `invalid_assessment` failure whose message
- * names the defect. One thrown provider error becomes `evaluator_error` or
- * `evaluator_timeout`. The sanitized text keeps the error class, the status,
+ * names the defect. Provider failures retain a structured operational code.
+ * Authentication and invalid requests do not retry. The sanitized text keeps the error class, the status,
  * and the request identifier, and it never copies the provider message, the
  * response body, or one header, because each can echo case content.
  */
@@ -82,7 +81,7 @@ import type { JevEvidenceState, JevQuestionValue, JevTranslation } from "./jev.j
  * qualification. The version carries {@link JEV_TRANSLATION_VERSION}, so the
  * two move together.
  */
-export const JEV_ADAPTER_VERSION = "0.1.0";
+export const JEV_ADAPTER_VERSION = "0.2.0";
 
 /**
  * The model the adapter requests when the host states none. It is one
@@ -408,8 +407,8 @@ function normalizeNoul(
   }
   // A reported confidence field is not consumed: Noul defines none, so the
   // assessment keeps no confidence. The yes answer carries the reported
-  // mass, and one tie at one half selects yes.
-  return Object.freeze({ kind: "binary", value: value >= 0.5 }) as Assessment;
+  // mass. The explicit policy makes the decision.
+  return Object.freeze({ kind: "binary", probability_yes: value }) as Assessment;
 }
 
 /** Normalizes one Score answer against one ordered question. */
@@ -582,8 +581,8 @@ function withRecord(
 /**
  * Maps one thrown error of the Jev boundary to one operational failure.
  *
- * One user abort and one attempt timeout report `evaluator_timeout`; every
- * other error reports `evaluator_error`. The message keeps the operational
+ * Aborts and attempt timeouts report `evaluator_timeout`.
+ * Provider statuses distinguish permanent failures from transient failures. The message keeps the operational
  * reason, never the provider text: the class name, the status, and the
  * request identifier state what failed without echoing one response body or
  * one header, because each can quote case content.
@@ -599,7 +598,15 @@ export function mapJevError(cause: unknown): EvaluatorFailure {
   if (name === "APITimeoutError") {
     return jevFailure("evaluator_timeout", `One Jev attempt timed out. ${describeJevError(cause)}`);
   }
-  return jevFailure("evaluator_error", `The Jev call failed. ${describeJevError(cause)}`);
+  const status = typeof cause === "object" && cause !== null ? (cause as { status?: unknown }).status : undefined;
+  const code: EvaluatorFailureCode = status === 401 || name === "AuthenticationError" ? "evaluator_authentication"
+    : status === 403 || name === "PermissionDeniedError" ? "evaluator_permission"
+    : status === 429 || name === "RateLimitError" ? "evaluator_rate_limit"
+    : status === 408 ? "evaluator_timeout"
+    : typeof status === "number" && status >= 400 && status < 500 ? "evaluator_request"
+    : (typeof status === "number" && status >= 500 && status <= 599) || name === "APIConnectionError" ? "evaluator_error"
+    : "evaluator_unknown";
+  return jevFailure(code, `The Jev call failed. ${describeJevError(cause)}`);
 }
 
 /** Names the class of one thrown value. */

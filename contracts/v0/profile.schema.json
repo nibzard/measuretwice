@@ -104,8 +104,8 @@
       "required": ["family"],
       "properties": {
         "family": {
-          "enum": ["probability_mass_v0", "exact"],
-          "description": "probability_mass_v0 accepts or rejects on probability mass over answers or levels. exact covers exact rules only."
+          "enum": ["probability_mass_v1", "probability_mass_v0", "exact"],
+          "description": "probability_mass_v1 accepts or rejects on probability mass over answers or levels. exact covers exact rules only."
         },
         "checks": {
           "type": "array",
@@ -135,7 +135,7 @@
               }
             }
           },
-          "description": "Numerical parameters by question check. Required when family is probability_mass_v0."
+          "description": "Numerical parameters by question check. Required when family is probability_mass_v1."
         }
       }
     },

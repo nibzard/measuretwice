@@ -374,7 +374,7 @@ test("one provider error that echoes case content and credentials crosses saniti
   // aggregate keeps the error visible.
   const record = report.checks[0]!;
   expect(record.outcome).toBe("error");
-  expect(record.reason?.code).toBe("evaluator_error");
+  expect(record.reason?.code).toBe("evaluator_rate_limit");
   expect(record.reason?.message).toContain("APIError");
   expect(record.reason?.message).toContain("status 429");
   expect(record.reason?.message).toContain("request id req-canary-1");
