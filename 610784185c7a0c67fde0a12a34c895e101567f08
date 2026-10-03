@@ -1,0 +1,15 @@
+# Todo: Open acceptance evidence (T093-T098)
+
+Software work is complete. The remaining tasks are blocked on
+external or empirical evidence, not code:
+
+- T093 fresh-agent run of the documented semantic task
+- T094 macOS and Windows packaging isolation repetition
+- T095 maintainer blind-labels REVIEW.md in
+  examples/documentation-consistency/evidence/comparison-2026-09-30/
+- T096 workflow study: owner, participants, budgets, targets
+- T097 second evaluator integration and live results
+- T098 contributor-effort measurement
+
+See "Implementation status" in docs/product/review-plan.md and
+"Open evidence" in docs/reports/review-response.md.
