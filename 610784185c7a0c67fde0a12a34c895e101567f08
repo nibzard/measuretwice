@@ -1,0 +1,30 @@
+# Context
+
+## Background
+This commit lands the complete response to the external review of
+94fce87 as one commit. The work was produced and verified in a
+single shared worktree over baseline 75799ad. The stages interlock
+(contracts, Rust core, TypeScript package, fixtures, docs), so
+splitting by stage risked commits that do not build.
+
+## Why This Way
+- One verified unit: npm run check, TLA+ 1.7.4 model checks
+  (Execution, ExecutionSaturation, Qualification), and twenty
+  concurrent Linux packaging runs passed on this exact tree. See
+  docs/reports/review-response.md.
+- The first push was rejected. origin/main had moved to 5406186,
+  which only adds docs/product/judgment-workflow-plan.md. The
+  rebase was clean; local commit fffd532 became 6107841.
+
+## Gotchas
+- The 2026-09-30 comparison evidence predates a mass-sum tolerance
+  fix (0.000001) in the direct comparator. The preserved executed
+  script in evidence/comparison-2026-09-30/scripts/ is the older
+  version by design.
+- Evidence directories are immutable trial records, not living
+  fixtures. Do not regenerate them in place.
+
+## Related
+- docs/product/review-plan.md
+- docs/reports/review-response.md
+- docs/decisions/001-preserve-assessments.md
